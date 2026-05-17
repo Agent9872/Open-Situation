@@ -1,0 +1,244 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Lock.Pages.Admin.AppealPage"
+             Title=""
+             Shell.NavBarIsVisible="False"
+             BackgroundColor="#0E0E12">
+
+    <Grid RowDefinitions="Auto, *">
+
+        <!-- TOP BAR -->
+        <Grid Grid.Row="0"
+              Padding="16,52,16,14"
+              ColumnDefinitions="Auto, *, Auto"
+              BackgroundColor="#0E0E12">
+
+            <Border Grid.Column="0"
+                    BackgroundColor="#16161C"
+                    StrokeThickness="1" Stroke="#1C1C2E"
+                    StrokeShape="RoundRectangle 20"
+                    WidthRequest="40" HeightRequest="40"
+                    VerticalOptions="Center">
+                <Border.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnBackClicked" />
+                </Border.GestureRecognizers>
+                <Path Data="M560-253 367-446l193-193 19 19-174 174 174 174-19 19Z"
+                      Fill="#7A7A8C"
+                      HeightRequest="16" WidthRequest="16"
+                      HorizontalOptions="Center" VerticalOptions="Center"
+                      Aspect="Uniform" />
+            </Border>
+
+            <VerticalStackLayout Grid.Column="1"
+                                 Spacing="1"
+                                 HorizontalOptions="Center"
+                                 VerticalOptions="Center">
+                <Label Text="APPEAL"
+                       FontSize="10" FontAttributes="Bold"
+                       CharacterSpacing="3" TextColor="#FF9800"
+                       HorizontalOptions="Center" />
+                <Label Text="Account Review Request"
+                       FontSize="13" TextColor="#5A5A6A"
+                       HorizontalOptions="Center" />
+            </VerticalStackLayout>
+
+            <BoxView Grid.Column="2" WidthRequest="40" HeightRequest="40"
+                     BackgroundColor="Transparent" />
+        </Grid>
+
+        <BoxView Grid.Row="0" HeightRequest="1" BackgroundColor="#1C1C25"
+                 VerticalOptions="End" HorizontalOptions="Fill" />
+
+        <!-- SCROLLABLE CONTENT -->
+        <ScrollView Grid.Row="1" BackgroundColor="#0E0E12">
+            <VerticalStackLayout Spacing="0" Padding="16,16,16,40">
+
+                <!-- Info banner -->
+                <Border BackgroundColor="#1A1000"
+                        StrokeThickness="1" Stroke="#3A2800"
+                        StrokeShape="RoundRectangle 12"
+                        Padding="14,12" Margin="0,0,0,20">
+                    <VerticalStackLayout Spacing="6">
+                        <Label Text="How appeals work"
+                               FontSize="13" FontAttributes="Bold"
+                               TextColor="#FF9800" />
+                        <Label Text="Your appeal will be reviewed by our moderation team within 48-72 hours. You will receive a notification of the outcome. Please be honest and provide as much context as possible."
+                               FontSize="12" TextColor="#AA7700"
+                               LineBreakMode="WordWrap" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- Account info -->
+                <Label Text="ACCOUNT"
+                       FontSize="9" FontAttributes="Bold"
+                       CharacterSpacing="2.5" TextColor="#5A5A6A"
+                       Margin="2,0,0,8" />
+
+                <Border BackgroundColor="#16161C"
+                        StrokeThickness="1" Stroke="#1C1C25"
+                        StrokeShape="RoundRectangle 14"
+                        Padding="14,12" Margin="0,0,0,20">
+                    <VerticalStackLayout Spacing="4">
+                        <Label x:Name="PhoneDisplayLabel"
+                               FontSize="15" FontAttributes="Bold"
+                               TextColor="#F0EDE8" />
+                        <Label x:Name="BanStatusLabel"
+                               FontSize="11" TextColor="#5A5A6A"
+                               LineBreakMode="WordWrap" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- Appeal reason -->
+                <Label Text="REASON FOR APPEAL"
+                       FontSize="9" FontAttributes="Bold"
+                       CharacterSpacing="2.5" TextColor="#5A5A6A"
+                       Margin="2,0,0,8" />
+
+                <!-- Quick reason presets -->
+                <ScrollView Orientation="Horizontal"
+                            HorizontalScrollBarVisibility="Never"
+                            Margin="0,0,0,10">
+                    <HorizontalStackLayout Spacing="8" Padding="2,0">
+
+                        <Border x:Name="ReasonBtn1"
+                                BackgroundColor="#16161C"
+                                StrokeThickness="1" Stroke="#2A2A35"
+                                StrokeShape="RoundRectangle 16" Padding="12,6">
+                            <Border.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="OnReasonPresetTapped" CommandParameter="0" />
+                            </Border.GestureRecognizers>
+                            <Label Text="Wrong account" FontSize="11" TextColor="#7A7A8C" />
+                        </Border>
+
+                        <Border x:Name="ReasonBtn2"
+                                BackgroundColor="#16161C"
+                                StrokeThickness="1" Stroke="#2A2A35"
+                                StrokeShape="RoundRectangle 16" Padding="12,6">
+                            <Border.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="OnReasonPresetTapped" CommandParameter="1" />
+                            </Border.GestureRecognizers>
+                            <Label Text="False report" FontSize="11" TextColor="#7A7A8C" />
+                        </Border>
+
+                        <Border x:Name="ReasonBtn3"
+                                BackgroundColor="#16161C"
+                                StrokeThickness="1" Stroke="#2A2A35"
+                                StrokeShape="RoundRectangle 16" Padding="12,6">
+                            <Border.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="OnReasonPresetTapped" CommandParameter="2" />
+                            </Border.GestureRecognizers>
+                            <Label Text="Misunderstanding" FontSize="11" TextColor="#7A7A8C" />
+                        </Border>
+
+                        <Border x:Name="ReasonBtn4"
+                                BackgroundColor="#16161C"
+                                StrokeThickness="1" Stroke="#2A2A35"
+                                StrokeShape="RoundRectangle 16" Padding="12,6">
+                            <Border.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="OnReasonPresetTapped" CommandParameter="3" />
+                            </Border.GestureRecognizers>
+                            <Label Text="I have changed" FontSize="11" TextColor="#7A7A8C" />
+                        </Border>
+
+                    </HorizontalStackLayout>
+                </ScrollView>
+
+                <Border BackgroundColor="#16161C"
+                        StrokeThickness="1" Stroke="#1C1C25"
+                        StrokeShape="RoundRectangle 14"
+                        Padding="10,8" Margin="0,0,0,4">
+                    <Editor x:Name="AppealReasonEditor"
+                            Placeholder="Explain why you believe this ban was a mistake or should be reconsidered..."
+                            PlaceholderColor="#3A3A4A"
+                            BackgroundColor="Transparent"
+                            TextColor="#F0EDE8"
+                            FontSize="13"
+                            HeightRequest="120"
+                            AutoSize="TextChanges"
+                            MaxLength="1500"
+                            TextChanged="OnAppealTextChanged" />
+                </Border>
+
+                <Label x:Name="AppealCharLabel"
+                       Text="0 / 1500"
+                       FontSize="10" TextColor="#3A3A4A"
+                       HorizontalOptions="End"
+                       Margin="0,0,2,20" />
+
+                <!-- Additional context -->
+                <Label Text="ADDITIONAL CONTEXT (OPTIONAL)"
+                       FontSize="9" FontAttributes="Bold"
+                       CharacterSpacing="2.5" TextColor="#5A5A6A"
+                       Margin="2,0,0,8" />
+
+                <Border BackgroundColor="#16161C"
+                        StrokeThickness="1" Stroke="#1C1C25"
+                        StrokeShape="RoundRectangle 14"
+                        Padding="10,8" Margin="0,0,0,4">
+                    <Editor x:Name="AdditionalContextEditor"
+                            Placeholder="Any additional information that may help your case..."
+                            PlaceholderColor="#3A3A4A"
+                            BackgroundColor="Transparent"
+                            TextColor="#F0EDE8"
+                            FontSize="13"
+                            HeightRequest="80"
+                            AutoSize="TextChanges"
+                            MaxLength="500" />
+                </Border>
+
+                <Label Text="500 characters max"
+                       FontSize="10" TextColor="#3A3A4A"
+                       HorizontalOptions="End"
+                       Margin="0,0,2,24" />
+
+                <!-- Agreement -->
+                <Border BackgroundColor="#0A1A0A"
+                        StrokeThickness="1" Stroke="#1A3A1A"
+                        StrokeShape="RoundRectangle 12"
+                        Padding="12,10" Margin="0,0,0,20">
+                    <Grid ColumnDefinitions="Auto, *" ColumnSpacing="12">
+                        <CheckBox x:Name="HonestCheckBox"
+                                  Grid.Column="0"
+                                  Color="#4CAF50"
+                                  VerticalOptions="Center" />
+                        <Label Grid.Column="1"
+                               Text="I confirm that the information provided in this appeal is truthful and accurate. I understand that submitting false appeals may result in further action on my account."
+                               FontSize="11" TextColor="#5A7A5A"
+                               LineBreakMode="WordWrap"
+                               VerticalOptions="Center" />
+                    </Grid>
+                </Border>
+
+                <!-- Submit button -->
+                <Border x:Name="SubmitAppealBorder"
+                        StrokeThickness="0"
+                        StrokeShape="RoundRectangle 14"
+                        HeightRequest="52"
+                        Margin="0,0,0,12">
+                    <Border.Background>
+                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                            <GradientStop Color="#FF9800" Offset="0" />
+                            <GradientStop Color="#E65100" Offset="1" />
+                        </LinearGradientBrush>
+                    </Border.Background>
+                    <Border.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnSubmitAppealClicked" />
+                    </Border.GestureRecognizers>
+                    <Label x:Name="SubmitAppealLabel"
+                           Text="Submit Appeal"
+                           FontSize="14" FontAttributes="Bold"
+                           TextColor="White"
+                           HorizontalOptions="Center"
+                           VerticalOptions="Center" />
+                </Border>
+
+                <Label Text="Appeals are reviewed within 48-72 hours. You will be notified of the outcome."
+                       FontSize="10" TextColor="#3A3A4A"
+                       HorizontalOptions="Center"
+                       HorizontalTextAlignment="Center" />
+
+            </VerticalStackLayout>
+        </ScrollView>
+    </Grid>
+</ContentPage>

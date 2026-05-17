@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Lock.Pages.Post.StatusHistoryPage"
+             Title=""
+             BackgroundColor="#0D0D0F">
+
+    <Grid RowDefinitions="Auto,*">
+
+        <!-- Header -->
+        <VerticalStackLayout Grid.Row="0" Padding="20,52,20,0" Spacing="2">
+            <Label Text="Status History"
+                   FontFamily="Georgia"
+                   FontSize="22"
+                   FontAttributes="Bold"
+                   TextColor="#F0EBE1" />
+            <Label Text="Your past moments"
+                   FontSize="12"
+                   TextColor="#5A5A6A"
+                   Margin="0,0,0,16" />
+            <BoxView HeightRequest="0.5" BackgroundColor="#1E1E2A" />
+        </VerticalStackLayout>
+
+        <!-- Content Area -->
+        <CollectionView x:Name="HistoryCollectionView"
+                        Grid.Row="1"
+                        SelectionMode="None"
+                        Margin="0,10,0,0">
+
+            <CollectionView.EmptyView>
+                <VerticalStackLayout VerticalOptions="Center"
+                                     HorizontalOptions="Center"
+                                     Spacing="10"
+                                     Padding="40">
+                    <!-- Decorative circle -->
+                    <Border BackgroundColor="#13131A"
+                            StrokeThickness="1"
+                            Stroke="#1E1E2A"
+                            StrokeShape="RoundRectangle 40"
+                            HeightRequest="72"
+                            WidthRequest="72"
+                            HorizontalOptions="Center"
+                            Margin="0,0,0,8">
+                        <Label Text="✦"
+                               FontSize="26"
+                               TextColor="#2A2A38"
+                               HorizontalOptions="Center"
+                               VerticalOptions="Center" />
+                    </Border>
+                    <Label Text="No status history yet"
+                           FontFamily="Georgia"
+                           FontSize="16"
+                           TextColor="#3A3A4A"
+                           HorizontalOptions="Center" />
+                    <Label Text="Your status updates will appear here after they expire"
+                           FontSize="12"
+                           TextColor="#2A2A38"
+                           HorizontalOptions="Center"
+                           HorizontalTextAlignment="Center" />
+                </VerticalStackLayout>
+            </CollectionView.EmptyView>
+
+            <CollectionView.ItemTemplate>
+                <DataTemplate>
+                    <Grid Padding="20,10" ColumnDefinitions="Auto,*,Auto">
+
+                        <!-- Thumbnail -->
+                        <Border Grid.Column="0"
+                                HeightRequest="54"
+                                WidthRequest="54"
+                                StrokeThickness="1"
+                                Stroke="#2A2A38"
+                                StrokeShape="RoundRectangle 10"
+                                BackgroundColor="#1A1A24">
+                            <Image Source="{Binding StatusImagePath}"
+                                   Aspect="AspectFill"
+                                   HeightRequest="54"
+                                   WidthRequest="54" />
+                        </Border>
+
+                        <!-- Info -->
+                        <VerticalStackLayout Grid.Column="1"
+                                             VerticalOptions="Center"
+                                             Margin="12,0,0,0"
+                                             Spacing="3">
+                            <Label Text="{Binding CreatedAt, StringFormat='{0:MMM dd, yyyy}'}"
+                                   FontSize="13"
+                                   FontAttributes="Bold"
+                                   TextColor="#E8E4DC" />
+                            <Label Text="{Binding ViewCount, StringFormat='{0} views'}"
+                                   FontSize="11"
+                                   TextColor="#404050" />
+                        </VerticalStackLayout>
+
+                        <!-- Delete button -->
+                        <Border Grid.Column="2"
+                                BackgroundColor="#1A0F14"
+                                StrokeThickness="1"
+                                Stroke="#2A1A20"
+                                StrokeShape="RoundRectangle 20"
+                                Padding="10,5"
+                                VerticalOptions="Center">
+                            <Label Text="Delete"
+                                   FontSize="11"
+                                   TextColor="#B04060" />
+                        </Border>
+
+                    </Grid>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+
+        </CollectionView>
+
+    </Grid>
+
+</ContentPage>

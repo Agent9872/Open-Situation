@@ -1,0 +1,885 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:conv="clr-namespace:Lock.Converter.Chat;assembly=Lock"
+             x:Class="Lock.Pages.Chat.ConversationsPage"
+             BackgroundColor="#0A0A0C"
+             Shell.NavBarIsVisible="False"
+             NavigationPage.HasNavigationBar="False">
+
+    <ContentPage.Resources>
+        <ResourceDictionary>
+            <conv:InverseBoolConverter x:Key="InverseBoolConverter" />
+            <conv:StringNotNullOrEmptyConverter x:Key="StringNotNullOrEmptyConverter" />
+            <conv:AndConverter x:Key="AndConverter" />
+            <conv:BothFalseConverter x:Key="BothFalse" />
+            <conv:GreaterThanZeroConverter x:Key="GreaterThanZeroConverter" />
+        </ResourceDictionary>
+    </ContentPage.Resources>
+
+    <!--
+        ROOT LAYOUT
+        Row 0 = Auto  → header (title + search + tabs). Fixed. Never scrolls.
+        Row 1 = *     → CollectionView fills remaining space. Scrolls itself.
+        Row 2 = Auto  → bottom nav. Fixed. Never scrolls.
+
+        TABS ARE DEFINED DIRECTLY IN XAML using Button inside Border
+        (same pattern as SearchPage) so they always receive tap events
+        reliably without fighting the horizontal ScrollView gesture.
+        The C# BuildTabs() / MakeTab() code is NO LONGER NEEDED for
+        the built-in tabs — only custom list tabs are still code-built
+        and appended after the fixed chips.
+    -->
+    <Grid RowDefinitions="Auto,*,Auto"
+          RowSpacing="0"
+          BackgroundColor="#0A0A0C">
+
+        <!-- ══════════════════════════════════════════════════════════════ -->
+        <!-- ROW 0 · FIXED HEADER                                          -->
+        <!-- ══════════════════════════════════════════════════════════════ -->
+        <VerticalStackLayout Grid.Row="0"
+                             Spacing="0"
+                             BackgroundColor="#0F0F0F">
+
+            <!-- Title row -->
+            <Grid Padding="16,14,12,10"
+                  ColumnDefinitions="*,Auto">
+
+                <VerticalStackLayout Grid.Column="0" Spacing="1" VerticalOptions="Center">
+                    <Label Text="Messages"
+                           FontSize="26" FontAttributes="Bold"
+                           TextColor="#FFFFFF"/>
+                    <HorizontalStackLayout Spacing="6">
+
+                        <!-- Archive pill -->
+                        <Border BackgroundColor="#1A1A22"
+                                StrokeThickness="1" Stroke="#2A2A35"
+                                StrokeShape="RoundRectangle 10"
+                                Padding="8,3"
+                                IsVisible="{Binding HasArchivedConversations}">
+                            <Border.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="OpenArchiveButton_Clicked"/>
+                            </Border.GestureRecognizers>
+                            <HorizontalStackLayout Spacing="4">
+                                <Label Text="Archive" FontSize="11" TextColor="#888888"/>
+                                <Border x:Name="ArchiveBadgeBorder"
+                                        BackgroundColor="#FF3B6F"
+                                        StrokeThickness="0"
+                                        StrokeShape="RoundRectangle 6"
+                                        Padding="4,1"
+                                        IsVisible="False"
+                                        VerticalOptions="Center">
+                                    <Label x:Name="ArchiveBadgeLabel"
+                                           Text="0" FontSize="9"
+                                           FontAttributes="Bold" TextColor="White"/>
+                                </Border>
+                            </HorizontalStackLayout>
+                        </Border>
+
+                        <!-- Explore Groups pill — shown only when Groups tab is active -->
+                        <Border x:Name="ExploreGroupsButton"
+                                BackgroundColor="#0D2626"
+                                StrokeThickness="1" Stroke="#006666"
+                                StrokeShape="RoundRectangle 10"
+                                Padding="8,3"
+                                IsVisible="False">
+                            <Border.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="OnExploreGroupsClicked"/>
+                            </Border.GestureRecognizers>
+                            <Label Text="Explore Groups"
+                                   FontSize="11" FontAttributes="Bold"
+                                   TextColor="#008080"/>
+                        </Border>
+
+                    </HorizontalStackLayout>
+                </VerticalStackLayout>
+
+                <!-- ⋮ menu -->
+                <Grid Grid.Column="1"
+                      WidthRequest="40" HeightRequest="40"
+                      VerticalOptions="Center">
+                    <Grid.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="SettingsMenuButton_Clicked"/>
+                    </Grid.GestureRecognizers>
+                    <Label Text="⋮" FontSize="22" TextColor="#555566"
+                           HorizontalOptions="Center" VerticalOptions="Center"/>
+                </Grid>
+
+            </Grid>
+
+            <!-- Search bar -->
+            <Border BackgroundColor="#1A1A22"
+                    StrokeThickness="1" Stroke="#2A2A35"
+                    StrokeShape="RoundRectangle 14"
+                    Margin="16,0,16,10"
+                    Padding="14,0">
+                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                    <Path Grid.Column="0"
+                          Data="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z"
+                          Stroke="#444455" StrokeThickness="1.8"
+                          Fill="Transparent"
+                          WidthRequest="16" HeightRequest="16"
+                          Aspect="Uniform" VerticalOptions="Center"
+                          StrokeLineCap="Round"/>
+                    <SearchBar x:Name="ConversationsSearchBar"
+                               Grid.Column="1"
+                               Placeholder="Search conversations…"
+                               PlaceholderColor="#444455"
+                               TextColor="#F0F0F5"
+                               BackgroundColor="Transparent"
+                               CancelButtonColor="#FF3B6F"
+                               HeightRequest="44"
+                               SearchButtonPressed="SearchBar_SearchButtonPressed"
+                               TextChanged="SearchBar_TextChanged"/>
+                </Grid>
+            </Border>
+
+            <!--
+                FILTER TABS — horizontal scroll for the chips row.
+
+                Every tab is a Button (native touch) wrapped in a Border
+                (for the active stroke ring). This mirrors the SearchPage
+                pattern exactly and guarantees taps fire even inside a
+                horizontal ScrollView on Android.
+
+                x:Name on the Border  → UpdateTabVisuals() reads it to toggle stroke.
+                x:Name on the Button  → UpdateTabVisuals() reads it to toggle text color.
+                Clicked="OnXxxTabClicked" → dedicated handler per tab, dead-simple routing.
+
+                Dynamic list tabs are still appended in C# into
+                x:Name="DynamicTabsContainer" which sits after the fixed chips.
+            -->
+            <ScrollView Orientation="Horizontal"
+                        HorizontalScrollBarVisibility="Never"
+                        VerticalScrollBarVisibility="Never"
+                        HeightRequest="48"
+                        BackgroundColor="#0F0F0F"
+                        Padding="8,0,8,8">
+
+                <HorizontalStackLayout Spacing="8" VerticalOptions="Center">
+
+                    <!-- ALL -->
+                    <Border x:Name="AllTabBorder"
+                            BackgroundColor="Transparent"
+                            StrokeThickness="1.5" Stroke="#008080"
+                            StrokeShape="RoundRectangle 14"
+                            Padding="0">
+                        <Button x:Name="AllTabBtn"
+                                Text="All"
+                                Clicked="OnAllTabClicked"
+                                BackgroundColor="Transparent"
+                                TextColor="#00B5B5"
+                                FontAttributes="Bold"
+                                FontSize="12"
+                                Padding="14,6"/>
+                    </Border>
+
+                    <!-- PINNED -->
+                    <Border x:Name="PinnedTabBorder"
+                            BackgroundColor="Transparent"
+                            StrokeThickness="1.5" Stroke="Transparent"
+                            StrokeShape="RoundRectangle 14"
+                            Padding="0">
+                        <Button x:Name="PinnedTabBtn"
+                                Text="Pinned"
+                                Clicked="OnPinnedTabClicked"
+                                BackgroundColor="Transparent"
+                                TextColor="#A0A0A0"
+                                FontAttributes="None"
+                                FontSize="12"
+                                Padding="14,6"/>
+                    </Border>
+
+                    <!-- STARRED -->
+                    <Border x:Name="StarredTabBorder"
+                            BackgroundColor="Transparent"
+                            StrokeThickness="1.5" Stroke="Transparent"
+                            StrokeShape="RoundRectangle 14"
+                            Padding="0">
+                        <Button x:Name="StarredTabBtn"
+                                Text="Starred"
+                                Clicked="OnStarredTabClicked"
+                                BackgroundColor="Transparent"
+                                TextColor="#A0A0A0"
+                                FontAttributes="None"
+                                FontSize="12"
+                                Padding="14,6"/>
+                    </Border>
+
+                    <!-- UNREAD -->
+                    <Border x:Name="UnreadTabBorder"
+                            BackgroundColor="Transparent"
+                            StrokeThickness="1.5" Stroke="Transparent"
+                            StrokeShape="RoundRectangle 14"
+                            Padding="0">
+                        <Button x:Name="UnreadTabBtn"
+                                Text="Unread"
+                                Clicked="OnUnreadTabClicked"
+                                BackgroundColor="Transparent"
+                                TextColor="#A0A0A0"
+                                FontAttributes="None"
+                                FontSize="12"
+                                Padding="14,6"/>
+                    </Border>
+
+                    <!-- MESSAGE REQUEST -->
+                    <Border x:Name="RequestTabBorder"
+                            BackgroundColor="Transparent"
+                            StrokeThickness="1.5" Stroke="Transparent"
+                            StrokeShape="RoundRectangle 14"
+                            Padding="0">
+                        <Button x:Name="RequestTabBtn"
+                                Text="Requests"
+                                Clicked="OnRequestTabClicked"
+                                BackgroundColor="Transparent"
+                                TextColor="#A0A0A0"
+                                FontAttributes="None"
+                                FontSize="12"
+                                Padding="14,6"/>
+                    </Border>
+
+                    <!-- GROUPS -->
+                    <Border x:Name="GroupsTabBorder"
+                            BackgroundColor="Transparent"
+                            StrokeThickness="1.5" Stroke="Transparent"
+                            StrokeShape="RoundRectangle 14"
+                            Padding="0">
+                        <Button x:Name="GroupsTabBtn"
+                                Text="Groups"
+                                Clicked="OnGroupsTabClicked"
+                                BackgroundColor="Transparent"
+                                TextColor="#A0A0A0"
+                                FontAttributes="None"
+                                FontSize="12"
+                                Padding="14,6"/>
+                    </Border>
+
+                    <!--
+                        Dynamic list tabs injected here from C#.
+                        BuildDynamicListTabs() appends Button+Border children
+                        to this container after LoadConversationsAsync completes.
+                    -->
+                    <HorizontalStackLayout x:Name="DynamicTabsContainer"
+                                           Spacing="8"
+                                           VerticalOptions="Center"/>
+
+                </HorizontalStackLayout>
+            </ScrollView>
+
+        </VerticalStackLayout>
+
+        <!-- ══════════════════════════════════════════════════════════════ -->
+        <!-- ROW 1 · CONVERSATIONS LIST                                    -->
+        <!-- ══════════════════════════════════════════════════════════════ -->
+        <CollectionView Grid.Row="1"
+                        x:Name="ConversationsCollectionView"
+                        SelectionMode="None"
+                        HorizontalOptions="Fill"
+                        VerticalOptions="Fill"
+                        VerticalScrollBarVisibility="Never"
+                        HorizontalScrollBarVisibility="Never"
+                        ItemSizingStrategy="MeasureAllItems"
+                        BackgroundColor="Transparent">
+
+            <CollectionView.ItemsLayout>
+                <LinearItemsLayout Orientation="Vertical" ItemSpacing="0"/>
+            </CollectionView.ItemsLayout>
+
+            <CollectionView.ItemTemplate>
+                <DataTemplate>
+                    <VerticalStackLayout Spacing="0">
+
+                        <!-- Conversation row -->
+                        <Grid BackgroundColor="#0A0A0C"
+                              Padding="16,10,12,10"
+                              ColumnDefinitions="Auto,*,Auto"
+                              ColumnSpacing="10">
+
+                            <!-- ── AVATAR ── -->
+                            <Grid Grid.Column="0"
+                                  WidthRequest="50" HeightRequest="50"
+                                  VerticalOptions="Center">
+                                <Grid.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OnRowTapped"
+                                                          CommandParameter="{Binding .}"/>
+                                </Grid.GestureRecognizers>
+
+                                <!-- Group avatar -->
+                                <Border IsVisible="{Binding IsGroupChat}"
+                                        WidthRequest="50" HeightRequest="50"
+                                        StrokeThickness="2" Stroke="#FF3B6F"
+                                        StrokeShape="RoundRectangle 25"
+                                        BackgroundColor="#1A1A22" Padding="0">
+                                    <Image Source="{Binding OtherProfileImage}"
+                                           Aspect="AspectFill"
+                                           HeightRequest="46" WidthRequest="46">
+                                        <Image.Clip>
+                                            <EllipseGeometry Center="23,23" RadiusX="23" RadiusY="23"/>
+                                        </Image.Clip>
+                                    </Image>
+                                </Border>
+
+                                <!-- Individual avatar -->
+                                <Border IsVisible="{Binding IsGroupChat, Converter={StaticResource InverseBoolConverter}}"
+                                        WidthRequest="50" HeightRequest="50"
+                                        StrokeThickness="0"
+                                        StrokeShape="RoundRectangle 25"
+                                        BackgroundColor="#1A1A22" Padding="0">
+                                    <Image Source="{Binding OtherProfileImage}"
+                                           Aspect="AspectFill"
+                                           HeightRequest="50" WidthRequest="50">
+                                        <Image.Clip>
+                                            <EllipseGeometry Center="25,25" RadiusX="25" RadiusY="25"/>
+                                        </Image.Clip>
+                                    </Image>
+                                </Border>
+
+                                <!-- Online dot -->
+                                <Ellipse WidthRequest="12" HeightRequest="12"
+         Fill="#10B981" Stroke="#0A0A0C" StrokeThickness="2"
+         HorizontalOptions="End" VerticalOptions="End"
+         Margin="0,0,2,2">
+                                    <Ellipse.IsVisible>
+                                        <MultiBinding Converter="{StaticResource AndConverter}">
+                                            <Binding Path="IsOnline"/>
+                                            <Binding Path="IsGroupChat" Converter="{StaticResource InverseBoolConverter}"/>
+                                        </MultiBinding>
+                                    </Ellipse.IsVisible>
+                                </Ellipse>
+
+                                <!-- Offline dot -->
+                                <Ellipse WidthRequest="12" HeightRequest="12"
+         Fill="#444455" Stroke="#0A0A0C" StrokeThickness="2"
+         HorizontalOptions="End" VerticalOptions="End"
+         Margin="0,0,2,2">
+                                    <Ellipse.IsVisible>
+                                        <MultiBinding Converter="{StaticResource BothFalse}">
+                                            <Binding Path="IsOnline"/>
+                                            <Binding Path="IsGroupChat"/>
+                                        </MultiBinding>
+                                    </Ellipse.IsVisible>
+                                </Ellipse>
+
+                                <!-- Group G badge -->
+                                <Border IsVisible="{Binding IsGroupChat}"
+                                        WidthRequest="18" HeightRequest="18"
+                                        BackgroundColor="#008080"
+                                        StrokeThickness="1.5" Stroke="#0A0A0C"
+                                        StrokeShape="RoundRectangle 9"
+                                        HorizontalOptions="End" VerticalOptions="End">
+                                    <Label Text="G" FontSize="9" FontAttributes="Bold"
+                                           TextColor="White"
+                                           HorizontalOptions="Center" VerticalOptions="Center"/>
+                                </Border>
+                            </Grid>
+
+                            <!-- ── CONTENT ── -->
+                            <VerticalStackLayout Grid.Column="1"
+                                                 Spacing="2"
+                                                 VerticalOptions="Center">
+                                <VerticalStackLayout.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OnRowTapped"
+                                                          CommandParameter="{Binding .}"/>
+                                </VerticalStackLayout.GestureRecognizers>
+
+                                <!-- Name + icons -->
+                                <HorizontalStackLayout Spacing="6" VerticalOptions="Center">
+                                    <Label Text="{Binding OtherName}"
+                                           FontAttributes="Bold" FontSize="15"
+                                           TextColor="#F0F0F5"
+                                           LineBreakMode="TailTruncation" MaxLines="1"/>
+                                    <Path Data="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
+                                          Fill="#FFD24D" Stroke="#FFD24D" StrokeThickness="1.2"
+                                          WidthRequest="12" HeightRequest="12" Aspect="Uniform"
+                                          VerticalOptions="Center"
+                                          IsVisible="{Binding Conversation.IsStarred}"/>
+                                    <Path Data="M6,2 L10,2 L10,6 L12,8 L10,10 L10,14 L6,14 L6,10 L4,8 L6,6 L6,2 Z"
+                                          Fill="#888888" Stroke="#888888" StrokeThickness="1.2"
+                                          WidthRequest="10" HeightRequest="12" Aspect="Uniform"
+                                          VerticalOptions="Center"
+                                          IsVisible="{Binding Conversation.IsPinned}"/>
+                                </HorizontalStackLayout>
+
+                                <!-- Mood + match -->
+                                <HorizontalStackLayout Spacing="5"
+                                                       IsVisible="{Binding Mood, Converter={StaticResource StringNotNullOrEmptyConverter}}">
+                                    <Border BackgroundColor="#2A0E18" StrokeThickness="0"
+                                            StrokeShape="RoundRectangle 6" Padding="5,1">
+                                        <Label Text="{Binding Mood}"
+                                               FontSize="10" FontAttributes="Bold"
+                                               TextColor="#FF3B6F"/>
+                                    </Border>
+                                    <Label Text="{Binding MoodLastUpdatedRelative}"
+                                           FontSize="10" TextColor="#555566"/>
+                                    <Border BackgroundColor="#0A2A14" StrokeThickness="0"
+                                            StrokeShape="RoundRectangle 6" Padding="5,1"
+                                            IsVisible="{Binding MatchPercent, Converter={StaticResource GreaterThanZeroConverter}}">
+                                        <Label FontSize="10" FontAttributes="Bold" TextColor="#22C55E">
+                                            <Label.Text>
+                                                <Binding Path="MatchPercent" StringFormat="{}{0}% match"/>
+                                            </Label.Text>
+                                        </Label>
+                                    </Border>
+                                </HorizontalStackLayout>
+
+                                <!-- Preview -->
+                                <Label Text="{Binding Conversation.LastMessagePreview}"
+                                       FontSize="13" LineBreakMode="TailTruncation"
+                                       MaxLines="1" TextColor="#666677"/>
+
+                                <!-- List tag -->
+                                <Label Text="{Binding ListName}"
+                                       FontSize="11" TextColor="#FFD24D"
+                                       LineBreakMode="TailTruncation" MaxLines="1"/>
+                            </VerticalStackLayout>
+
+                            <!-- ── RIGHT: TIME + BADGES + MENU ── -->
+                            <VerticalStackLayout Grid.Column="2"
+                                                 Spacing="4"
+                                                 HorizontalOptions="End"
+                                                 VerticalOptions="Center">
+
+                                <Label Text="{Binding Conversation.LastMessageAt, StringFormat='{0:MM/dd HH:mm}'}"
+                                       FontSize="11" TextColor="#444455"
+                                       HorizontalOptions="End"/>
+
+                                <HorizontalStackLayout Spacing="5" HorizontalOptions="End">
+
+                                    <!-- Posts badge -->
+                                    <Border BackgroundColor="#1A2A3A"
+                                            StrokeThickness="1" Stroke="#2A3A4A"
+                                            StrokeShape="RoundRectangle 8"
+                                            Padding="6,2"
+                                            IsVisible="{Binding HasPosts}"
+                                            VerticalOptions="Center">
+                                        <Border.GestureRecognizers>
+                                            <TapGestureRecognizer Tapped="OnPostCountBadgeTapped"
+                                                                  CommandParameter="{Binding .}"/>
+                                        </Border.GestureRecognizers>
+                                        <HorizontalStackLayout Spacing="3" VerticalOptions="Center">
+                                            <Path Data="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"
+                                                  Stroke="#4A9EFF" StrokeThickness="1.5" Fill="Transparent"
+                                                  WidthRequest="12" HeightRequest="12" Aspect="Uniform"
+                                                  VerticalOptions="Center"
+                                                  StrokeLineCap="Round" StrokeLineJoin="Round"/>
+                                            <Label Text="{Binding TotalPostsDisplay}"
+                                                   FontSize="11" FontAttributes="Bold"
+                                                   TextColor="#4A9EFF" VerticalOptions="Center"/>
+                                        </HorizontalStackLayout>
+                                    </Border>
+
+                                    <!-- Unread posts -->
+                                    <Border IsVisible="{Binding HasUnreadPosts}"
+                                            BackgroundColor="#2A0A0A"
+                                            StrokeThickness="1" Stroke="#FF3B6F"
+                                            StrokeShape="RoundRectangle 8"
+                                            Padding="5,2" VerticalOptions="Center">
+                                        <Label Text="{Binding UnreadPostsDisplay}"
+                                               FontSize="10" FontAttributes="Bold"
+                                               TextColor="#FF3B6F"
+                                               HorizontalOptions="Center" VerticalOptions="Center"/>
+                                    </Border>
+
+                                    <!-- Unread messages pill -->
+                                    <Border BackgroundColor="#FF3B6F"
+                                            StrokeThickness="0"
+                                            StrokeShape="RoundRectangle 10"
+                                            Padding="7,3"
+                                            IsVisible="{Binding HasUnread}"
+                                            VerticalOptions="Center">
+                                        <Label Text="{Binding UnreadDisplay}"
+                                               FontSize="11" FontAttributes="Bold"
+                                               TextColor="White"
+                                               HorizontalOptions="Center" VerticalOptions="Center"/>
+                                    </Border>
+
+                                    <!-- ⋮ per-row menu -->
+                                    <Button Text="⋮"
+                                            FontSize="18"
+                                            BackgroundColor="Transparent"
+                                            TextColor="#C0C0C0"
+                                            WidthRequest="34" HeightRequest="34"
+                                            VerticalOptions="Center"
+                                            Clicked="ConversationMenuButton_Clicked"
+                                            CommandParameter="{Binding .}"/>
+                                </HorizontalStackLayout>
+                            </VerticalStackLayout>
+
+                        </Grid>
+
+                        <!-- Row divider -->
+                        <BoxView HeightRequest="0.5" Color="#1F1F25"
+                                 HorizontalOptions="Fill" Margin="66,0,0,0"/>
+
+                    </VerticalStackLayout>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+
+            <!-- Empty state -->
+            <CollectionView.EmptyView>
+                <VerticalStackLayout VerticalOptions="Center"
+                                     HorizontalOptions="Center"
+                                     Spacing="14" Margin="0,80">
+                    <Label Text="💬" FontSize="52"
+                           HorizontalOptions="Center" Opacity="0.35"/>
+                    <Label Text="No conversations yet"
+                           FontSize="18" FontAttributes="Bold"
+                           TextColor="#FFFFFF" HorizontalOptions="Center"/>
+                    <Label Text="Start a new chat by tapping ✏️ above"
+                           FontSize="13" TextColor="#555566"
+                           HorizontalOptions="Center"
+                           HorizontalTextAlignment="Center"
+                           Margin="40,0"/>
+                </VerticalStackLayout>
+            </CollectionView.EmptyView>
+
+        </CollectionView>
+
+        <!-- ══════════════════════════════════════════════════════════════ -->
+        <!-- FLOATING FAB — bottom-right of Row 1                          -->
+        <!-- ══════════════════════════════════════════════════════════════ -->
+        <Button Grid.Row="1"
+                x:Name="NewChatFab"
+                Text="+"
+                FontSize="28"
+                WidthRequest="56"
+                HeightRequest="56"
+                CornerRadius="28"
+                BackgroundColor="#FF3B6F"
+                TextColor="White"
+                Clicked="NewChatFab_Clicked"
+                HorizontalOptions="End"
+                VerticalOptions="End"
+                Margin="0,0,16,16"
+                ZIndex="50"
+                SemanticProperties.Hint="Start a new chat"/>
+
+        <!-- ══════════════════════════════════════════════════════════════ -->
+        <!-- ACTIONS OVERLAY                                               -->
+        <!-- ══════════════════════════════════════════════════════════════ -->
+        <Grid Grid.Row="0" Grid.RowSpan="3"
+              x:Name="ActionsOverlay"
+              IsVisible="False"
+              BackgroundColor="#80000000"
+              ZIndex="100">
+            <BoxView Color="Transparent"
+                     HorizontalOptions="Fill" VerticalOptions="Fill">
+                <BoxView.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OverlayBackground_Tapped"/>
+                </BoxView.GestureRecognizers>
+            </BoxView>
+
+            <Frame HorizontalOptions="Center" VerticalOptions="Center"
+                   Padding="0"
+                   BackgroundColor="#161616"
+                   BorderColor="#252525"
+                   CornerRadius="18"
+                   HasShadow="False"
+                   Margin="20">
+                <Frame.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="PreventClose"/>
+                </Frame.GestureRecognizers>
+
+                <VerticalStackLayout Spacing="0">
+
+                    <Grid Padding="16,14,16,0" ColumnDefinitions="*,Auto">
+                        <Label x:Name="OverlayPreviewLabel"
+                               Grid.Column="0"
+                               FontAttributes="Bold"
+                               LineBreakMode="TailTruncation"
+                               MaxLines="2"
+                               TextColor="White"
+                               FontSize="14"/>
+                        <Grid Grid.Column="1"
+                              WidthRequest="32" HeightRequest="32"
+                              VerticalOptions="Center">
+                            <Grid.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="CloseOverlayButton_Clicked"/>
+                            </Grid.GestureRecognizers>
+                            <Label Text="✕" FontSize="14" TextColor="#555555"
+                                   HorizontalOptions="Center" VerticalOptions="Center"/>
+                        </Grid>
+                    </Grid>
+
+                    <BoxView HeightRequest="1" Color="#1E1E1E" Margin="0,10"/>
+                    <Label Text="ACTIONS" FontSize="9" FontAttributes="Bold"
+                           TextColor="#444444" CharacterSpacing="1.5"
+                           Margin="16,0,16,8"/>
+
+                    <ScrollView Orientation="Vertical"
+                                HeightRequest="320"
+                                VerticalScrollBarVisibility="Never"
+                                HorizontalScrollBarVisibility="Never">
+                        <VerticalStackLayout Spacing="0">
+
+                            <Grid Padding="16,12" ColumnDefinitions="Auto,*" ColumnSpacing="14">
+                                <Grid.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OverlayAction_Tapped" CommandParameter="Archive chat"/>
+                                </Grid.GestureRecognizers>
+                                <Path Grid.Column="0"
+                                      Data="M20 6H4l2 14h12l2-14zM10 11H8V9h2v2zm6 0h-2V9h2v2z"
+                                      Stroke="#008080" StrokeThickness="1.5" Fill="Transparent"
+                                      WidthRequest="16" HeightRequest="16" Aspect="Uniform"
+                                      VerticalOptions="Center" StrokeLineCap="Round" StrokeLineJoin="Round"/>
+                                <Label Grid.Column="1" Text="Archive chat"
+                                       TextColor="#FFFFFF" FontSize="14" VerticalOptions="Center"/>
+                            </Grid>
+                            <BoxView HeightRequest="1" Color="#1E1E1E"/>
+
+                            <Grid Padding="16,12" ColumnDefinitions="Auto,*" ColumnSpacing="14">
+                                <Grid.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OverlayAction_Tapped" CommandParameter="Mute notifications"/>
+                                </Grid.GestureRecognizers>
+                                <Path Grid.Column="0"
+                                      Data="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0M1 1l22 22"
+                                      Stroke="#008080" StrokeThickness="1.5" Fill="Transparent"
+                                      WidthRequest="16" HeightRequest="16" Aspect="Uniform"
+                                      VerticalOptions="Center" StrokeLineCap="Round" StrokeLineJoin="Round"/>
+                                <Label Grid.Column="1" Text="Mute notifications"
+                                       TextColor="#FFFFFF" FontSize="14" VerticalOptions="Center"/>
+                            </Grid>
+                            <BoxView HeightRequest="1" Color="#1E1E1E"/>
+
+                            <Grid Padding="16,12" ColumnDefinitions="Auto,*" ColumnSpacing="14">
+                                <Grid.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OverlayAction_Tapped" CommandParameter="Pin chat"/>
+                                </Grid.GestureRecognizers>
+                                <Path Grid.Column="0"
+                                      Data="M6,2 L10,2 L10,6 L12,8 L10,10 L10,14 L6,14 L6,10 L4,8 L6,6 L6,2 Z"
+                                      Stroke="#008080" StrokeThickness="1.5" Fill="Transparent"
+                                      WidthRequest="14" HeightRequest="14" Aspect="Uniform"
+                                      VerticalOptions="Center" StrokeLineCap="Round" StrokeLineJoin="Round"/>
+                                <Label Grid.Column="1" Text="Pin / Unpin chat"
+                                       TextColor="#FFFFFF" FontSize="14" VerticalOptions="Center"/>
+                            </Grid>
+                            <BoxView HeightRequest="1" Color="#1E1E1E"/>
+
+                            <Grid Padding="16,12" ColumnDefinitions="Auto,*" ColumnSpacing="14">
+                                <Grid.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OverlayAction_Tapped" CommandParameter="Mark as unread"/>
+                                </Grid.GestureRecognizers>
+                                <Path Grid.Column="0"
+                                      Data="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2zM22 6l-10 7L2 6"
+                                      Stroke="#008080" StrokeThickness="1.5" Fill="Transparent"
+                                      WidthRequest="16" HeightRequest="16" Aspect="Uniform"
+                                      VerticalOptions="Center" StrokeLineCap="Round" StrokeLineJoin="Round"/>
+                                <Label Grid.Column="1" Text="Mark as unread"
+                                       TextColor="#FFFFFF" FontSize="14" VerticalOptions="Center"/>
+                            </Grid>
+                            <BoxView HeightRequest="1" Color="#1E1E1E"/>
+
+                            <Grid Padding="16,12" ColumnDefinitions="Auto,*" ColumnSpacing="14">
+                                <Grid.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OverlayAction_Tapped" CommandParameter="Add to favorites"/>
+                                </Grid.GestureRecognizers>
+                                <Path Grid.Column="0"
+                                      Data="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"
+                                      Stroke="#008080" StrokeThickness="1.5" Fill="Transparent"
+                                      WidthRequest="16" HeightRequest="16" Aspect="Uniform"
+                                      VerticalOptions="Center" StrokeLineCap="Round" StrokeLineJoin="Round"/>
+                                <Label Grid.Column="1" Text="Add to favorites"
+                                       TextColor="#FFFFFF" FontSize="14" VerticalOptions="Center"/>
+                            </Grid>
+                            <BoxView HeightRequest="1" Color="#1E1E1E"/>
+
+                            <Grid Padding="16,12" ColumnDefinitions="Auto,*" ColumnSpacing="14">
+                                <Grid.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OverlayAction_Tapped" CommandParameter="Add to list"/>
+                                </Grid.GestureRecognizers>
+                                <Path Grid.Column="0"
+                                      Data="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"
+                                      Stroke="#008080" StrokeThickness="1.5" Fill="Transparent"
+                                      WidthRequest="16" HeightRequest="16" Aspect="Uniform"
+                                      VerticalOptions="Center" StrokeLineCap="Round"/>
+                                <Label Grid.Column="1" Text="Add to list"
+                                       TextColor="#FFFFFF" FontSize="14" VerticalOptions="Center"/>
+                            </Grid>
+                            <BoxView HeightRequest="1" Color="#1E1E1E"/>
+
+                            <Grid Padding="16,12" ColumnDefinitions="Auto,*" ColumnSpacing="14">
+                                <Grid.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OverlayAction_Tapped" CommandParameter="Block"/>
+                                </Grid.GestureRecognizers>
+                                <Path Grid.Column="0"
+                                      Data="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"
+                                      Stroke="#FF3B6F" StrokeThickness="1.5" Fill="Transparent"
+                                      WidthRequest="16" HeightRequest="16" Aspect="Uniform"
+                                      VerticalOptions="Center" StrokeLineCap="Round" StrokeLineJoin="Round"/>
+                                <Label Grid.Column="1" Text="Block"
+                                       TextColor="#FF3B6F" FontSize="14" VerticalOptions="Center"/>
+                            </Grid>
+                            <BoxView HeightRequest="1" Color="#1E1E1E"/>
+
+                            <Grid Padding="16,12" ColumnDefinitions="Auto,*" ColumnSpacing="14">
+                                <Grid.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OverlayAction_Tapped" CommandParameter="Delete chat"/>
+                                </Grid.GestureRecognizers>
+                                <Path Grid.Column="0"
+                                      Data="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"
+                                      Stroke="#FF3B6F" StrokeThickness="1.5" Fill="Transparent"
+                                      WidthRequest="16" HeightRequest="16" Aspect="Uniform"
+                                      VerticalOptions="Center" StrokeLineCap="Round" StrokeLineJoin="Round"/>
+                                <Label Grid.Column="1" Text="Delete chat"
+                                       TextColor="#FF3B6F" FontSize="14" VerticalOptions="Center"/>
+                            </Grid>
+
+                            <BoxView HeightRequest="8" Color="Transparent"/>
+                        </VerticalStackLayout>
+                    </ScrollView>
+
+                </VerticalStackLayout>
+            </Frame>
+        </Grid>
+
+        <!-- ══════════════════════════════════════════════════════════════ -->
+        <!-- ROW 2 · FIXED BOTTOM NAV                                      -->
+        <!-- ══════════════════════════════════════════════════════════════ -->
+        <Border Grid.Row="2"
+                x:Name="BottomNavBar"
+                Padding="0" StrokeThickness="0"
+                StrokeShape="RoundRectangle 0"
+                HorizontalOptions="Fill"
+                BackgroundColor="#0F0F0F">
+
+            <Grid RowDefinitions="1,Auto">
+                <Grid Grid.Row="1"
+                      HeightRequest="54"
+                      ColumnSpacing="0"
+                      HorizontalOptions="Fill">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- HOME -->
+                    <Grid Grid.Column="0" BackgroundColor="Transparent"
+                          HorizontalOptions="Fill" VerticalOptions="Fill">
+                        <Grid.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnHomeTapped" NumberOfTapsRequired="1"/>
+                        </Grid.GestureRecognizers>
+                        <VerticalStackLayout HorizontalOptions="Center" VerticalOptions="Center" Spacing="2">
+                            <Path Data="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM9 22V12h6v10"
+                                  Stroke="#555566" StrokeThickness="1.8" Fill="Transparent"
+                                  WidthRequest="18" HeightRequest="18"
+                                  HorizontalOptions="Center" Aspect="Uniform"
+                                  StrokeLineCap="Round" StrokeLineJoin="Round"/>
+                            <Label Text="Home" FontSize="9" TextColor="#555566"
+                                   HorizontalOptions="Center"/>
+                        </VerticalStackLayout>
+                    </Grid>
+
+                    <!-- MATCH -->
+                    <Grid Grid.Column="1" BackgroundColor="Transparent"
+                          HorizontalOptions="Fill" VerticalOptions="Fill">
+                        <Grid.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnMatchTapped" NumberOfTapsRequired="1"/>
+                        </Grid.GestureRecognizers>
+                        <VerticalStackLayout HorizontalOptions="Center" VerticalOptions="Center" Spacing="2">
+                            <Path Data="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"
+                                  Stroke="#555566" StrokeThickness="1.8" Fill="Transparent"
+                                  WidthRequest="18" HeightRequest="18"
+                                  HorizontalOptions="Center" Aspect="Uniform"
+                                  StrokeLineCap="Round" StrokeLineJoin="Round"/>
+                            <Label Text="Match" FontSize="9" TextColor="#555566"
+                                   HorizontalOptions="Center"/>
+                        </VerticalStackLayout>
+                    </Grid>
+
+                    <!-- CHAT (active) -->
+                    <Grid Grid.Column="2" BackgroundColor="Transparent"
+                          HorizontalOptions="Fill" VerticalOptions="Fill">
+                        <Grid.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnChatsTapped" NumberOfTapsRequired="1"/>
+                        </Grid.GestureRecognizers>
+                        <VerticalStackLayout HorizontalOptions="Center" VerticalOptions="Center" Spacing="2">
+                            <Grid WidthRequest="22" HeightRequest="22" HorizontalOptions="Center">
+                                <Path Data="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"
+                                      Stroke="#00B5B5" StrokeThickness="1.8" Fill="Transparent"
+                                      WidthRequest="20" HeightRequest="20"
+                                      HorizontalOptions="Center" VerticalOptions="Center"
+                                      Aspect="Uniform" StrokeLineCap="Round" StrokeLineJoin="Round"/>
+                                <Border x:Name="ChatBadge"
+                                        BackgroundColor="#00B5B5" StrokeThickness="0"
+                                        MinimumHeightRequest="16" MinimumWidthRequest="16"
+                                        Padding="4,0"
+                                        HorizontalOptions="End" VerticalOptions="Start"
+                                        TranslationX="5" TranslationY="-5"
+                                        IsVisible="False">
+                                    <Border.StrokeShape>
+                                        <RoundRectangle CornerRadius="8"/>
+                                    </Border.StrokeShape>
+                                    <Label x:Name="ChatBadgeLabel"
+                                           Text="0" FontSize="9" FontAttributes="Bold"
+                                           TextColor="White"
+                                           HorizontalTextAlignment="Center"
+                                           VerticalTextAlignment="Center"
+                                           LineBreakMode="NoWrap"/>
+                                </Border>
+                            </Grid>
+                            <Label Text="Chat" FontSize="9" TextColor="#00B5B5"
+                                   HorizontalOptions="Center"/>
+                        </VerticalStackLayout>
+                    </Grid>
+
+                    <!-- ALERTS -->
+                    <Grid Grid.Column="3" BackgroundColor="Transparent"
+                          HorizontalOptions="Fill" VerticalOptions="Fill">
+                        <Grid.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnNotificationsTapped" NumberOfTapsRequired="1"/>
+                        </Grid.GestureRecognizers>
+                        <VerticalStackLayout HorizontalOptions="Center" VerticalOptions="Center" Spacing="2">
+                            <Grid WidthRequest="22" HeightRequest="22" HorizontalOptions="Center">
+                                <Path Data="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0"
+                                      Stroke="#555566" StrokeThickness="1.8" Fill="Transparent"
+                                      WidthRequest="20" HeightRequest="20"
+                                      HorizontalOptions="Center" VerticalOptions="Center"
+                                      Aspect="Uniform" StrokeLineCap="Round" StrokeLineJoin="Round"/>
+                                <Border x:Name="NotificationBadge"
+                                        BackgroundColor="#FF3B6F" StrokeThickness="0"
+                                        MinimumHeightRequest="16" MinimumWidthRequest="16"
+                                        Padding="4,0"
+                                        HorizontalOptions="End" VerticalOptions="Start"
+                                        TranslationX="5" TranslationY="-5"
+                                        IsVisible="False">
+                                    <Border.StrokeShape>
+                                        <RoundRectangle CornerRadius="8"/>
+                                    </Border.StrokeShape>
+                                    <Label x:Name="NotificationBadgeLabel"
+                                           Text="0" FontSize="9" FontAttributes="Bold"
+                                           TextColor="White"
+                                           HorizontalTextAlignment="Center"
+                                           VerticalTextAlignment="Center"
+                                           LineBreakMode="NoWrap"/>
+                                </Border>
+                            </Grid>
+                            <Label Text="Alerts" FontSize="9" TextColor="#555566"
+                                   HorizontalOptions="Center"/>
+                        </VerticalStackLayout>
+                    </Grid>
+
+                    <!-- PROFILE -->
+                    <Grid Grid.Column="4" BackgroundColor="Transparent"
+                          HorizontalOptions="Fill" VerticalOptions="Fill">
+                        <Grid.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnProfileTapped" NumberOfTapsRequired="1"/>
+                        </Grid.GestureRecognizers>
+                        <VerticalStackLayout HorizontalOptions="Center" VerticalOptions="Center" Spacing="2">
+                            <Path Data="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"
+                                  Stroke="#555566" StrokeThickness="1.8" Fill="Transparent"
+                                  WidthRequest="18" HeightRequest="18"
+                                  HorizontalOptions="Center" Aspect="Uniform"
+                                  StrokeLineCap="Round" StrokeLineJoin="Round"/>
+                            <Label Text="Profile" FontSize="9" TextColor="#555566"
+                                   HorizontalOptions="Center"/>
+                        </VerticalStackLayout>
+                    </Grid>
+
+                </Grid>
+            </Grid>
+        </Border>
+
+    </Grid>
+</ContentPage>

@@ -1,0 +1,671 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Lock.Pages.Chat.FaqPage"
+             BackgroundColor="#0E0E12">
+
+    <Grid>
+        <Grid RowDefinitions="Auto,Auto,Auto,*,Auto">
+            <!-- ── HEADER ── -->
+            <Grid Grid.Row="0"
+                  Padding="24,22,20,0"
+                  ColumnDefinitions="Auto,*,Auto">
+
+                <!-- Icon badge -->
+                <Border Grid.Column="0"
+                        WidthRequest="38" HeightRequest="38"
+                        StrokeThickness="0"
+                        StrokeShape="RoundRectangle 12"
+                        VerticalOptions="Center">
+                    <Border.Background>
+                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                            <GradientStop Color="#FF3B6F" Offset="0" />
+                            <GradientStop Color="#00B5B5" Offset="1" />
+                        </LinearGradientBrush>
+                    </Border.Background>
+                    <Label Text="?"
+                           FontSize="18" FontAttributes="Bold"
+                           TextColor="White"
+                           HorizontalOptions="Center"
+                           VerticalOptions="Center" />
+                </Border>
+
+                <!-- Title -->
+                <VerticalStackLayout Grid.Column="1" Spacing="2"
+                                     Margin="12,0,0,0"
+                                     VerticalOptions="Center">
+                    <Label Text="Help Center"
+                           FontSize="17" FontAttributes="Bold"
+                           TextColor="#F0EDE8" />
+                    <Label Text="Find answers instantly"
+                           FontSize="11" TextColor="#5A5A6A" />
+                </VerticalStackLayout>
+
+                <!-- Close button --><!--
+                <Border Grid.Column="2"
+                        BackgroundColor="#16161C"
+                        StrokeThickness="1" Stroke="#2A2A38"
+                        StrokeShape="RoundRectangle 18"
+                        HeightRequest="36" WidthRequest="36"
+                        VerticalOptions="Center">
+                    <Border.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnCloseTapped" />
+                    </Border.GestureRecognizers>
+                    <Path Data="M480-444.5 270.5-235l-17-17L463-461.5 253.5-671l17-17L480-478l209.5-209.5 17 17L497-461.5l209.5 209.5-17 17L480-444.5Z"
+                          Fill="#7A7A8C"
+                          HeightRequest="16" WidthRequest="16"
+                          HorizontalOptions="Center" VerticalOptions="Center"
+                          Aspect="Uniform" />
+                </Border>-->
+            </Grid>
+
+            <!-- ── SEARCH BAR ── -->
+            <Border Grid.Row="1"
+                    BackgroundColor="#16161C"
+                    StrokeThickness="1" Stroke="#2A2A38"
+                    StrokeShape="RoundRectangle 16"
+                    Margin="20,16,20,0"
+                    Padding="14,0">
+                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                    <Path Grid.Column="0"
+                          Data="M796-121 533-384q-30 26-69 40.5t-84 14.5q-99 0-169.5-70.5T140-570q0-99 70.5-169.5T380-810q99 0 169.5 70.5T620-570q0 45-14.5 84T565-417l263 264-32 32ZM380-400q71 0 120.5-49.5T550-570q0-71-49.5-120.5T380-740q-71 0-120.5 49.5T210-570q0 71 49.5 120.5T380-400Z"
+                          Fill="#3A3A4A"
+                          HeightRequest="16" WidthRequest="16"
+                          VerticalOptions="Center" Aspect="Uniform" />
+                    <Entry Grid.Column="1"
+                           x:Name="SearchEntry"
+                           Placeholder="Search help articles..."
+                           PlaceholderColor="#3A3A4A"
+                           TextColor="#F0EDE8"
+                           BackgroundColor="Transparent"
+                           FontSize="13"
+                           HeightRequest="44" />
+                </Grid>
+            </Border>
+
+            <!-- ── CATEGORY TABS ── -->
+            <ScrollView Grid.Row="2"
+                        Orientation="Horizontal"
+                        HorizontalScrollBarVisibility="Never"
+                        Margin="0,14,0,0">
+                <HorizontalStackLayout Spacing="8" Padding="20,0,20,0">
+
+                    <Border x:Name="GeneralTab"
+                            StrokeThickness="0"
+                            StrokeShape="RoundRectangle 20"
+                            Padding="0">
+                        <Border.Background>
+                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                <GradientStop Color="#FF3B6F" Offset="0" />
+                                <GradientStop Color="#CC2F59" Offset="1" />
+                            </LinearGradientBrush>
+                        </Border.Background>
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnGeneralTabTapped" />
+                        </Border.GestureRecognizers>
+                        <Label Text="General" FontSize="12" FontAttributes="Bold"
+                               TextColor="White" Padding="16,8" />
+                    </Border>
+
+                    <Border x:Name="ChatsTab"
+                            BackgroundColor="#16161C"
+                            StrokeThickness="1" Stroke="#2A2A38"
+                            StrokeShape="RoundRectangle 20"
+                            Padding="0">
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnChatsTabTapped" />
+                        </Border.GestureRecognizers>
+                        <Label Text="Chats &amp; Calls" FontSize="12"
+                               TextColor="#5A5A6A" Padding="16,8" />
+                    </Border>
+
+                    <Border x:Name="GroupsTab"
+                            BackgroundColor="#16161C"
+                            StrokeThickness="1" Stroke="#2A2A38"
+                            StrokeShape="RoundRectangle 20"
+                            Padding="0">
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnGroupsTabTapped" />
+                        </Border.GestureRecognizers>
+                        <Label Text="Groups" FontSize="12"
+                               TextColor="#5A5A6A" Padding="16,8" />
+                    </Border>
+
+                    <Border x:Name="LiveTab"
+                            BackgroundColor="#16161C"
+                            StrokeThickness="1" Stroke="#2A2A38"
+                            StrokeShape="RoundRectangle 20"
+                            Padding="0">
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnLiveTabTapped" />
+                        </Border.GestureRecognizers>
+                        <Label Text="Live" FontSize="12"
+                               TextColor="#5A5A6A" Padding="16,8" />
+                    </Border>
+
+                </HorizontalStackLayout>
+            </ScrollView>
+
+            <!-- Divider -->
+            <BoxView Grid.Row="2" HeightRequest="1" BackgroundColor="#1C1C25"
+                     VerticalOptions="End" Margin="0,0,0,-1" />
+
+            <!-- ── SCROLLABLE CONTENT ── -->
+            <ScrollView Grid.Row="3" BackgroundColor="Transparent">
+                <VerticalStackLayout Spacing="0">
+
+                    <!-- ===== GENERAL SECTION ===== -->
+                    <VerticalStackLayout x:Name="GeneralSection" Spacing="0" Padding="20,16,20,8">
+
+                        <!-- Quick links row -->
+                        <Grid ColumnDefinitions="*,*" ColumnSpacing="10" Margin="0,0,0,20">
+                            <Border Grid.Column="0" BackgroundColor="#16161C"
+                                    StrokeThickness="1" Stroke="#1C1C25"
+                                    StrokeShape="RoundRectangle 14" Padding="14,12">
+                                <VerticalStackLayout Spacing="6">
+                                    <Label Text="🛡️" FontSize="20" />
+                                    <Label Text="Safety &amp; Privacy" FontSize="12"
+                                           FontAttributes="Bold" TextColor="#F0EDE8" />
+                                    <Label Text="Verification, Ghost Mode" FontSize="10"
+                                           TextColor="#5A5A6A" LineBreakMode="WordWrap" />
+                                </VerticalStackLayout>
+                            </Border>
+                            <Border Grid.Column="1" BackgroundColor="#16161C"
+                                    StrokeThickness="1" Stroke="#1C1C25"
+                                    StrokeShape="RoundRectangle 14" Padding="14,12">
+                                <VerticalStackLayout Spacing="6">
+                                    <Label Text="💬" FontSize="20" />
+                                    <Label Text="Messaging" FontSize="12"
+                                           FontAttributes="Bold" TextColor="#F0EDE8" />
+                                    <Label Text="Voice, media, encryption" FontSize="10"
+                                           TextColor="#5A5A6A" LineBreakMode="WordWrap" />
+                                </VerticalStackLayout>
+                            </Border>
+                        </Grid>
+
+                        <!-- Section label -->
+                        <HorizontalStackLayout Spacing="8" Margin="0,0,0,12">
+                            <BoxView WidthRequest="3" HeightRequest="14" Color="#FF3B6F"
+                                     CornerRadius="2" VerticalOptions="Center" />
+                            <Label Text="FREQUENTLY ASKED" FontSize="9"
+                                   CharacterSpacing="2" FontAttributes="Bold"
+                                   TextColor="#FF3B6F" VerticalOptions="Center" />
+                        </HorizontalStackLayout>
+
+                        <!-- FAQ items -->
+                        <Border BackgroundColor="#16161C" StrokeThickness="1" Stroke="#1C1C25"
+                                StrokeShape="RoundRectangle 16" Margin="0,0,0,8" Padding="16,14">
+                            <VerticalStackLayout Spacing="8">
+                                <HorizontalStackLayout Spacing="10">
+                                    <Border BackgroundColor="#1A0D20" StrokeThickness="0"
+                                            StrokeShape="RoundRectangle 8" Padding="7,4"
+                                            VerticalOptions="Center">
+                                        <Label Text="Q" FontSize="10" FontAttributes="Bold"
+                                               TextColor="#FF3B6F" />
+                                    </Border>
+                                    <Label Text="What is Lock?"
+                                           FontSize="14" FontAttributes="Bold"
+                                           TextColor="#F0EDE8" VerticalOptions="Center"
+                                           HorizontalOptions="FillAndExpand" />
+                                </HorizontalStackLayout>
+                                <Label Text="Lock is a premium dating and social app focused on authentic connections through real-time availability, mood sharing, group chats, and verified profiles."
+                                       FontSize="12" TextColor="#A0A0B0"
+                                       LineBreakMode="WordWrap" LineHeight="1.5"
+                                       Margin="0,0,0,0" />
+                            </VerticalStackLayout>
+                        </Border>
+
+                        <Border BackgroundColor="#16161C" StrokeThickness="1" Stroke="#1C1C25"
+                                StrokeShape="RoundRectangle 16" Margin="0,0,0,8" Padding="16,14">
+                            <VerticalStackLayout Spacing="8">
+                                <HorizontalStackLayout Spacing="10">
+                                    <Border BackgroundColor="#1A0D20" StrokeThickness="0"
+                                            StrokeShape="RoundRectangle 8" Padding="7,4"
+                                            VerticalOptions="Center">
+                                        <Label Text="Q" FontSize="10" FontAttributes="Bold"
+                                               TextColor="#FF3B6F" />
+                                    </Border>
+                                    <Label Text="How do I get verified?"
+                                           FontSize="14" FontAttributes="Bold"
+                                           TextColor="#F0EDE8" VerticalOptions="Center"
+                                           HorizontalOptions="FillAndExpand" />
+                                    <Border BackgroundColor="#0D2020" StrokeThickness="1"
+                                            Stroke="#00B5B5" StrokeShape="RoundRectangle 8"
+                                            Padding="6,3" VerticalOptions="Center">
+                                        <Label Text="Popular" FontSize="9"
+                                               FontAttributes="Bold" TextColor="#00B5B5" />
+                                    </Border>
+                                </HorizontalStackLayout>
+                                <Label Text="Go to Profile → Safety tab → Verify Now. Upload a clear photo of your ID. Our OCR system extracts your details to match your profile. Verification takes 24–48 hours."
+                                       FontSize="12" TextColor="#A0A0B0"
+                                       LineBreakMode="WordWrap" LineHeight="1.5" />
+                            </VerticalStackLayout>
+                        </Border>
+
+                        <Border BackgroundColor="#16161C" StrokeThickness="1" Stroke="#1C1C25"
+                                StrokeShape="RoundRectangle 16" Margin="0,0,0,8" Padding="16,14">
+                            <VerticalStackLayout Spacing="8">
+                                <HorizontalStackLayout Spacing="10">
+                                    <Border BackgroundColor="#1A0D20" StrokeThickness="0"
+                                            StrokeShape="RoundRectangle 8" Padding="7,4"
+                                            VerticalOptions="Center">
+                                        <Label Text="Q" FontSize="10" FontAttributes="Bold"
+                                               TextColor="#FF3B6F" />
+                                    </Border>
+                                    <Label Text="What is Ghost Mode + Mood Shield?"
+                                           FontSize="14" FontAttributes="Bold"
+                                           TextColor="#F0EDE8" VerticalOptions="Center"
+                                           HorizontalOptions="FillAndExpand" />
+                                </HorizontalStackLayout>
+                                <Label Text="Ghost Mode hides your online presence, mood status, and recent chats. You won't appear in searches and others can't see when you're active. Perfect for privacy."
+                                       FontSize="12" TextColor="#A0A0B0"
+                                       LineBreakMode="WordWrap" LineHeight="1.5" />
+                            </VerticalStackLayout>
+                        </Border>
+
+                        <Border BackgroundColor="#16161C" StrokeThickness="1" Stroke="#1C1C25"
+                                StrokeShape="RoundRectangle 16" Margin="0,0,0,8" Padding="16,14">
+                            <VerticalStackLayout Spacing="8">
+                                <HorizontalStackLayout Spacing="10">
+                                    <Border BackgroundColor="#1A0D20" StrokeThickness="0"
+                                            StrokeShape="RoundRectangle 8" Padding="7,4"
+                                            VerticalOptions="Center">
+                                        <Label Text="Q" FontSize="10" FontAttributes="Bold"
+                                               TextColor="#FF3B6F" />
+                                    </Border>
+                                    <Label Text="Is my data secure?"
+                                           FontSize="14" FontAttributes="Bold"
+                                           TextColor="#F0EDE8" VerticalOptions="Center"
+                                           HorizontalOptions="FillAndExpand" />
+                                </HorizontalStackLayout>
+                                <Label Text="Yes! Lock uses AES-256 end-to-end encryption for all messages, voice notes, and media. Your conversations are encrypted with unique keys — we never store messages in plain text."
+                                       FontSize="12" TextColor="#A0A0B0"
+                                       LineBreakMode="WordWrap" LineHeight="1.5" />
+                            </VerticalStackLayout>
+                        </Border>
+
+                        <Border BackgroundColor="#16161C" StrokeThickness="1" Stroke="#1C1C25"
+                                StrokeShape="RoundRectangle 16" Margin="0,0,0,8" Padding="16,14">
+                            <VerticalStackLayout Spacing="8">
+                                <HorizontalStackLayout Spacing="10">
+                                    <Border BackgroundColor="#1A0D20" StrokeThickness="0"
+                                            StrokeShape="RoundRectangle 8" Padding="7,4"
+                                            VerticalOptions="Center">
+                                        <Label Text="Q" FontSize="10" FontAttributes="Bold"
+                                               TextColor="#FF3B6F" />
+                                    </Border>
+                                    <Label Text="How do emergency contacts work?"
+                                           FontSize="14" FontAttributes="Bold"
+                                           TextColor="#F0EDE8" VerticalOptions="Center"
+                                           HorizontalOptions="FillAndExpand" />
+                                </HorizontalStackLayout>
+                                <Label Text="Add trusted contacts in Profile → Safety → Emergency Contacts. Tap SOS to send your location and a custom message to all contacts via in-app message and SMS instantly."
+                                       FontSize="12" TextColor="#A0A0B0"
+                                       LineBreakMode="WordWrap" LineHeight="1.5" />
+                            </VerticalStackLayout>
+                        </Border>
+
+                        <Border BackgroundColor="#16161C" StrokeThickness="1" Stroke="#1C1C25"
+                                StrokeShape="RoundRectangle 16" Margin="0,0,0,0" Padding="16,14">
+                            <VerticalStackLayout Spacing="8">
+                                <HorizontalStackLayout Spacing="10">
+                                    <Border BackgroundColor="#1A0D20" StrokeThickness="0"
+                                            StrokeShape="RoundRectangle 8" Padding="7,4"
+                                            VerticalOptions="Center">
+                                        <Label Text="Q" FontSize="10" FontAttributes="Bold"
+                                               TextColor="#FF3B6F" />
+                                    </Border>
+                                    <Label Text="How do I delete my account?"
+                                           FontSize="14" FontAttributes="Bold"
+                                           TextColor="#F0EDE8" VerticalOptions="Center"
+                                           HorizontalOptions="FillAndExpand" />
+                                </HorizontalStackLayout>
+                                <Label Text="Go to Profile → Settings → Delete Account. This is permanent — all your data including messages, matches, groups, and profile info will be removed."
+                                       FontSize="12" TextColor="#A0A0B0"
+                                       LineBreakMode="WordWrap" LineHeight="1.5" />
+                            </VerticalStackLayout>
+                        </Border>
+
+                    </VerticalStackLayout>
+
+                    <!-- ===== CHATS SECTION ===== -->
+                    <VerticalStackLayout x:Name="ChatsSection" IsVisible="False" Spacing="0" Padding="20,16,20,8">
+
+                        <HorizontalStackLayout Spacing="8" Margin="0,0,0,12">
+                            <BoxView WidthRequest="3" HeightRequest="14" Color="#00B5B5"
+                                     CornerRadius="2" VerticalOptions="Center" />
+                            <Label Text="CHATS &amp; CALLS" FontSize="9"
+                                   CharacterSpacing="2" FontAttributes="Bold"
+                                   TextColor="#00B5B5" VerticalOptions="Center" />
+                        </HorizontalStackLayout>
+
+                        <Border BackgroundColor="#16161C" StrokeThickness="1" Stroke="#1C1C25"
+                                StrokeShape="RoundRectangle 16" Margin="0,0,0,8" Padding="16,14">
+                            <VerticalStackLayout Spacing="8">
+                                <HorizontalStackLayout Spacing="10">
+                                    <Border BackgroundColor="#0D1F1F" StrokeThickness="0"
+                                            StrokeShape="RoundRectangle 8" Padding="7,4">
+                                        <Label Text="Q" FontSize="10" FontAttributes="Bold" TextColor="#00B5B5" />
+                                    </Border>
+                                    <Label Text="How do I start a conversation?"
+                                           FontSize="14" FontAttributes="Bold" TextColor="#F0EDE8"
+                                           VerticalOptions="Center" HorizontalOptions="FillAndExpand" />
+                                </HorizontalStackLayout>
+                                <Label Text="Tap + in Chats, search by phone or name, then tap 'Send Message'. Find users by mood, location, or invite friends from your contacts."
+                                       FontSize="12" TextColor="#A0A0B0" LineBreakMode="WordWrap" LineHeight="1.5" />
+                            </VerticalStackLayout>
+                        </Border>
+
+                        <Border BackgroundColor="#16161C" StrokeThickness="1" Stroke="#1C1C25"
+                                StrokeShape="RoundRectangle 16" Margin="0,0,0,8" Padding="16,14">
+                            <VerticalStackLayout Spacing="8">
+                                <HorizontalStackLayout Spacing="10">
+                                    <Border BackgroundColor="#0D1F1F" StrokeThickness="0"
+                                            StrokeShape="RoundRectangle 8" Padding="7,4">
+                                        <Label Text="Q" FontSize="10" FontAttributes="Bold" TextColor="#00B5B5" />
+                                    </Border>
+                                    <Label Text="Can I send voice messages?"
+                                           FontSize="14" FontAttributes="Bold" TextColor="#F0EDE8"
+                                           VerticalOptions="Center" HorizontalOptions="FillAndExpand" />
+                                </HorizontalStackLayout>
+                                <Label Text="Yes! Tap and hold the mic icon to record (max 5 minutes). Release to send. Preview before sending. All voice messages are encrypted and stored securely."
+                                       FontSize="12" TextColor="#A0A0B0" LineBreakMode="WordWrap" LineHeight="1.5" />
+                            </VerticalStackLayout>
+                        </Border>
+
+                        <Border BackgroundColor="#16161C" StrokeThickness="1" Stroke="#1C1C25"
+                                StrokeShape="RoundRectangle 16" Margin="0,0,0,8" Padding="16,14">
+                            <VerticalStackLayout Spacing="8">
+                                <HorizontalStackLayout Spacing="10">
+                                    <Border BackgroundColor="#0D1F1F" StrokeThickness="0"
+                                            StrokeShape="RoundRectangle 8" Padding="7,4">
+                                        <Label Text="Q" FontSize="10" FontAttributes="Bold" TextColor="#00B5B5" />
+                                    </Border>
+                                    <Label Text="What are disappearing messages?"
+                                           FontSize="14" FontAttributes="Bold" TextColor="#F0EDE8"
+                                           VerticalOptions="Center" HorizontalOptions="FillAndExpand" />
+                                </HorizontalStackLayout>
+                                <Label Text="Messages that auto-delete after 5 minutes to 1 week. Both users can see when messages expire. Enable in chat settings for sensitive conversations."
+                                       FontSize="12" TextColor="#A0A0B0" LineBreakMode="WordWrap" LineHeight="1.5" />
+                            </VerticalStackLayout>
+                        </Border>
+
+                        <Border BackgroundColor="#16161C" StrokeThickness="1" Stroke="#1C1C25"
+                                StrokeShape="RoundRectangle 16" Margin="0,0,0,8" Padding="16,14">
+                            <VerticalStackLayout Spacing="8">
+                                <HorizontalStackLayout Spacing="10">
+                                    <Border BackgroundColor="#0D1F1F" StrokeThickness="0"
+                                            StrokeShape="RoundRectangle 8" Padding="7,4">
+                                        <Label Text="Q" FontSize="10" FontAttributes="Bold" TextColor="#00B5B5" />
+                                    </Border>
+                                    <Label Text="How do I lock a chat?"
+                                           FontSize="14" FontAttributes="Bold" TextColor="#F0EDE8"
+                                           VerticalOptions="Center" HorizontalOptions="FillAndExpand" />
+                                </HorizontalStackLayout>
+                                <Label Text="Tap conversation menu (⋯) → 'Chat Lock' → choose PIN, Pattern, or Biometric. Locked chats require auth to open even if your phone is unlocked."
+                                       FontSize="12" TextColor="#A0A0B0" LineBreakMode="WordWrap" LineHeight="1.5" />
+                            </VerticalStackLayout>
+                        </Border>
+
+                        <Border BackgroundColor="#16161C" StrokeThickness="1" Stroke="#1C1C25"
+                                StrokeShape="RoundRectangle 16" Margin="0,0,0,8" Padding="16,14">
+                            <VerticalStackLayout Spacing="8">
+                                <HorizontalStackLayout Spacing="10">
+                                    <Border BackgroundColor="#0D1F1F" StrokeThickness="0"
+                                            StrokeShape="RoundRectangle 8" Padding="7,4">
+                                        <Label Text="Q" FontSize="10" FontAttributes="Bold" TextColor="#00B5B5" />
+                                    </Border>
+                                    <Label Text="How do I block or report someone?"
+                                           FontSize="14" FontAttributes="Bold" TextColor="#F0EDE8"
+                                           VerticalOptions="Center" HorizontalOptions="FillAndExpand" />
+                                </HorizontalStackLayout>
+                                <Label Text="Open chat, tap the header menu, select 'Block User' or 'Report User'. Blocked users won't see your online status or last-seen time."
+                                       FontSize="12" TextColor="#A0A0B0" LineBreakMode="WordWrap" LineHeight="1.5" />
+                            </VerticalStackLayout>
+                        </Border>
+
+                        <Border BackgroundColor="#16161C" StrokeThickness="1" Stroke="#1C1C25"
+                                StrokeShape="RoundRectangle 16" Margin="0,0,0,0" Padding="16,14">
+                            <VerticalStackLayout Spacing="8">
+                                <HorizontalStackLayout Spacing="10">
+                                    <Border BackgroundColor="#0D1F1F" StrokeThickness="0"
+                                            StrokeShape="RoundRectangle 8" Padding="7,4">
+                                        <Label Text="Q" FontSize="10" FontAttributes="Bold" TextColor="#00B5B5" />
+                                    </Border>
+                                    <Label Text="What are message requests?"
+                                           FontSize="14" FontAttributes="Bold" TextColor="#F0EDE8"
+                                           VerticalOptions="Center" HorizontalOptions="FillAndExpand" />
+                                </HorizontalStackLayout>
+                                <Label Text="Unmatched users' messages arrive as requests. Accept, Decline, or Preview before deciding. This prevents spam and unwanted contact."
+                                       FontSize="12" TextColor="#A0A0B0" LineBreakMode="WordWrap" LineHeight="1.5" />
+                            </VerticalStackLayout>
+                        </Border>
+
+                    </VerticalStackLayout>
+
+                    <!-- ===== GROUPS SECTION ===== -->
+                    <VerticalStackLayout x:Name="GroupsSection" IsVisible="False" Spacing="0" Padding="20,16,20,8">
+
+                        <HorizontalStackLayout Spacing="8" Margin="0,0,0,12">
+                            <BoxView WidthRequest="3" HeightRequest="14" Color="#FF3B6F"
+                                     CornerRadius="2" VerticalOptions="Center" />
+                            <Label Text="GROUPS" FontSize="9" CharacterSpacing="2"
+                                   FontAttributes="Bold" TextColor="#FF3B6F" VerticalOptions="Center" />
+                        </HorizontalStackLayout>
+
+                        <Border BackgroundColor="#16161C" StrokeThickness="1" Stroke="#1C1C25"
+                                StrokeShape="RoundRectangle 16" Margin="0,0,0,8" Padding="16,14">
+                            <VerticalStackLayout Spacing="8">
+                                <HorizontalStackLayout Spacing="10">
+                                    <Border BackgroundColor="#1A0D20" StrokeThickness="0"
+                                            StrokeShape="RoundRectangle 8" Padding="7,4">
+                                        <Label Text="Q" FontSize="10" FontAttributes="Bold" TextColor="#FF3B6F" />
+                                    </Border>
+                                    <Label Text="What types of groups are available?"
+                                           FontSize="14" FontAttributes="Bold" TextColor="#F0EDE8"
+                                           VerticalOptions="Center" HorizontalOptions="FillAndExpand" />
+                                </HorizontalStackLayout>
+                                <Label Text="Six types: Squad Dating, Mood Rooms, Support Circles, Event Groups, Community Circles, and Interest-Based groups for hobbies, gaming, music, and more."
+                                       FontSize="12" TextColor="#A0A0B0" LineBreakMode="WordWrap" LineHeight="1.5" />
+                            </VerticalStackLayout>
+                        </Border>
+
+                        <Border BackgroundColor="#16161C" StrokeThickness="1" Stroke="#1C1C25"
+                                StrokeShape="RoundRectangle 16" Margin="0,0,0,8" Padding="16,14">
+                            <VerticalStackLayout Spacing="8">
+                                <HorizontalStackLayout Spacing="10">
+                                    <Border BackgroundColor="#1A0D20" StrokeThickness="0"
+                                            StrokeShape="RoundRectangle 8" Padding="7,4">
+                                        <Label Text="Q" FontSize="10" FontAttributes="Bold" TextColor="#FF3B6F" />
+                                    </Border>
+                                    <Label Text="How do I create a group?"
+                                           FontSize="14" FontAttributes="Bold" TextColor="#F0EDE8"
+                                           VerticalOptions="Center" HorizontalOptions="FillAndExpand" />
+                                </HorizontalStackLayout>
+                                <Label Text="Tap Groups → Create Group. Choose name, cover image, group type, and privacy (public/private). Optionally set a mood filter, then share your invite link."
+                                       FontSize="12" TextColor="#A0A0B0" LineBreakMode="WordWrap" LineHeight="1.5" />
+                            </VerticalStackLayout>
+                        </Border>
+
+                        <Border BackgroundColor="#16161C" StrokeThickness="1" Stroke="#1C1C25"
+                                StrokeShape="RoundRectangle 16" Margin="0,0,0,8" Padding="16,14">
+                            <VerticalStackLayout Spacing="8">
+                                <HorizontalStackLayout Spacing="10">
+                                    <Border BackgroundColor="#1A0D20" StrokeThickness="0"
+                                            StrokeShape="RoundRectangle 8" Padding="7,4">
+                                        <Label Text="Q" FontSize="10" FontAttributes="Bold" TextColor="#FF3B6F" />
+                                    </Border>
+                                    <Label Text="How do polls work in groups?"
+                                           FontSize="14" FontAttributes="Bold" TextColor="#F0EDE8"
+                                           VerticalOptions="Center" HorizontalOptions="FillAndExpand" />
+                                </HorizontalStackLayout>
+                                <Label Text="Admins create polls with up to 4 options, set expiry (1h–14 days), and allow single or multiple votes. Results show live with percentage bars."
+                                       FontSize="12" TextColor="#A0A0B0" LineBreakMode="WordWrap" LineHeight="1.5" />
+                            </VerticalStackLayout>
+                        </Border>
+
+                        <Border BackgroundColor="#16161C" StrokeThickness="1" Stroke="#1C1C25"
+                                StrokeShape="RoundRectangle 16" Margin="0,0,0,0" Padding="16,14">
+                            <VerticalStackLayout Spacing="8">
+                                <HorizontalStackLayout Spacing="10">
+                                    <Border BackgroundColor="#1A0D20" StrokeThickness="0"
+                                            StrokeShape="RoundRectangle 8" Padding="7,4">
+                                        <Label Text="Q" FontSize="10" FontAttributes="Bold" TextColor="#FF3B6F" />
+                                    </Border>
+                                    <Label Text="What are group admin privileges?"
+                                           FontSize="14" FontAttributes="Bold" TextColor="#F0EDE8"
+                                           VerticalOptions="Center" HorizontalOptions="FillAndExpand" />
+                                </HorizontalStackLayout>
+                                <Label Text="Admins can add/remove members, delete messages, create polls, edit settings, mute members, and promote to admin. Creators can transfer ownership."
+                                       FontSize="12" TextColor="#A0A0B0" LineBreakMode="WordWrap" LineHeight="1.5" />
+                            </VerticalStackLayout>
+                        </Border>
+
+                    </VerticalStackLayout>
+
+                    <!-- ===== LIVE SECTION ===== -->
+                    <VerticalStackLayout x:Name="LiveSection" IsVisible="False" Spacing="0" Padding="20,16,20,8">
+
+                        <HorizontalStackLayout Spacing="8" Margin="0,0,0,12">
+                            <BoxView WidthRequest="3" HeightRequest="14" Color="#22C55E"
+                                     CornerRadius="2" VerticalOptions="Center" />
+                            <Label Text="LIVE MODE" FontSize="9" CharacterSpacing="2"
+                                   FontAttributes="Bold" TextColor="#22C55E" VerticalOptions="Center" />
+                        </HorizontalStackLayout>
+
+                        <Border BackgroundColor="#16161C" StrokeThickness="1" Stroke="#1C1C25"
+                                StrokeShape="RoundRectangle 16" Margin="0,0,0,8" Padding="16,14">
+                            <VerticalStackLayout Spacing="8">
+                                <HorizontalStackLayout Spacing="10">
+                                    <Border BackgroundColor="#0A2018" StrokeThickness="0"
+                                            StrokeShape="RoundRectangle 8" Padding="7,4">
+                                        <Label Text="Q" FontSize="10" FontAttributes="Bold" TextColor="#22C55E" />
+                                    </Border>
+                                    <Label Text="What is Live mode?"
+                                           FontSize="14" FontAttributes="Bold" TextColor="#F0EDE8"
+                                           VerticalOptions="Center" HorizontalOptions="FillAndExpand" />
+                                </HorizontalStackLayout>
+                                <Label Text="Live mode signals you're available for chat, voice, or video right now. Set your mood, duration, location, and a quick message to attract compatible matches."
+                                       FontSize="12" TextColor="#A0A0B0" LineBreakMode="WordWrap" LineHeight="1.5" />
+                            </VerticalStackLayout>
+                        </Border>
+
+                        <Border BackgroundColor="#16161C" StrokeThickness="1" Stroke="#1C1C25"
+                                StrokeShape="RoundRectangle 16" Margin="0,0,0,8" Padding="16,14">
+                            <VerticalStackLayout Spacing="8">
+                                <HorizontalStackLayout Spacing="10">
+                                    <Border BackgroundColor="#0A2018" StrokeThickness="0"
+                                            StrokeShape="RoundRectangle 8" Padding="7,4">
+                                        <Label Text="Q" FontSize="10" FontAttributes="Bold" TextColor="#22C55E" />
+                                    </Border>
+                                    <Label Text="How long can I stay live?"
+                                           FontSize="14" FontAttributes="Bold" TextColor="#F0EDE8"
+                                           VerticalOptions="Center" HorizontalOptions="FillAndExpand" />
+                                </HorizontalStackLayout>
+                                <Label Text="5 minutes to 24 hours. A countdown timer shows remaining time. Sessions auto-end when expired, and you can end early at any time."
+                                       FontSize="12" TextColor="#A0A0B0" LineBreakMode="WordWrap" LineHeight="1.5" />
+                            </VerticalStackLayout>
+                        </Border>
+
+                        <Border BackgroundColor="#16161C" StrokeThickness="1" Stroke="#1C1C25"
+                                StrokeShape="RoundRectangle 16" Margin="0,0,0,8" Padding="16,14">
+                            <VerticalStackLayout Spacing="8">
+                                <HorizontalStackLayout Spacing="10">
+                                    <Border BackgroundColor="#0A2018" StrokeThickness="0"
+                                            StrokeShape="RoundRectangle 8" Padding="7,4">
+                                        <Label Text="Q" FontSize="10" FontAttributes="Bold" TextColor="#22C55E" />
+                                    </Border>
+                                    <Label Text="What moods can I choose?"
+                                           FontSize="14" FontAttributes="Bold" TextColor="#F0EDE8"
+                                           VerticalOptions="Center" HorizontalOptions="FillAndExpand" />
+                                </HorizontalStackLayout>
+                                <Label Text="15 moods: Chill, Playful, Romantic, Adventurous, Talkative, Flirty, Mysterious, Happy, Horny, Lonely, Excited, Curious, Supportive, Deep Talks, and Bored."
+                                       FontSize="12" TextColor="#A0A0B0" LineBreakMode="WordWrap" LineHeight="1.5" />
+                            </VerticalStackLayout>
+                        </Border>
+
+                        <Border BackgroundColor="#16161C" StrokeThickness="1" Stroke="#1C1C25"
+                                StrokeShape="RoundRectangle 16" Margin="0,0,0,0" Padding="16,14">
+                            <VerticalStackLayout Spacing="8">
+                                <HorizontalStackLayout Spacing="10">
+                                    <Border BackgroundColor="#0A2018" StrokeThickness="0"
+                                            StrokeShape="RoundRectangle 8" Padding="7,4">
+                                        <Label Text="Q" FontSize="10" FontAttributes="Bold" TextColor="#22C55E" />
+                                    </Border>
+                                    <Label Text="How do I find people who are live?"
+                                           FontSize="14" FontAttributes="Bold" TextColor="#F0EDE8"
+                                           VerticalOptions="Center" HorizontalOptions="FillAndExpand" />
+                                </HorizontalStackLayout>
+                                <Label Text="Tap 'See who's live' on the Discover page. Filter by mood, chat/voice/video availability, or location. The banner pulses when people are live near you."
+                                       FontSize="12" TextColor="#A0A0B0" LineBreakMode="WordWrap" LineHeight="1.5" />
+                            </VerticalStackLayout>
+                        </Border>
+
+                    </VerticalStackLayout>
+
+                </VerticalStackLayout>
+            </ScrollView>
+
+            <!-- ── CONTACT SUPPORT FOOTER ── -->
+            <Grid Grid.Row="4" BackgroundColor="#0E0E12">
+                <BoxView HeightRequest="1" BackgroundColor="#1C1C25"
+                         VerticalOptions="Start" HorizontalOptions="Fill" />
+
+                <VerticalStackLayout Spacing="10" Padding="20,14,20,20">
+
+                    <Label Text="Still need help?"
+                           FontSize="12" FontAttributes="Bold"
+                           TextColor="#F0EDE8" HorizontalOptions="Center" />
+
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+
+                        <Border Grid.Column="0" BackgroundColor="#16161C"
+                                StrokeThickness="1" Stroke="#1C1C25"
+                                StrokeShape="RoundRectangle 14" Padding="12,10">
+                            <HorizontalStackLayout Spacing="8" HorizontalOptions="Center">
+                                <Path Data="M160-160q-33 0-56.5-23.5T80-240v-480q0-33 23.5-56.5T160-800h640q33 0 56.5 23.5T880-720v480q0 33-23.5 56.5T800-160H160Zm320-280L160-640v400h640v-400L480-440Zm0-80 320-200H160l320 200ZM160-640v-80 480-400Z"
+                                      Fill="#00B5B5"
+                                      HeightRequest="16" WidthRequest="16"
+                                      VerticalOptions="Center" Aspect="Uniform" />
+                                <Label Text="Email Us" FontSize="12"
+                                       FontAttributes="Bold" TextColor="#00B5B5"
+                                       VerticalOptions="Center" />
+                            </HorizontalStackLayout>
+                        </Border>
+
+                        <Border Grid.Column="1" BackgroundColor="#16161C"
+                                StrokeThickness="1" Stroke="#1C1C25"
+                                StrokeShape="RoundRectangle 14" Padding="12,10">
+                            <HorizontalStackLayout Spacing="8" HorizontalOptions="Center">
+                                <Path Data="M480-120q-138 0-240.5-91.5T122-440h82q14 104 92.5 172T480-200q117 0 198.5-81.5T760-480q0-117-81.5-198.5T480-760q-69 0-129 32t-101 88h110v80H120v-240h80v94q51-64 124.5-99T480-840q75 0 140.5 28.5t114 77q48.5 48.5 77 114T840-480q0 75-28.5 140.5t-77 114q-48.5 48.5-114 77T480-120Zm112-192L440-464v-216h80v184l128 128-56 56Z"
+                                      Fill="#FF3B6F"
+                                      HeightRequest="16" WidthRequest="16"
+                                      VerticalOptions="Center" Aspect="Uniform" />
+                                <Label Text="Help Docs" FontSize="12"
+                                       FontAttributes="Bold" TextColor="#FF3B6F"
+                                       VerticalOptions="Center" />
+                            </HorizontalStackLayout>
+                        </Border>
+
+                    </Grid>
+
+                    <!-- Response time pill -->
+                    <Border BackgroundColor="#0D1F1F"
+                            StrokeThickness="1" Stroke="#00B5B5"
+                            StrokeShape="RoundRectangle 20"
+                            Padding="14,7" HorizontalOptions="Center">
+                        <HorizontalStackLayout Spacing="8">
+                            <Ellipse WidthRequest="7" HeightRequest="7"
+                                     Fill="#22C55E" VerticalOptions="Center" />
+                            <Label Text="Avg response: 24–48 hrs"
+                                   FontSize="11" FontAttributes="Bold"
+                                   TextColor="#00B5B5" VerticalOptions="Center" />
+                        </HorizontalStackLayout>
+                    </Border>
+
+                </VerticalStackLayout>
+            </Grid>
+
+        </Grid>
+    </Grid>
+</ContentPage>

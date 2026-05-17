@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<color name="colorPrimary">#008080</color>
+	<color name="colorPrimaryDark">#000000</color>
+	<color name="colorAccent">#008080</color>
+
+	<!-- Splash background color used by launch_background.xml -->
+	<color name="maui_splash_background">#FFFFFF</color>
+</resources>

@@ -1,0 +1,567 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:conv="clr-namespace:Lock.Converters"
+             x:Class="Lock.Pages.Admin.UsersListPage"
+             BackgroundColor="#0A0A0F"
+             Shell.NavBarIsVisible="False">
+
+    <ContentPage.Resources>
+        <conv:ProfileImageSourceConverter x:Key="ProfileImageSource"/>
+        <conv:ProfileImageVisibleConverter x:Key="ProfileImageVisible"/>
+        <conv:ProfileInitialConverter x:Key="ProfileInitial"/>
+    </ContentPage.Resources>
+
+    <Grid RowDefinitions="Auto,Auto,*">
+
+        <!-- ══ HEADER ══ -->
+        <Grid Grid.Row="0"
+      BackgroundColor="#0D0D14"
+      Padding="20,24,20,10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Title -->
+            <VerticalStackLayout Grid.Column="0" Spacing="2" VerticalOptions="Center">
+                <HorizontalStackLayout Spacing="6" VerticalOptions="Center">
+                    <Path Data="M480-80q-139-35-229.5-159.5T160-516v-244l320-120 320 120v244q0 85-29 163t-80.5 139T480-80Zm0-62q106-35 172-128.5T718-516v-205l-238-89-238 89v205q0 115 66 208.5T480-142Zm0-338Z"
+                  Fill="#00B5B5"
+                  HeightRequest="18" WidthRequest="18"
+                  Aspect="Uniform" VerticalOptions="Center"/>
+                    <Label Text="Admin Console"
+                   FontSize="18" FontAttributes="Bold"
+                   TextColor="#F0EDE8"
+                   VerticalOptions="Center"/>
+                </HorizontalStackLayout>
+                <Label Text="User management &amp; analytics"
+               FontSize="10" TextColor="#5A5A6A"/>
+            </VerticalStackLayout>
+
+            <!-- Dashboard icon button -->
+            <Grid Grid.Column="1" x:Name="AdminDashboardIconTab">
+                <Grid.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnAdminDashboardClicked"/>
+                </Grid.GestureRecognizers>
+                <VerticalStackLayout Spacing="3" Padding="8,0"
+                             HorizontalOptions="Center" VerticalOptions="Center">
+                    <Path Data="M520-600v-240h240v240H520ZM200-440v-400h240v400H200Zm320 240v-400h240v400H520Zm-320 0v-240h240v240H200Zm40-280h160v-320H240v320Zm320 240h160v-320H560v320Zm0-440h160v-160H560v160ZM240-240h160v-160H240v160Zm160-160Zm160-280Zm0 280Zm-320-120Z"
+                  Fill="#7A7A8C" HeightRequest="16" WidthRequest="16"
+                  Aspect="Uniform" HorizontalOptions="Center"/>
+                    <Label Text="Dashboard" FontSize="9" FontAttributes="Bold"
+                   TextColor="#7A7A8C" HorizontalOptions="Center"/>
+                    <BoxView x:Name="AdminDashboardIconIndicator"
+                     HeightRequest="2" WidthRequest="0"
+                     BackgroundColor="#7A7A8C" HorizontalOptions="Center"/>
+                </VerticalStackLayout>
+            </Grid>
+
+            <!-- Role Manager icon button -->
+            <Grid Grid.Column="2" x:Name="RoleManagerIconTab">
+                <Grid.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnRoleManagerClicked"/>
+                </Grid.GestureRecognizers>
+                <VerticalStackLayout Spacing="3" Padding="8,0"
+                             HorizontalOptions="Center" VerticalOptions="Center">
+                    <!-- Crown / admin shield icon -->
+                    <Path Data="M480-80q-139-35-229.5-159.5T160-516v-244l320-120 320 120v244q0 85-29 163t-80.5 139T480-80Zm0-62q106-35 172-128.5T718-516v-205l-238-89-238 89v205q0 115 66 208.5T480-142Zm-40-262-100-100-56 56 156 156 300-300-56-58-244 246Zm40 180Z"
+                  Fill="#7A7A8C" HeightRequest="16" WidthRequest="16"
+                  Aspect="Uniform" HorizontalOptions="Center"/>
+                    <Label Text="Roles" FontSize="9" FontAttributes="Bold"
+                   TextColor="#7A7A8C" HorizontalOptions="Center"/>
+                    <BoxView x:Name="RoleManagerIconIndicator"
+                     HeightRequest="2" WidthRequest="0"
+                     BackgroundColor="#4A9EFF" HorizontalOptions="Center"/>
+                </VerticalStackLayout>
+            </Grid>
+
+            <!-- Reports icon button -->
+            <Grid Grid.Column="3" x:Name="ReportsIconTab">
+                <Grid.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnViewReportsClicked"/>
+                </Grid.GestureRecognizers>
+                <VerticalStackLayout Spacing="3" Padding="8,0"
+                             HorizontalOptions="Center" VerticalOptions="Center">
+                    <Path Data="M12 8c0-3.31 2.69-6 6-6s6 2.69 6 6-2.69 6-6 6-6-2.69-6-6zm2 0c0 2.21 1.79 4 4 4s4-1.79 4-4-1.79-4-4-4-4 1.79-4 4zm-4 10c0-2.21 1.79-4 4-4h8c2.21 0 4 1.79 4 4v2h-2v-2c0-1.1-.9-2-2-2h-8c-1.1 0-2 .9-2 2v2H6v-2z"
+                  Fill="#7A7A8C" HeightRequest="16" WidthRequest="16"
+                  Aspect="Uniform" HorizontalOptions="Center"/>
+                    <Label Text="Reports" FontSize="9" FontAttributes="Bold"
+                   TextColor="#7A7A8C" HorizontalOptions="Center"/>
+                    <BoxView x:Name="ReportsIconIndicator"
+                     HeightRequest="2" WidthRequest="0"
+                     BackgroundColor="#7A7A8C" HorizontalOptions="Center"/>
+                </VerticalStackLayout>
+            </Grid>
+
+        </Grid>
+        
+
+        <BoxView Grid.Row="0" HeightRequest="1" BackgroundColor="#1C1C25" VerticalOptions="End"/>
+
+        <!-- ══ TAB BAR ══ -->
+        <Grid Grid.Row="1" BackgroundColor="#0D0D14"
+              Padding="16,0,16,0" HeightRequest="52">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <Grid Grid.Column="0" x:Name="UsersTab">
+                <Grid.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnUsersTabTapped"/>
+                </Grid.GestureRecognizers>
+                <VerticalStackLayout Spacing="4" HorizontalOptions="Center" VerticalOptions="Center">
+                    <Path Data="M480-480q-66 0-113-47t-47-113q0-66 47-113t113-47q66 0 113 47t47 113q0 66-47 113t-113 47ZM160-160v-112q0-34 17.5-62.5T224-378q62-31 126-46.5T480-440q66 0 130 15.5T736-378q29 15 46.5 43.5T800-272v112H160Z"
+                          Fill="#00B5B5" HeightRequest="18" WidthRequest="18"
+                          Aspect="Uniform" HorizontalOptions="Center"/>
+                    <Label Text="Users" FontSize="10" FontAttributes="Bold"
+                           TextColor="#00B5B5" HorizontalOptions="Center"/>
+                    <BoxView x:Name="UsersTabIndicator" HeightRequest="2" WidthRequest="0"
+                             BackgroundColor="#00B5B5" HorizontalOptions="Center"/>
+                </VerticalStackLayout>
+            </Grid>
+
+            <Grid Grid.Column="1" x:Name="ActivitiesTab">
+                <Grid.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnActivitiesTabTapped"/>
+                </Grid.GestureRecognizers>
+                <VerticalStackLayout Spacing="4" HorizontalOptions="Center" VerticalOptions="Center">
+                    <Path Data="M200-80q-33 0-56.5-23.5T120-160v-560q0-33 23.5-56.5T200-800h40v-80h80v80h320v-80h80v80h40q33 0 56.5 23.5T840-720v560q0 33-23.5 56.5T760-80H200Zm0-80h560v-400H200v400Zm0-480h560v-80H200v80Zm0 0v-80 80Zm280 240q-17 0-28.5-11.5T440-440q0-17 11.5-28.5T480-480q17 0 28.5 11.5T520-440q0 17-11.5 28.5T480-400Zm-160 0q-17 0-28.5-11.5T280-440q0-17 11.5-28.5T320-480q17 0 28.5 11.5T360-440q0 17-11.5 28.5T320-400Zm320 0q-17 0-28.5-11.5T600-440q0-17 11.5-28.5T640-480q17 0 28.5 11.5T680-440q0 17-11.5 28.5T640-400ZM480-240q-17 0-28.5-11.5T440-280q0-17 11.5-28.5T480-320q17 0 28.5 11.5T520-280q0 17-11.5 28.5T480-240Zm-160 0q-17 0-28.5-11.5T280-280q0-17 11.5-28.5T320-320q17 0 28.5 11.5T360-280q0 17-11.5 28.5T320-240Zm320 0q-17 0-28.5-11.5T600-280q0-17 11.5-28.5T640-320q17 0 28.5 11.5T680-280q0 17-11.5 28.5T640-240Z"
+                          Fill="#5A5A6A" HeightRequest="18" WidthRequest="18"
+                          Aspect="Uniform" HorizontalOptions="Center"/>
+                    <Label Text="Activity" FontSize="10" TextColor="#5A5A6A" HorizontalOptions="Center"/>
+                    <BoxView x:Name="ActivitiesTabIndicator" HeightRequest="2" WidthRequest="0"
+                             BackgroundColor="#00B5B5" HorizontalOptions="Center"/>
+                </VerticalStackLayout>
+            </Grid>
+
+            <Grid Grid.Column="2" x:Name="ChangesTab">
+                <Grid.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnChangesTabTapped"/>
+                </Grid.GestureRecognizers>
+                <VerticalStackLayout Spacing="4" HorizontalOptions="Center" VerticalOptions="Center">
+                    <Path Data="M200-200h57l391-391-57-57-391 391v57Zm-80 80v-170l528-527q12-11 26.5-17t30.5-6q16 0 31 6t26 18l55 56q12 11 17.5 26t5.5 30q0 16-5.5 30.5T817-647L290-120H120Zm640-584-56-56 56 56Zm-141 85-28-29 57 57-29-28Z"
+                          Fill="#5A5A6A" HeightRequest="18" WidthRequest="18"
+                          Aspect="Uniform" HorizontalOptions="Center"/>
+                    <Label Text="Changes" FontSize="10" TextColor="#5A5A6A" HorizontalOptions="Center"/>
+                    <BoxView x:Name="ChangesTabIndicator" HeightRequest="2" WidthRequest="0"
+                             BackgroundColor="#00B5B5" HorizontalOptions="Center"/>
+                </VerticalStackLayout>
+            </Grid>
+
+            <Grid Grid.Column="3" x:Name="ReportsTab">
+                <Grid.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnReportsTabTapped"/>
+                </Grid.GestureRecognizers>
+                <VerticalStackLayout Spacing="4" HorizontalOptions="Center" VerticalOptions="Center">
+                    <Path Data="M280-280h160v-200H280v200Zm240 0h160v-560H520v560ZM160-120v-720h640v720H160Zm80-80h480v-560H240v560Zm0 0v-560 560Z"
+                          Fill="#5A5A6A" HeightRequest="18" WidthRequest="18"
+                          Aspect="Uniform" HorizontalOptions="Center"/>
+                    <Label Text="Reports" FontSize="10" TextColor="#5A5A6A" HorizontalOptions="Center"/>
+                    <BoxView x:Name="ReportsTabIndicator" HeightRequest="2" WidthRequest="0"
+                             BackgroundColor="#00B5B5" HorizontalOptions="Center"/>
+                </VerticalStackLayout>
+            </Grid>
+        </Grid>
+
+        <BoxView Grid.Row="1" HeightRequest="1" BackgroundColor="#1C1C25" VerticalOptions="End"/>
+
+        <!-- ══ CONTENT AREA ══ -->
+        <Grid Grid.Row="2" BackgroundColor="#0A0A0F">
+
+            <!-- ── TAB 1: USERS ── -->
+            <Grid x:Name="UsersContent" IsVisible="True"
+                  RowDefinitions="Auto,Auto,Auto,*">
+
+                <!-- Row 0: Search + Refresh -->
+                <Grid Grid.Row="0"
+                      BackgroundColor="#0D0D14"
+                      Padding="16,12,16,8"
+                      ColumnDefinitions="*,Auto"
+                      ColumnSpacing="10">
+
+                    <Border Grid.Column="0"
+                            BackgroundColor="#16161C"
+                            StrokeThickness="1" Stroke="#2A2A38"
+                            StrokeShape="RoundRectangle 12"
+                            Padding="10,0">
+                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="6">
+                            <Path Grid.Column="0"
+                                  Data="m775.5-168.5-247.77-248Q498-390.5 459-376.75T383.16-363q-91.13 0-153.9-62.98-62.76-62.97-62.76-153.5 0-90.52 62.7-153.52 62.71-63 153.5-63 90.8 0 153.8 63.01 63 63 63 153.57 0 40.42-15 79.42T546-434.29L794-187l-18.5 18.5Z"
+                                  Fill="#5A5A6A"
+                                  HeightRequest="14" WidthRequest="14"
+                                  Aspect="Uniform" VerticalOptions="Center"/>
+                            <SearchBar Grid.Column="1"
+                                       x:Name="SearchBarControl"
+                                       Placeholder="Search name or phone..."
+                                       PlaceholderColor="#3A3A4A"
+                                       TextColor="#F0EDE8"
+                                       BackgroundColor="Transparent"
+                                       CancelButtonColor="#00B5B5"
+                                       FontSize="13"
+                                       HeightRequest="44"
+                                       TextChanged="SearchBar_TextChanged"/>
+                        </Grid>
+                    </Border>
+
+                    <Grid Grid.Column="1" WidthRequest="44" HeightRequest="44">
+                        <Grid.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="RefreshButton_Clicked"/>
+                        </Grid.GestureRecognizers>
+                        <Border BackgroundColor="#0D1F1F"
+                                StrokeThickness="1" Stroke="#1A3A3A"
+                                StrokeShape="RoundRectangle 12"
+                                WidthRequest="44" HeightRequest="44">
+                            <Path Data="M480-160q-134 0-227-93t-93-227q0-134 93-227t227-93q69 0 132 28.5T720-690v-110h80v280H520v-80h168q-32-56-87.5-88T480-720q-100 0-170 70t-70 170q0 100 70 170t170 70q77 0 139-44t87-116h84q-28 106-114 173t-196 67Z"
+                                  Fill="#00B5B5"
+                                  HeightRequest="18" WidthRequest="18"
+                                  Aspect="Uniform"
+                                  HorizontalOptions="Center" VerticalOptions="Center"/>
+                        </Border>
+                    </Grid>
+                </Grid>
+
+                <!-- Row 1: Filter toggle button -->
+                <Grid Grid.Row="1" BackgroundColor="#0D0D14" Padding="16,0,16,8">
+                    <Border BackgroundColor="#12121A"
+                            StrokeThickness="1" Stroke="#2A2A38"
+                            StrokeShape="RoundRectangle 10"
+                            Padding="12,8">
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="MenuButton_Clicked"/>
+                        </Border.GestureRecognizers>
+                        <HorizontalStackLayout Spacing="8">
+                            <Path Data="M440-160q-17 0-28.5-11.5T400-200v-240L168-736q-15-20-4.5-42t36.5-22h560q26 0 36.5 22T792-736L560-440v240q0 17-11.5 28.5T520-160h-80Z"
+                                  Fill="#7A7A8C" HeightRequest="14" WidthRequest="14"
+                                  Aspect="Uniform" VerticalOptions="Center"/>
+                            <Label x:Name="FilterToggleLabel"
+                                   Text="Filters  ▾"
+                                   FontSize="12" FontAttributes="Bold"
+                                   TextColor="#7A7A8C" VerticalOptions="Center"/>
+                            <Label x:Name="ActiveFiltersLabel"
+                                   Text="" FontSize="11"
+                                   TextColor="#00B5B5" VerticalOptions="Center"/>
+                        </HorizontalStackLayout>
+                    </Border>
+                </Grid>
+
+                <!-- Row 2: Filter dropdowns (collapsible) -->
+                <Grid Grid.Row="2" x:Name="FilterBar"
+                      IsVisible="False"
+                      BackgroundColor="#0D0D14"
+                      Padding="16,0,16,10"
+                      RowDefinitions="Auto,Auto"
+                      RowSpacing="8">
+
+                    <Grid Grid.Row="0"
+                          ColumnDefinitions="*,*,Auto"
+                          ColumnSpacing="8">
+
+                        <Border Grid.Column="0"
+                                BackgroundColor="#16161C"
+                                StrokeThickness="1" Stroke="#2A2A38"
+                                StrokeShape="RoundRectangle 12"
+                                Padding="10,0">
+                            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="4">
+                                <Label Grid.Column="0" Text="⚥"
+                                       FontSize="12" TextColor="#5A5A6A"
+                                       VerticalOptions="Center"/>
+                                <Picker Grid.Column="1"
+                                        x:Name="GenderFilterPicker"
+                                        Title="Gender"
+                                        TitleColor="#5A5A6A"
+                                        TextColor="#F0EDE8"
+                                        BackgroundColor="Transparent"
+                                        FontSize="12"
+                                        HeightRequest="44"
+                                        SelectedIndexChanged="GenderFilter_SelectedIndexChanged"/>
+                            </Grid>
+                        </Border>
+
+                        <Border Grid.Column="1"
+                                BackgroundColor="#16161C"
+                                StrokeThickness="1" Stroke="#2A2A38"
+                                StrokeShape="RoundRectangle 12"
+                                Padding="10,0">
+                            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="4">
+                                <Label Grid.Column="0" Text="♥"
+                                       FontSize="12" TextColor="#5A5A6A"
+                                       VerticalOptions="Center"/>
+                                <Picker Grid.Column="1"
+                                        x:Name="InterestFilterPicker"
+                                        Title="Interest"
+                                        TitleColor="#5A5A6A"
+                                        TextColor="#F0EDE8"
+                                        BackgroundColor="Transparent"
+                                        FontSize="12"
+                                        HeightRequest="44"
+                                        SelectedIndexChanged="InterestFilter_SelectedIndexChanged"/>
+                            </Grid>
+                        </Border>
+
+                        <Border Grid.Column="2"
+                                BackgroundColor="#2A1520"
+                                StrokeThickness="1" Stroke="#FF3B6F"
+                                StrokeShape="RoundRectangle 12"
+                                Padding="14,0">
+                            <Border.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="ClearFiltersButton_Clicked"/>
+                            </Border.GestureRecognizers>
+                            <Label Text="Clear"
+                                   FontSize="12" FontAttributes="Bold"
+                                   TextColor="#FF3B6F"
+                                   VerticalOptions="Center"/>
+                        </Border>
+                    </Grid>
+
+                    <Border Grid.Row="1"
+                            BackgroundColor="#16161C"
+                            StrokeThickness="1" Stroke="#2A2A38"
+                            StrokeShape="RoundRectangle 12"
+                            Padding="10,0">
+                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="4">
+                            <Path Grid.Column="0"
+                                  Data="M480-480q33 0 56.5-23.5T560-560q0-33-23.5-56.5T480-640q-33 0-56.5 23.5T400-560q0 33 23.5 56.5T480-480Zm0 294q122-112 181-203.5T720-552q0-109-69.5-178.5T480-800q-101 0-170.5 69.5T240-552q0 71 59 162.5T480-186Zm0 106Q319-217 239.5-334.5T160-552q0-150 96.5-239T480-880q127 0 223.5 89T800-552q0 100-79.5 217.5T480-80Zm0-480Z"
+                                  Fill="#5A5A6A"
+                                  HeightRequest="14" WidthRequest="14"
+                                  Aspect="Uniform" VerticalOptions="Center"/>
+                            <Picker Grid.Column="1"
+                                    x:Name="LocationFilterPicker"
+                                    Title="All Locations"
+                                    TitleColor="#5A5A6A"
+                                    TextColor="#F0EDE8"
+                                    BackgroundColor="Transparent"
+                                    FontSize="12"
+                                    HeightRequest="44"
+                                    SelectedIndexChanged="LocationFilter_SelectedIndexChanged"/>
+                        </Grid>
+                    </Border>
+                </Grid>
+
+                <!-- Row 3: Stats + Table -->
+                <Grid Grid.Row="3" RowDefinitions="Auto,*">
+
+                    <Border Grid.Row="0"
+                            BackgroundColor="#0D0D14"
+                            StrokeThickness="0"
+                            Padding="16,4,16,8">
+                        <Label x:Name="StatsLabel"
+                               Text="Loading..."
+                               FontSize="11"
+                               TextColor="#5A5A6A"/>
+                    </Border>
+
+                    <ScrollView Grid.Row="1"
+                                HorizontalScrollBarVisibility="Never"
+                                VerticalScrollBarVisibility="Never">
+                        <VerticalStackLayout Spacing="0" Padding="0,0,0,20">
+
+                            <Grid BackgroundColor="#12121A" Padding="16,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="0.18*"/>
+                                    <ColumnDefinition Width="0.15*"/>
+                                    <ColumnDefinition Width="0.06*"/>
+                                    <ColumnDefinition Width="0.09*"/>
+                                    <ColumnDefinition Width="0.12*"/>
+                                    <ColumnDefinition Width="0.14*"/>
+                                    <ColumnDefinition Width="0.16*"/>
+                                    <ColumnDefinition Width="0.10*"/>
+                                </Grid.ColumnDefinitions>
+                                <Label Grid.Column="0" Text="NAME" FontSize="10" FontAttributes="Bold" TextColor="#00B5B5" CharacterSpacing="1.5"/>
+                                <Label Grid.Column="1" Text="PHONE" FontSize="10" FontAttributes="Bold" TextColor="#5A5A6A" CharacterSpacing="1.5"/>
+                                <Label Grid.Column="2" Text="AGE" FontSize="10" FontAttributes="Bold" TextColor="#5A5A6A" CharacterSpacing="1.5"/>
+                                <Label Grid.Column="3" Text="GENDER" FontSize="10" FontAttributes="Bold" TextColor="#5A5A6A" CharacterSpacing="1.5"/>
+                                <Label Grid.Column="4" Text="INTEREST" FontSize="10" FontAttributes="Bold" TextColor="#5A5A6A" CharacterSpacing="1.5"/>
+                                <Label Grid.Column="5" Text="LOCATION" FontSize="10" FontAttributes="Bold" TextColor="#5A5A6A" CharacterSpacing="1.5"/>
+                                <Label Grid.Column="6" Text="IP ADDRESS" FontSize="10" FontAttributes="Bold" TextColor="#5A5A6A" CharacterSpacing="1.5"/>
+                                <Label Grid.Column="7" Text="JOINED" FontSize="10" FontAttributes="Bold" TextColor="#5A5A6A" CharacterSpacing="1.5"/>
+                            </Grid>
+
+                            <BoxView HeightRequest="1" BackgroundColor="#1C1C25"/>
+                            <StackLayout x:Name="UsersContainer" Spacing="0"/>
+                        </VerticalStackLayout>
+                    </ScrollView>
+                </Grid>
+            </Grid>
+
+            <!-- ── TAB 2: ACTIVITIES ── -->
+            <Grid x:Name="ActivitiesContent" IsVisible="False" RowDefinitions="Auto,Auto,*">
+                <Border Grid.Row="0" BackgroundColor="#0D0D14" StrokeThickness="0" Padding="16,14,16,12">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <Label x:Name="ActivitiesStatsLabel" Grid.Column="0"
+                   Text="Recent Activities"
+                   FontSize="15" FontAttributes="Bold"
+                   TextColor="#F0EDE8" VerticalOptions="Center"/>
+                        <HorizontalStackLayout Grid.Column="1" Spacing="4" VerticalOptions="Center">
+                            <Ellipse WidthRequest="7" HeightRequest="7" Fill="#22C55E" VerticalOptions="Center"/>
+                            <Label Text="Live" FontSize="10" TextColor="#22C55E" VerticalOptions="Center"/>
+                        </HorizontalStackLayout>
+                    </Grid>
+                </Border>
+                <BoxView Grid.Row="0" HeightRequest="1" BackgroundColor="#1C1C25" VerticalOptions="End"/>
+
+                <!-- ADD THIS search row -->
+                <Border Grid.Row="1"
+            BackgroundColor="#12121A" Stroke="#2A2A38" StrokeThickness="1"
+            StrokeShape="RoundRectangle 10" Padding="10,0" Margin="16,8,16,4">
+                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="6">
+                        <Path Grid.Column="0"
+                  Data="m775.5-168.5-247.77-248Q498-390.5 459-376.75T383.16-363q-91.13 0-153.9-62.98-62.76-62.97-62.76-153.5 0-90.52 62.7-153.52 62.71-63 153.5-63 90.8 0 153.8 63.01 63 63 63 153.57 0 40.42-15 79.42T546-434.29L794-187l-18.5 18.5Z"
+                  Fill="#5A5A6A" HeightRequest="13" WidthRequest="13"
+                  Aspect="Uniform" VerticalOptions="Center"/>
+                        <Entry x:Name="ActivitiesSearchEntry" Grid.Column="1"
+                   Placeholder="Search activities..." PlaceholderColor="#3A3A4A"
+                   TextColor="#F0EDE8" BackgroundColor="Transparent"
+                   FontSize="12" HeightRequest="38"
+                   TextChanged="ActivitiesSearch_TextChanged"/>
+                        <Label x:Name="ActivitiesSearchClear" Grid.Column="2"
+                   Text="✕" FontSize="12" TextColor="#555566"
+                   VerticalOptions="Center" IsVisible="False">
+                            <Label.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="ActivitiesSearchClear_Tapped"/>
+                            </Label.GestureRecognizers>
+                        </Label>
+                    </Grid>
+                </Border>
+
+                <ScrollView Grid.Row="2" HorizontalScrollBarVisibility="Never" VerticalScrollBarVisibility="Never">
+                    <StackLayout x:Name="ActivitiesContainer" Spacing="0"/>
+                </ScrollView>
+            </Grid>
+
+
+            <!-- ── TAB 3: CHANGES ── -->
+            <Grid x:Name="ChangesContent" IsVisible="False" RowDefinitions="Auto,Auto,*">
+                <Border Grid.Row="0" BackgroundColor="#0D0D14" StrokeThickness="0" Padding="16,14,16,12">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <Label x:Name="ChangesStatsLabel" Grid.Column="0"
+                   Text="Profile Changes"
+                   FontSize="15" FontAttributes="Bold"
+                   TextColor="#F0EDE8" VerticalOptions="Center"/>
+                        <HorizontalStackLayout Grid.Column="1" Spacing="4" VerticalOptions="Center">
+                            <Ellipse WidthRequest="7" HeightRequest="7" Fill="#F59E0B" VerticalOptions="Center"/>
+                            <Label Text="Tracked" FontSize="10" TextColor="#F59E0B" VerticalOptions="Center"/>
+                        </HorizontalStackLayout>
+                    </Grid>
+                </Border>
+                <BoxView Grid.Row="0" HeightRequest="1" BackgroundColor="#1C1C25" VerticalOptions="End"/>
+
+                <!-- Search bar -->
+                <Border Grid.Row="1"
+            BackgroundColor="#12121A" Stroke="#2A2A38" StrokeThickness="1"
+            StrokeShape="RoundRectangle 10" Padding="10,0" Margin="16,8,16,4">
+                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="6">
+                        <Path Grid.Column="0"
+                  Data="m775.5-168.5-247.77-248Q498-390.5 459-376.75T383.16-363q-91.13 0-153.9-62.98-62.76-62.97-62.76-153.5 0-90.52 62.7-153.52 62.71-63 153.5-63 90.8 0 153.8 63.01 63 63 63 153.57 0 40.42-15 79.42T546-434.29L794-187l-18.5 18.5Z"
+                  Fill="#5A5A6A" HeightRequest="13" WidthRequest="13"
+                  Aspect="Uniform" VerticalOptions="Center"/>
+                        <Entry x:Name="ChangesSearchEntry" Grid.Column="1"
+                   Placeholder="Search by name, field or detail..."
+                   PlaceholderColor="#3A3A4A"
+                   TextColor="#F0EDE8" BackgroundColor="Transparent"
+                   FontSize="12" HeightRequest="38"
+                   TextChanged="ChangesSearch_TextChanged"/>
+                        <Label x:Name="ChangesSearchClear" Grid.Column="2"
+                   Text="✕" FontSize="12" TextColor="#555566"
+                   VerticalOptions="Center" IsVisible="False">
+                            <Label.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="ChangesSearchClear_Tapped"/>
+                            </Label.GestureRecognizers>
+                        </Label>
+                    </Grid>
+                </Border>
+
+                <ScrollView Grid.Row="2" HorizontalScrollBarVisibility="Never" VerticalScrollBarVisibility="Never">
+                    <StackLayout x:Name="ChangesContainer" Spacing="0"/>
+                </ScrollView>
+            </Grid>
+            
+            
+
+            <!-- ── TAB 4: REPORTS ── -->
+            <Grid x:Name="ReportsContent" IsVisible="False" RowDefinitions="Auto,*,Auto">
+                <Grid Grid.Row="0" BackgroundColor="#0D0D14"
+                      Padding="16,12,16,12"
+                      ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
+                    <Border Grid.Column="0" BackgroundColor="#16161C"
+                            StrokeThickness="1" Stroke="#2A2A38"
+                            StrokeShape="RoundRectangle 12" Padding="10,0">
+                        <Picker x:Name="ReportTypePicker" TitleColor="#5A5A6A"
+                                TextColor="#F0EDE8" BackgroundColor="Transparent"
+                                FontSize="13" HeightRequest="44"
+                                SelectedIndexChanged="ReportTypePicker_SelectedIndexChanged"/>
+                    </Border>
+                    <Border Grid.Column="1" BackgroundColor="#16161C"
+                            StrokeThickness="1" Stroke="#2A2A38"
+                            StrokeShape="RoundRectangle 12" Padding="10,0">
+                        <DatePicker x:Name="ReportDatePicker" TextColor="#F0EDE8"
+                                    BackgroundColor="Transparent" FontSize="12" HeightRequest="44"/>
+                    </Border>
+                    <Border Grid.Column="2" BackgroundColor="#0D1F1F"
+                            StrokeThickness="1" Stroke="#00B5B5"
+                            StrokeShape="RoundRectangle 12" Padding="14,0">
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="GenerateReportButton_Clicked"/>
+                        </Border.GestureRecognizers>
+                        <Label Text="Run" FontSize="12" FontAttributes="Bold"
+                               TextColor="#00B5B5" VerticalOptions="Center"/>
+                    </Border>
+                </Grid>
+                <BoxView Grid.Row="0" HeightRequest="1" BackgroundColor="#1C1C25" VerticalOptions="End"/>
+                <ScrollView Grid.Row="1" HorizontalScrollBarVisibility="Never" VerticalScrollBarVisibility="Never">
+                    <StackLayout x:Name="ReportContainer" Padding="16,16,16,16" Spacing="12"/>
+                </ScrollView>
+                <Grid Grid.Row="2" BackgroundColor="#0D0D14" Padding="16,12">
+                    <Border StrokeThickness="0" StrokeShape="RoundRectangle 14" HeightRequest="48">
+                        <Border.Background>
+                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                <GradientStop Color="#00B5B5" Offset="0"/>
+                                <GradientStop Color="#008080" Offset="1"/>
+                            </LinearGradientBrush>
+                        </Border.Background>
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="ExportReportButton_Clicked"/>
+                        </Border.GestureRecognizers>
+                        <HorizontalStackLayout Spacing="8" HorizontalOptions="Center" VerticalOptions="Center">
+                            <Path Data="M480-320 280-520l56-58 104 104v-326h80v326l104-104 56 58-200 200ZM240-160q-33 0-56.5-23.5T160-240v-120h80v120h480v-120h80v120q0 33-23.5 56.5T720-160H240Z"
+                                  Fill="White" HeightRequest="16" WidthRequest="16"
+                                  Aspect="Uniform" VerticalOptions="Center"/>
+                            <Label Text="Export Report" FontSize="13" FontAttributes="Bold"
+                                   TextColor="White" VerticalOptions="Center"/>
+                        </HorizontalStackLayout>
+                    </Border>
+                </Grid>
+            </Grid>
+
+            <!-- ── LOADING OVERLAY ── -->
+            <Grid IsVisible="False" x:Name="LoadingOverlay" BackgroundColor="#80000000">
+                <ActivityIndicator x:Name="LoadingIndicator"
+                                   IsVisible="False" IsRunning="False"
+                                   Color="#00B5B5"
+                                   HorizontalOptions="Center" VerticalOptions="Center"
+                                   WidthRequest="40" HeightRequest="40"/>
+            </Grid>
+
+            <!-- ── EMPTY STATE ── -->
+            <VerticalStackLayout x:Name="EmptyStateGrid"
+                                 IsVisible="False"
+                                 VerticalOptions="Center" HorizontalOptions="Center"
+                                 Spacing="14" Padding="40,0">
+                <Path Data="M784-120 532-372q-30 24-69 38t-83 14q-109 0-184.5-75.5T120-580q0-109 75.5-184.5T380-840q109 0 184.5 75.5T640-580q0 44-14 83t-38 69l252 252-56 56ZM380-400q75 0 127.5-52.5T560-580q0-75-52.5-127.5T380-760q-75 0-127.5 52.5T200-580q0 75 52.5 127.5T380-400Z"
+                      Fill="#2A2A38" HeightRequest="48" WidthRequest="48"
+                      HorizontalOptions="Center" Aspect="Uniform"/>
+                <Label Text="No Records Found" FontSize="16" FontAttributes="Bold"
+                       TextColor="#F0EDE8" HorizontalOptions="Center"/>
+                <Label Text="Try adjusting your search or filters"
+                       FontSize="12" TextColor="#5A5A6A"
+                       HorizontalOptions="Center" HorizontalTextAlignment="Center"/>
+            </VerticalStackLayout>
+
+        </Grid>
+    </Grid>
+</ContentPage>

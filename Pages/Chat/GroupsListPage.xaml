@@ -1,0 +1,378 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Lock.Pages.Chat.GroupsListPage"
+             BackgroundColor="#121212"
+             Shell.NavBarIsVisible="False">
+
+    <Grid RowDefinitions="Auto,Auto,*">
+
+        <!-- ══ HEADER ══════════════════════════════════════════════════ -->
+        <Border Grid.Row="0"
+                BackgroundColor="#1E1E1E"
+                StrokeThickness="0"
+                Padding="16,44,16,12">
+            <Grid ColumnDefinitions="*,Auto,Auto">
+                <Label Text="Groups"
+                       FontSize="22" FontAttributes="Bold"
+                       TextColor="White"
+                       VerticalOptions="Center" />
+
+                <!-- Join by code -->
+                <Border Grid.Column="1"
+                        BackgroundColor="#2A2A2A"
+                        StrokeThickness="0"
+                        Padding="10,6"
+                        Margin="0,0,8,0">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="8" />
+                    </Border.StrokeShape>
+                    <Border.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnJoinByCodeTapped" />
+                    </Border.GestureRecognizers>
+                    <Label Text="Enter Code"
+                           FontSize="12"
+                           TextColor="#008080" />
+                </Border>
+
+                <!-- New group -->
+                <Border Grid.Column="2"
+                        BackgroundColor="#008080"
+                        StrokeThickness="0"
+                        WidthRequest="36" HeightRequest="36">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="18" />
+                    </Border.StrokeShape>
+                    <Border.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnCreateGroupTapped" />
+                    </Border.GestureRecognizers>
+                    <Label Text="+"
+                           FontSize="22" FontAttributes="Bold"
+                           TextColor="White"
+                           HorizontalOptions="Center"
+                           VerticalOptions="Center" />
+                </Border>
+            </Grid>
+        </Border>
+
+        <!-- ══ TABS ═════════════════════════════════════════════════════ -->
+        <Grid Grid.Row="1"
+              ColumnDefinitions="*,*"
+              BackgroundColor="#1E1E1E">
+
+            <VerticalStackLayout Grid.Column="0" Spacing="0">
+                <Label x:Name="MyGroupsTabLabel"
+                       Text="My Groups"
+                       FontSize="14" FontAttributes="Bold"
+                       TextColor="#008080"
+                       HorizontalOptions="Center"
+                       Padding="0,12">
+                    <Label.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnMyGroupsTabTapped" />
+                    </Label.GestureRecognizers>
+                </Label>
+                <BoxView x:Name="MyGroupsTabLine"
+                         HeightRequest="2"
+                         BackgroundColor="#008080"
+                         IsVisible="True" />
+            </VerticalStackLayout>
+
+            <VerticalStackLayout Grid.Column="1" Spacing="0">
+                <Label x:Name="DiscoverTabLabel"
+                       Text="Discover"
+                       FontSize="14" FontAttributes="Bold"
+                       TextColor="#666666"
+                       HorizontalOptions="Center"
+                       Padding="0,12">
+                    <Label.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnDiscoverTabTapped" />
+                    </Label.GestureRecognizers>
+                </Label>
+                <BoxView x:Name="DiscoverTabLine"
+                         HeightRequest="2"
+                         BackgroundColor="#008080"
+                         IsVisible="False" />
+            </VerticalStackLayout>
+        </Grid>
+
+        <!-- ══ CONTENT ══════════════════════════════════════════════════ -->
+        <ScrollView Grid.Row="2">
+            <VerticalStackLayout Spacing="0">
+
+                <!-- MY GROUPS SECTION -->
+                <VerticalStackLayout x:Name="MyGroupsSection" Spacing="0">
+
+                    <CollectionView x:Name="MyGroupsCollectionView"
+                                    SelectionMode="None">
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate>
+                                <Border BackgroundColor="#1E1E1E"
+                                        StrokeThickness="0"
+                                        Padding="16,12"
+                                        Margin="0,0,0,1">
+                                    <Border.GestureRecognizers>
+                                        <TapGestureRecognizer Tapped="OnGroupTapped"
+                                                              CommandParameter="{Binding .}" />
+                                    </Border.GestureRecognizers>
+                                    <Grid ColumnDefinitions="56,*,Auto">
+
+                                        <!-- Avatar -->
+                                        <Border Grid.Column="0"
+                                                WidthRequest="48" HeightRequest="48"
+                                                BackgroundColor="#2A2A2A"
+                                                Margin="0,0,12,0"
+                                                StrokeThickness="2"
+                                                Stroke="#1A4040">
+                                            <Border.StrokeShape>
+                                                <RoundRectangle CornerRadius="24" />
+                                            </Border.StrokeShape>
+                                            <Grid>
+                                                <Image Source="{Binding CoverImagePath}"
+                                                       Aspect="AspectFill"
+                                                       WidthRequest="48" HeightRequest="48" />
+                                                <Label Text="{Binding GroupTypeIcon}"
+                                                       FontSize="22"
+                                                       HorizontalOptions="Center"
+                                                       VerticalOptions="Center"
+                                                       IsVisible="{Binding HasCoverImage,
+                                                           Converter={StaticResource InverseBool}}" />
+                                            </Grid>
+                                        </Border>
+
+                                        <!-- Text -->
+                                        <VerticalStackLayout Grid.Column="1" Spacing="3"
+                                                             VerticalOptions="Center">
+                                            <Grid ColumnDefinitions="*,Auto">
+                                                <Label Text="{Binding Name}"
+                                                       FontSize="15" FontAttributes="Bold"
+                                                       TextColor="White"
+                                                       LineBreakMode="TailTruncation" />
+                                                <Label Grid.Column="1"
+                                                       Text="{Binding LastActiveRelative}"
+                                                       FontSize="11"
+                                                       TextColor="#666666" />
+                                            </Grid>
+                                            <Label Text="{Binding LastMessagePreview}"
+                                                   FontSize="13"
+                                                   TextColor="#888888"
+                                                   LineBreakMode="TailTruncation" />
+                                        </VerticalStackLayout>
+
+                                        <!-- Unread badge -->
+                                        <Border Grid.Column="2"
+                                                BackgroundColor="#008080"
+                                                MinimumWidthRequest="22"
+                                                HeightRequest="22"
+                                                Padding="4,0"
+                                                VerticalOptions="Center"
+                                                IsVisible="{Binding HasUnread}">
+                                            <Border.StrokeShape>
+                                                <RoundRectangle CornerRadius="11" />
+                                            </Border.StrokeShape>
+                                            <Label Text="{Binding UnreadDisplay}"
+                                                   FontSize="11" FontAttributes="Bold"
+                                                   TextColor="White"
+                                                   HorizontalOptions="Center" />
+                                        </Border>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </CollectionView.ItemTemplate>
+                    </CollectionView>
+
+                    <!-- Empty state -->
+                    <VerticalStackLayout x:Name="MyGroupsEmpty"
+                                         IsVisible="False"
+                                         Spacing="12"
+                                         Padding="40,60"
+                                         HorizontalOptions="Center">
+                        <Label Text="💬"
+                               FontSize="48"
+                               HorizontalOptions="Center" />
+                        <Label Text="No groups yet"
+                               FontSize="18" FontAttributes="Bold"
+                               TextColor="White"
+                               HorizontalOptions="Center" />
+                        <Label Text="Create a group or discover communities to join"
+                               FontSize="14"
+                               TextColor="#888888"
+                               HorizontalOptions="Center"
+                               HorizontalTextAlignment="Center" />
+                        <Button Text="Discover Groups"
+                                BackgroundColor="#008080"
+                                TextColor="White"
+                                CornerRadius="22"
+                                HeightRequest="44"
+                                Clicked="OnDiscoverTabTapped" />
+                    </VerticalStackLayout>
+
+                </VerticalStackLayout>
+
+                <!-- DISCOVER SECTION -->
+                <VerticalStackLayout x:Name="DiscoverSection"
+                                     IsVisible="False"
+                                     Spacing="0">
+
+                    <!-- Search bar -->
+                    <Border BackgroundColor="#1E1E1E"
+                            StrokeThickness="0"
+                            Padding="16,12">
+                        <Border BackgroundColor="#2A2A2A"
+                                StrokeThickness="0"
+                                Padding="14,0">
+                            <Border.StrokeShape>
+                                <RoundRectangle CornerRadius="22" />
+                            </Border.StrokeShape>
+                            <Entry x:Name="SearchEntry"
+                                   Placeholder="Search groups..."
+                                   PlaceholderColor="#555555"
+                                   FontSize="14"
+                                   TextColor="White"
+                                   BackgroundColor="Transparent"
+                                   HeightRequest="44"
+                                   TextChanged="OnSearchTextChanged" />
+                        </Border>
+                    </Border>
+
+                    <!-- Discover list -->
+                    <CollectionView x:Name="DiscoverGroupsCollectionView"
+                                    SelectionMode="None">
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate>
+                                <Border BackgroundColor="#1E1E1E"
+                                        StrokeThickness="0"
+                                        Padding="16,14"
+                                        Margin="0,0,0,1">
+                                    <Border.GestureRecognizers>
+                                        <TapGestureRecognizer Tapped="OnGroupTapped"
+                                                              CommandParameter="{Binding .}" />
+                                    </Border.GestureRecognizers>
+                                    <Grid ColumnDefinitions="64,*" ColumnSpacing="12">
+
+                                        <!-- Cover image -->
+                                        <Border Grid.Column="0"
+                                                WidthRequest="56" HeightRequest="56"
+                                                BackgroundColor="#2A2A2A"
+                                                StrokeThickness="0">
+                                            <Border.StrokeShape>
+                                                <RoundRectangle CornerRadius="14" />
+                                            </Border.StrokeShape>
+                                            <Grid>
+                                                <Image Source="{Binding CoverImagePath}"
+                                                       Aspect="AspectFill"
+                                                       WidthRequest="56" HeightRequest="56" />
+                                                <Label Text="{Binding GroupTypeIcon}"
+                                                       FontSize="26"
+                                                       HorizontalOptions="Center"
+                                                       VerticalOptions="Center"
+                                                       IsVisible="{Binding HasCoverImage,
+                                                           Converter={StaticResource InverseBool}}" />
+                                            </Grid>
+                                        </Border>
+
+                                        <VerticalStackLayout Grid.Column="1" Spacing="5">
+                                            <Grid ColumnDefinitions="*,Auto">
+                                                <Label Text="{Binding Name}"
+                                                       FontSize="15" FontAttributes="Bold"
+                                                       TextColor="White"
+                                                       LineBreakMode="TailTruncation" />
+
+                                                <!-- Compatibility badge -->
+                                                <Border Grid.Column="1"
+                                                        BackgroundColor="#0D2626"
+                                                        Padding="6,3"
+                                                        StrokeThickness="1"
+                                                        Stroke="#1A4040"
+                                                        IsVisible="{Binding CompatibilityDisplay,
+                                                            Converter={StaticResource NotEmpty}}">
+                                                    <Border.StrokeShape>
+                                                        <RoundRectangle CornerRadius="8" />
+                                                    </Border.StrokeShape>
+                                                    <Label Text="{Binding CompatibilityDisplay}"
+                                                           FontSize="10"
+                                                           TextColor="#008080" />
+                                                </Border>
+                                            </Grid>
+
+                                            <Label Text="{Binding Description}"
+                                                   FontSize="12"
+                                                   TextColor="#888888"
+                                                   LineBreakMode="TailTruncation"
+                                                   MaxLines="1" />
+
+                                            <Grid ColumnDefinitions="Auto,Auto,*,Auto">
+                                                <!-- Type pill -->
+                                                <Border Grid.Column="0"
+                                                        BackgroundColor="#1A3A3A"
+                                                        Padding="6,3"
+                                                        StrokeThickness="0"
+                                                        Margin="0,0,6,0">
+                                                    <Border.StrokeShape>
+                                                        <RoundRectangle CornerRadius="6" />
+                                                    </Border.StrokeShape>
+                                                    <Label Text="{Binding GroupTypeDisplay}"
+                                                           FontSize="10"
+                                                           TextColor="#008080" />
+                                                </Border>
+
+                                                <!-- Mood pill if set -->
+                                                <Border Grid.Column="1"
+                                                        BackgroundColor="#1A2A3A"
+                                                        Padding="6,3"
+                                                        StrokeThickness="0"
+                                                        Margin="0,0,6,0"
+                                                        IsVisible="{Binding MoodFilter,
+                                                            Converter={StaticResource NotEmpty}}">
+                                                    <Border.StrokeShape>
+                                                        <RoundRectangle CornerRadius="6" />
+                                                    </Border.StrokeShape>
+                                                    <Label Text="{Binding MoodFilter}"
+                                                           FontSize="10"
+                                                           TextColor="#6699CC" />
+                                                </Border>
+
+                                                <Label Grid.Column="3"
+                                                       Text="{Binding MemberCountDisplay}"
+                                                       FontSize="11"
+                                                       TextColor="#666666"
+                                                       VerticalOptions="Center" />
+                                            </Grid>
+                                        </VerticalStackLayout>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </CollectionView.ItemTemplate>
+                    </CollectionView>
+
+                    <!-- Empty state -->
+                    <VerticalStackLayout x:Name="DiscoverGroupsEmpty"
+                                         IsVisible="False"
+                                         Spacing="12"
+                                         Padding="40,60"
+                                         HorizontalOptions="Center">
+                        <Label Text="🌍"
+                               FontSize="48"
+                               HorizontalOptions="Center" />
+                        <Label Text="No groups found"
+                               FontSize="18" FontAttributes="Bold"
+                               TextColor="White"
+                               HorizontalOptions="Center" />
+                        <Label Text="Be the first to create a community"
+                               FontSize="14"
+                               TextColor="#888888"
+                               HorizontalOptions="Center" />
+                        <Button Text="Create a Group"
+                                BackgroundColor="#008080"
+                                TextColor="White"
+                                CornerRadius="22"
+                                HeightRequest="44"
+                                Clicked="OnCreateGroupTapped" />
+                    </VerticalStackLayout>
+
+                </VerticalStackLayout>
+
+            </VerticalStackLayout>
+        </ScrollView>
+
+    </Grid>
+</ContentPage>

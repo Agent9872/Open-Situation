@@ -1,0 +1,611 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Lock.Pages.Discover.LiveFeedPage"
+             BackgroundColor="#0A0A0C"
+             Shell.NavBarIsVisible="False"
+             NavigationPage.HasNavigationBar="False">
+
+    <Grid RowDefinitions="Auto,Auto,*" RowSpacing="0">
+
+        <!-- ══ ROW 0 · HEADER - NO BUTTONS ══ -->
+        <Grid Grid.Row="0"
+      Padding="16,52,16,10"
+      BackgroundColor="#0A0A0C">
+
+            <!-- Title only - centered -->
+            <VerticalStackLayout HorizontalOptions="Center"
+                         VerticalOptions="Center"
+                         Spacing="1">
+                <HorizontalStackLayout HorizontalOptions="Center" Spacing="7">
+                    <Ellipse WidthRequest="7" HeightRequest="7"
+                     Fill="#22C55E"
+                     VerticalOptions="Center"/>
+                    <Label Text="Live Now"
+                   FontSize="17" 
+                   FontAttributes="Bold"
+                   TextColor="#F0EDE8"
+                   VerticalOptions="Center"/>
+                </HorizontalStackLayout>
+                <Label x:Name="LiveCountLabel"
+               Text="Finding live users..."
+               FontSize="11" 
+               TextColor="#5A5A6A"
+               HorizontalOptions="Center" />
+            </VerticalStackLayout>
+        </Grid>
+
+        <!-- ══ ROW 1 · FILTER CHIPS ══ -->
+        <ScrollView Grid.Row="1"
+                    Orientation="Horizontal"
+                    HorizontalScrollBarVisibility="Never"
+                    HeightRequest="44"
+                    BackgroundColor="#0A0A0C">
+            <HorizontalStackLayout x:Name="FilterChipsLayout"
+                                   Spacing="8"
+                                   Padding="16,6,16,6"
+                                   VerticalOptions="Center"/>
+        </ScrollView>
+
+        <!-- ══ ROW 2 · CONTENT ══ -->
+        <Grid Grid.Row="2" BackgroundColor="#0A0A0C">
+
+            <!-- ── SKELETON ── -->
+            <CollectionView x:Name="SkeletonView"
+                            IsVisible="True"
+                            BackgroundColor="Transparent"
+                            ItemsLayout="VerticalList"
+                            SelectionMode="None">
+                <CollectionView.ItemsSource>
+                    <x:Array Type="{x:Type x:Int32}">
+                        <x:Int32>1</x:Int32>
+                        <x:Int32>2</x:Int32>
+                    </x:Array>
+                </CollectionView.ItemsSource>
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+                        <Grid Padding="16,6,16,6">
+                            <Border BackgroundColor="#16161C"
+                                    StrokeThickness="1" Stroke="#2A2A38"
+                                    StrokeShape="RoundRectangle 20"
+                                    Padding="0"
+                                    HeightRequest="420">
+                                <VerticalStackLayout Spacing="0">
+                                    <!-- Image placeholder -->
+                                    <BoxView HeightRequest="260"
+                                             BackgroundColor="#1C1C25"
+                                             CornerRadius="20"/>
+                                    <VerticalStackLayout Padding="16,12" Spacing="10">
+                                        <BoxView HeightRequest="14" WidthRequest="140"
+                                                 BackgroundColor="#2A2A38" CornerRadius="7"/>
+                                        <BoxView HeightRequest="10" WidthRequest="100"
+                                                 BackgroundColor="#2A2A38" CornerRadius="5"/>
+                                        <Grid ColumnDefinitions="Auto,Auto,Auto" ColumnSpacing="8" Margin="0,4,0,0">
+                                            <BoxView Grid.Column="0" HeightRequest="26" WidthRequest="72"
+                                                     BackgroundColor="#2A2A38" CornerRadius="13"/>
+                                            <BoxView Grid.Column="1" HeightRequest="26" WidthRequest="60"
+                                                     BackgroundColor="#2A2A38" CornerRadius="13"/>
+                                            <BoxView Grid.Column="2" HeightRequest="26" WidthRequest="80"
+                                                     BackgroundColor="#2A2A38" CornerRadius="13"/>
+                                        </Grid>
+                                        <BoxView HeightRequest="10" WidthRequest="220"
+                                                 BackgroundColor="#2A2A38" CornerRadius="5"/>
+                                    </VerticalStackLayout>
+                                </VerticalStackLayout>
+                            </Border>
+                        </Grid>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+
+            <!-- ── LIVE CARDS ── -->
+            <CollectionView x:Name="LiveFeedView"
+                            IsVisible="False"
+                            BackgroundColor="Transparent"
+                            ItemsLayout="VerticalList"
+                            SelectionMode="None">
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+                        <Grid Padding="16,6,16,6">
+                            <Border BackgroundColor="#16161C"
+                                    StrokeThickness="1"
+                                    Stroke="#2A2A38"
+                                    StrokeShape="RoundRectangle 22"
+                                    Padding="0">
+                                <Border.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OnLiveCardTapped"
+                                                          CommandParameter="{Binding .}"/>
+                                </Border.GestureRecognizers>
+
+                                <VerticalStackLayout Spacing="0">
+
+                                    <!-- ══ HERO PHOTO SECTION ══ -->
+                                    <Grid HeightRequest="280">
+
+                                        <!-- Carousel layer A (current image) -->
+                                        <Image Source="{Binding CurrentCarouselImage}"
+           Aspect="AspectFill"
+           HorizontalOptions="Fill"
+           VerticalOptions="Fill"
+           Opacity="{Binding CurrentImageOpacity}"/>
+
+                                        <!-- Carousel layer B (next image, cross-fades in) -->
+                                        <Image Source="{Binding NextCarouselImage}"
+           Aspect="AspectFill"
+           HorizontalOptions="Fill"
+           VerticalOptions="Fill"
+           Opacity="{Binding NextImageOpacity}"/>
+
+                                        <!-- Dark gradient overlay bottom — KEEP AS-IS -->
+                                        <BoxView HorizontalOptions="Fill" VerticalOptions="Fill">
+                                            <BoxView.Background>
+                                                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                                    <GradientStop Color="Transparent" Offset="0.3"/>
+                                                    <GradientStop Color="#CC000000" Offset="0.75"/>
+                                                    <GradientStop Color="#F0000000" Offset="1.0"/>
+                                                </LinearGradientBrush>
+                                            </BoxView.Background>
+                                        </BoxView>
+
+                                        <!-- TOP-LEFT: LIVE badge — KEEP AS-IS -->
+                                        <Border BackgroundColor="#CC0D2218"
+            StrokeThickness="1" Stroke="#22C55E"
+            StrokeShape="RoundRectangle 12"
+            Padding="10,5"
+            HorizontalOptions="Start" VerticalOptions="Start"
+            Margin="12,12,0,0">
+                                            <HorizontalStackLayout Spacing="5">
+                                                <BoxView WidthRequest="6" HeightRequest="6"
+                     BackgroundColor="#22C55E" CornerRadius="3"
+                     VerticalOptions="Center"/>
+                                                <Label Text="LIVE" FontSize="10" FontAttributes="Bold"
+                   TextColor="#22C55E" CharacterSpacing="1.5"
+                   VerticalOptions="Center"/>
+                                            </HorizontalStackLayout>
+                                        </Border>
+
+                                        <!-- Carousel dot indicators — shown only when >1 image -->
+                                        <HorizontalStackLayout HorizontalOptions="Center"
+                           VerticalOptions="Start"
+                           Margin="0,14,0,0"
+                           Spacing="5"
+                           IsVisible="{Binding HasCarouselImages}">
+                                            <!-- dots are decorative — just show 3 small circles -->
+                                            <BoxView WidthRequest="5" HeightRequest="5" CornerRadius="3"
+                 BackgroundColor="#CCFFFFFF"/>
+                                            <BoxView WidthRequest="5" HeightRequest="5" CornerRadius="3"
+                 BackgroundColor="#66FFFFFF"/>
+                                            <BoxView WidthRequest="5" HeightRequest="5" CornerRadius="3"
+                 BackgroundColor="#66FFFFFF"/>
+                                        </HorizontalStackLayout>
+
+                                        <!-- TOP-RIGHT: Countdown — KEEP AS-IS -->
+                                        <Border BackgroundColor="#CC1A1A22"
+            StrokeThickness="1"
+            Stroke="{Binding CountdownColor}"
+            StrokeShape="RoundRectangle 12"
+            Padding="10,5"
+            HorizontalOptions="End" VerticalOptions="Start"
+            Margin="0,12,12,0"
+            IsVisible="{Binding ShowCountdown}">
+                                            <HorizontalStackLayout Spacing="5">
+                                                <Path Data="M360-840v-80h240v80H360Zm80 440h80v-240h-80v240Zm40 320q-74 0-139.5-28.5T226-186q-49-49-77.5-114.5T120-440q0-74 28.5-139.5T226-694q49-49 114.5-77.5T480-800q62 0 119 20t107 58l56-56 56 56-56 56q38 50 58 107t20 119q0 74-28.5 139.5T734-186q-49 49-114.5 77.5T480-80Zm0-80q116 0 198-82t82-198q0-116-82-198t-198-82q-116 0-198 82t-82 198q0 116 82 198t198 82Zm0-280Z"
+                  Fill="{Binding CountdownColor}"
+                  HeightRequest="10" WidthRequest="10"
+                  VerticalOptions="Center" Aspect="Uniform"/>
+                                                <Label Text="{Binding TimeRemaining}"
+                   FontSize="10" FontAttributes="Bold"
+                   TextColor="{Binding CountdownColor}"
+                   VerticalOptions="Center"/>
+                                            </HorizontalStackLayout>
+                                        </Border>
+
+                                        <!-- BOTTOM OVERLAY: Name + mood + location — KEEP AS-IS -->
+                                        <VerticalStackLayout VerticalOptions="End"
+                         Padding="14,0,14,14" Spacing="6">
+                                            <HorizontalStackLayout Spacing="8" VerticalOptions="Center">
+                                                <Label Text="{Binding Name}"
+                   FontSize="22" FontAttributes="Bold"
+                   TextColor="#FFFFFF" MaxLines="1"
+                   LineBreakMode="TailTruncation"
+                   VerticalOptions="Center">
+                                                    <Label.Shadow>
+                                                        <Shadow Brush="Black" Offset="0,1" Radius="4" Opacity="0.8"/>
+                                                    </Label.Shadow>
+                                                </Label>
+                                                <Border BackgroundColor="#AA16161C" StrokeThickness="1"
+                    Stroke="#3A3A4A" StrokeShape="RoundRectangle 8"
+                    Padding="7,3" VerticalOptions="Center"
+                    IsVisible="{Binding HasAge}">
+                                                    <Label Text="{Binding AgeText}" FontSize="12"
+                       FontAttributes="Bold" TextColor="#F0EDE8"/>
+                                                </Border>
+                                                <Path Data="m366-126-64-108-122-26 12-126-82-94 82-94-12-126 122-26 64-108 114 48 114-48 64 108 122 26-12 126 82 94-82 94 12 126-122 26-64 108-114-48-114 48Z"
+                  Fill="#00B5B5" HeightRequest="16" WidthRequest="16"
+                  VerticalOptions="Center" Aspect="Uniform"
+                  IsVisible="{Binding IsVerified}"/>
+                                            </HorizontalStackLayout>
+
+                                            <HorizontalStackLayout Spacing="8">
+                                                <!-- Find this and REMOVE Opacity="{Binding MoodOpacity}" -->
+                                                <Border BackgroundColor="{Binding MoodBlinkColor, StringFormat='#{0}'}"
+        StrokeThickness="1.5" Stroke="{Binding MoodBlinkColor}"
+        StrokeShape="RoundRectangle 10" Padding="9,4"
+        IsVisible="{Binding HasMood}">
+                                                    <!-- Opacity binding REMOVED -->
+                                                    <HorizontalStackLayout Spacing="5">
+                                                        <BoxView WidthRequest="6" HeightRequest="6"
+                 BackgroundColor="{Binding MoodBlinkColor}"
+                 CornerRadius="3" VerticalOptions="Center"/>
+                                                        <Label Text="{Binding Mood}" FontSize="11"
+               FontAttributes="Bold"
+               TextColor="{Binding MoodBlinkColor}"
+               VerticalOptions="Center"/>
+                                                    </HorizontalStackLayout>
+                                                </Border>
+                                                <HorizontalStackLayout Spacing="4"
+                                   IsVisible="{Binding HasLocation}"
+                                   VerticalOptions="Center">
+                                                    <Path Data="M480-480q-66 0-113-47t-47-113q0-66 47-113t113-47q66 0 113 47t47 113q0 66-47 113t-113 47ZM480-80Q319-217 239.5-334.5T160-552q0-150 96.5-239T480-880q127 0 223.5 89T800-552q0 100-79.5 217.5T480-80Z"
+                      Fill="#AAAAAA" HeightRequest="10" WidthRequest="10"
+                      VerticalOptions="Center" Aspect="Uniform"/>
+                                                    <Label Text="{Binding Location}" FontSize="11"
+                       TextColor="#CCCCCC" VerticalOptions="Center"/>
+                                                </HorizontalStackLayout>
+                                            </HorizontalStackLayout>
+                                        </VerticalStackLayout>
+
+                                    </Grid>
+                                    <!-- ══ DETAILS SECTION ══ -->
+                                    <VerticalStackLayout Spacing="0" Padding="14,12,14,0">
+
+                                        <!-- Live since -->
+                                        <HorizontalStackLayout Spacing="5" Margin="0,0,0,10">
+                                            <Path Data="M480-120q-138 0-240.5-91.5T122-440h82q14 104 92.5 172T480-200q117 0 198.5-81.5T760-480q0-117-81.5-198.5T480-760q-69 0-129 32t-101 88h110v80H120v-240h80v94q51-64 124.5-99T480-840q75 0 140.5 28.5t114 77q48.5 48.5 77 114T840-480q0 75-28.5 140.5t-77 114q-48.5 48.5-114 77T480-120Zm112-192L440-464v-216h80v184l128 128-56 56Z"
+                                                  Fill="#5A5A6A"
+                                                  HeightRequest="11" WidthRequest="11"
+                                                  VerticalOptions="Center" Aspect="Uniform"/>
+                                            <Label Text="{Binding LiveSince}"
+                                                   FontSize="11" TextColor="#5A5A6A"
+                                                   VerticalOptions="Center"/>
+                                        </HorizontalStackLayout>
+
+                                        <!-- Status message -->
+                                        <Border BackgroundColor="#1C1C25"
+                                                StrokeThickness="1" Stroke="#2A2A38"
+                                                StrokeShape="RoundRectangle 12"
+                                                Padding="12,10"
+                                                Margin="0,0,0,10">
+                                            <Label Text="{Binding Message}"
+                                                   FontSize="13" TextColor="#D0D0E0"
+                                                   LineBreakMode="WordWrap"
+                                                   MaxLines="2"
+                                                   LineHeight="1.4"/>
+                                        </Border>
+
+                                        <!-- Profile badges - Row 1: Looking for / Gender -->
+                                        <FlexLayout Wrap="Wrap"
+                                                    Direction="Row"
+                                                    JustifyContent="Start"
+                                                    AlignItems="Start"
+                                                    Margin="0,0,0,6">
+
+                                            <Border BackgroundColor="#1C1C25"
+                                                    StrokeThickness="1" Stroke="#2A2A38"
+                                                    StrokeShape="RoundRectangle 8"
+                                                    Padding="8,4"
+                                                    Margin="0,0,6,6"
+                                                    IsVisible="{Binding HasLookingFor}">
+                                                <HorizontalStackLayout Spacing="4">
+                                                    <Label Text="Looking for:"
+                                                           FontSize="11" TextColor="#5A5A6A"/>
+                                                    <Label Text="{Binding LookingFor}"
+                                                           FontSize="11" TextColor="#FF3B6F"
+                                                           FontAttributes="Bold"/>
+                                                </HorizontalStackLayout>
+                                            </Border>
+
+                                            <Border BackgroundColor="#1C1C25"
+                                                    StrokeThickness="1" Stroke="#2A2A38"
+                                                    StrokeShape="RoundRectangle 8"
+                                                    Padding="8,4"
+                                                    Margin="0,0,6,6"
+                                                    IsVisible="{Binding HasGender}">
+                                                <Label Text="{Binding Gender}"
+                                                       FontSize="11" TextColor="#7A7A8C"/>
+                                            </Border>
+
+                                            <Border BackgroundColor="#1C1C25"
+                                                    StrokeThickness="1" Stroke="#2A2A38"
+                                                    StrokeShape="RoundRectangle 8"
+                                                    Padding="8,4"
+                                                    Margin="0,0,6,6"
+                                                    IsVisible="{Binding HasHeight}">
+                                                <Label Text="{Binding Height}"
+                                                       FontSize="11" TextColor="#7A7A8C"/>
+                                            </Border>
+
+                                            <Border BackgroundColor="#1C1C25"
+                                                    StrokeThickness="1" Stroke="#2A2A38"
+                                                    StrokeShape="RoundRectangle 8"
+                                                    Padding="8,4"
+                                                    Margin="0,0,6,6"
+                                                    IsVisible="{Binding HasBodyType}">
+                                                <Label Text="{Binding BodyType}"
+                                                       FontSize="11" TextColor="#7A7A8C"/>
+                                            </Border>
+
+                                            <Border BackgroundColor="#1C1C25"
+                                                    StrokeThickness="1" Stroke="#2A2A38"
+                                                    StrokeShape="RoundRectangle 8"
+                                                    Padding="8,4"
+                                                    Margin="0,0,6,6"
+                                                    IsVisible="{Binding HasEthnicity}">
+                                                <Label Text="{Binding Ethnicity}"
+                                                       FontSize="11" TextColor="#7A7A8C"
+                                                       MaxLines="1" LineBreakMode="TailTruncation"/>
+                                            </Border>
+
+                                            <Border BackgroundColor="#1C1C25"
+                                                    StrokeThickness="1" Stroke="#2A2A38"
+                                                    StrokeShape="RoundRectangle 8"
+                                                    Padding="8,4"
+                                                    Margin="0,0,6,6"
+                                                    IsVisible="{Binding HasPersonalityType}">
+                                                <HorizontalStackLayout Spacing="4">
+                                                    <Label Text="{Binding PersonalityTypeShort}"
+                                                           FontSize="11" TextColor="#00B5B5"/>
+                                                </HorizontalStackLayout>
+                                            </Border>
+
+                                            <Border BackgroundColor="#1C1C25"
+                                                    StrokeThickness="1" Stroke="#2A2A38"
+                                                    StrokeShape="RoundRectangle 8"
+                                                    Padding="8,4"
+                                                    Margin="0,0,6,6"
+                                                    IsVisible="{Binding HasEnergyLevel}">
+                                                <Label Text="{Binding EnergyLevelShort}"
+                                                       FontSize="11" TextColor="#7A7A8C"/>
+                                            </Border>
+
+                                        </FlexLayout>
+
+                                        <!-- Bio -->
+                                        <Label Text="{Binding BioPreview}"
+                                               FontSize="12" TextColor="#8A8A9A"
+                                               LineBreakMode="WordWrap"
+                                               MaxLines="2"
+                                               LineHeight="1.4"
+                                               IsVisible="{Binding HasBio}"
+                                               Margin="0,0,0,10"/>
+
+                                        <!-- Interests -->
+                                        <HorizontalStackLayout Spacing="5"
+                                                               IsVisible="{Binding HasInterests}"
+                                                               Margin="0,0,0,10">
+                                            <Label Text="{Binding InterestsDisplay}"
+                                                   FontSize="11" TextColor="#6A6A7A"
+                                                   MaxLines="1" LineBreakMode="TailTruncation"
+                                                   VerticalOptions="Center"/>
+                                        </HorizontalStackLayout>
+
+                                        <!-- Lifestyle pills -->
+                                        <HorizontalStackLayout Spacing="6"
+                                                               Margin="0,0,0,12">
+                                            <Border BackgroundColor="#1C1C25"
+                                                    StrokeThickness="1"
+                                                    Stroke="#FF4444"
+                                                    StrokeShape="RoundRectangle 8"
+                                                    Padding="8,4"
+                                                    IsVisible="{Binding HasDrinks}">
+                                                <Label Text="Drinks"
+                                                       FontSize="10"
+                                                       TextColor="{Binding DrinkColor}"/>
+                                            </Border>
+                                            <Border BackgroundColor="#1C1C25"
+                                                    StrokeThickness="1"
+                                                    Stroke="#FF4444"
+                                                    StrokeShape="RoundRectangle 8"
+                                                    Padding="8,4"
+                                                    IsVisible="{Binding Smokes}">
+                                                <Label Text="Smokes"
+                                                       FontSize="10"
+                                                       TextColor="#FF4444"/>
+                                            </Border>
+                                            <Border BackgroundColor="#1C1C25"
+                                                    StrokeThickness="1"
+                                                    Stroke="#4CAF50"
+                                                    StrokeShape="RoundRectangle 8"
+                                                    Padding="8,4"
+                                                    IsVisible="{Binding HasPets}">
+                                                <Label Text="Has Pets"
+                                                       FontSize="10"
+                                                       TextColor="#4CAF50"/>
+                                            </Border>
+                                            <Border BackgroundColor="#1C1C25"
+                                                    StrokeThickness="1"
+                                                    Stroke="#008080"
+                                                    StrokeShape="RoundRectangle 8"
+                                                    Padding="8,4"
+                                                    IsVisible="{Binding HasMusic}">
+                                                <Label Text="{Binding MusicText}"
+                                                       FontSize="10"
+                                                       TextColor="#008080"
+                                                       MaxLines="1"
+                                                       LineBreakMode="TailTruncation"/>
+                                            </Border>
+                                        </HorizontalStackLayout>
+
+                                    </VerticalStackLayout>
+
+                                    <!-- ══ DIVIDER ══ -->
+                                    <BoxView HeightRequest="1"
+                                             BackgroundColor="#2A2A38"
+                                             Margin="14,0"/>
+
+                                    <!-- ══ AVAILABILITY CHIPS ══ -->
+                                    <Grid ColumnDefinitions="*,*,*"
+                                          Padding="14,10,14,14"
+                                          ColumnSpacing="8">
+
+                                        <!-- Chat -->
+                                        <Border Grid.Column="0"
+                                                StrokeThickness="1"
+                                                Stroke="#00B5B5"
+                                                StrokeShape="RoundRectangle 14"
+                                                Padding="0,10"
+                                                HorizontalOptions="Fill"
+                                                IsVisible="{Binding ChatAvailable}">
+                                            <Border.Background>
+                                                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                                    <GradientStop Color="#0D2222" Offset="0"/>
+                                                    <GradientStop Color="#091A1A" Offset="1"/>
+                                                </LinearGradientBrush>
+                                            </Border.Background>
+                                            <VerticalStackLayout Spacing="5" HorizontalOptions="Center">
+                                                <Path Data="M266-426h428v-28H266v28Zm0-120h428v-28H266v28Zm0-120h428v-28H266v28ZM132-178v-590q0-24 18-42t42-18h596q24 0 42 18t18 42v416q0 24-18 42t-42 18H244L132-178Zm98-138h562v-432H192v498l38-66Zm-38 0v-432 432Z"
+                                                      Fill="#00B5B5"
+                                                      HeightRequest="18" WidthRequest="18"
+                                                      HorizontalOptions="Center" Aspect="Uniform"/>
+                                                <Label Text="Chat"
+                                                       FontSize="12" FontAttributes="Bold"
+                                                       TextColor="#00B5B5"
+                                                       HorizontalOptions="Center"/>
+                                            </VerticalStackLayout>
+                                        </Border>
+
+                                        <!-- Voice -->
+                                        <Border Grid.Column="1"
+                                                StrokeThickness="1"
+                                                Stroke="#FF3B6F"
+                                                StrokeShape="RoundRectangle 14"
+                                                Padding="0,10"
+                                                HorizontalOptions="Fill"
+                                                IsVisible="{Binding VoiceAvailable}">
+                                            <Border.Background>
+                                                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                                    <GradientStop Color="#22091220" Offset="0"/>
+                                                    <GradientStop Color="#120818" Offset="1"/>
+                                                </LinearGradientBrush>
+                                            </Border.Background>
+                                            <VerticalStackLayout Spacing="5" HorizontalOptions="Center">
+                                                <Path Data="M798-120q-125 0-247-54.5T329-329Q229-429 174.5-551T120-798q0-18 12-30t30-12h162q14 0 25 9.5t13 22.5l26 140q2 16-1 27t-11 19l-97 98q20 37 47.5 71.5T387-386q31 31 65 57.5t72 48.5l94-94q9-9 23.5-13.5T670-390l138 28q14 3 23 14t9 25v162q0 18-12 30t-30 12Z"
+                                                      Fill="#FF3B6F"
+                                                      HeightRequest="18" WidthRequest="18"
+                                                      HorizontalOptions="Center" Aspect="Uniform"/>
+                                                <Label Text="Voice"
+                                                       FontSize="12" FontAttributes="Bold"
+                                                       TextColor="#FF3B6F"
+                                                       HorizontalOptions="Center"/>
+                                            </VerticalStackLayout>
+                                        </Border>
+
+                                        <!-- Video -->
+                                        <Border Grid.Column="2"
+                                                StrokeThickness="1"
+                                                Stroke="#F59E0B"
+                                                StrokeShape="RoundRectangle 14"
+                                                Padding="0,10"
+                                                HorizontalOptions="Fill"
+                                                IsVisible="{Binding VideoAvailable}">
+                                            <Border.Background>
+                                                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                                    <GradientStop Color="#1A1500" Offset="0"/>
+                                                    <GradientStop Color="#100E00" Offset="1"/>
+                                                </LinearGradientBrush>
+                                            </Border.Background>
+                                            <VerticalStackLayout Spacing="5" HorizontalOptions="Center">
+                                                <Path Data="M160-160q-33 0-56.5-23.5T80-240v-480q0-33 23.5-56.5T160-800h480q33 0 56.5 23.5T720-720v180l160-160v440L720-420v180q0 33-23.5 56.5T640-160H160Zm0-80h480v-480H160v480Zm0 0v-480 480Z"
+                                                      Fill="#F59E0B"
+                                                      HeightRequest="18" WidthRequest="18"
+                                                      HorizontalOptions="Center" Aspect="Uniform"/>
+                                                <Label Text="Video"
+                                                       FontSize="12" FontAttributes="Bold"
+                                                       TextColor="#F59E0B"
+                                                       HorizontalOptions="Center"/>
+                                            </VerticalStackLayout>
+                                        </Border>
+
+                                    </Grid>
+
+                                </VerticalStackLayout>
+                            </Border>
+                        </Grid>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+
+                <CollectionView.Footer>
+                    <BoxView HeightRequest="80" BackgroundColor="Transparent"/>
+                </CollectionView.Footer>
+            </CollectionView>
+
+            <!-- ── EMPTY STATE ── -->
+            <VerticalStackLayout x:Name="EmptyContainer"
+                                 IsVisible="False"
+                                 VerticalOptions="Center"
+                                 HorizontalOptions="Center"
+                                 Spacing="14"
+                                 Padding="40,0">
+
+                <Border BackgroundColor="#16161C"
+                        StrokeThickness="1" Stroke="#2A2A38"
+                        StrokeShape="RoundRectangle 44"
+                        WidthRequest="88" HeightRequest="88"
+                        HorizontalOptions="Center">
+                    <Ellipse WidthRequest="32" HeightRequest="32"
+                             Fill="#2A2A38"
+                             HorizontalOptions="Center"
+                             VerticalOptions="Center"/>
+                </Border>
+
+                <Label Text="Nobody's live right now"
+                       FontAttributes="Bold" FontSize="20"
+                       TextColor="#F0EDE8"
+                       HorizontalOptions="Center"/>
+
+                <Label x:Name="EmptySubLabel"
+                       Text="Be the first to go live and let&#10;people know you're available"
+                       FontSize="13" TextColor="#5A5A6A"
+                       HorizontalOptions="Center"
+                       HorizontalTextAlignment="Center"
+                       LineHeight="1.5"/>
+
+                <Border StrokeThickness="0"
+                        StrokeShape="RoundRectangle 22"
+                        HorizontalOptions="Center"
+                        Margin="0,6,0,0">
+                    <Border.Background>
+                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                            <GradientStop Color="#FF3B6F" Offset="0"/>
+                            <GradientStop Color="#CC2F59" Offset="1"/>
+                        </LinearGradientBrush>
+                    </Border.Background>
+                    <Border.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnGoLiveCTATapped"/>
+                    </Border.GestureRecognizers>
+                    <HorizontalStackLayout Spacing="10" Padding="28,14">
+                        <Ellipse WidthRequest="8" HeightRequest="8"
+                                 Fill="White"
+                                 VerticalOptions="Center"/>
+                        <Label Text="Go Live Now"
+                               FontSize="15" FontAttributes="Bold"
+                               TextColor="White"
+                               VerticalOptions="Center"/>
+                    </HorizontalStackLayout>
+                </Border>
+
+                <HorizontalStackLayout Spacing="12" HorizontalOptions="Center" Margin="0,2,0,0">
+                    <BoxView WidthRequest="40" HeightRequest="1"
+                             BackgroundColor="#2A2A38" VerticalOptions="Center"/>
+                    <Label Text="or browse profiles"
+                           FontSize="11" TextColor="#3A3A4A"
+                           VerticalOptions="Center"/>
+                    <BoxView WidthRequest="40" HeightRequest="1"
+                             BackgroundColor="#2A2A38" VerticalOptions="Center"/>
+                </HorizontalStackLayout>
+
+            </VerticalStackLayout>
+
+        </Grid>
+    </Grid>
+</ContentPage>

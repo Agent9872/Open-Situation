@@ -1,0 +1,601 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Lock.Pages.Discover.DiscoverPage"
+             Title="Discover"
+             BackgroundColor="#0A0A0A"
+             Shell.NavBarIsVisible="False"
+             NavigationPage.HasNavigationBar="False">
+
+    <ScrollView>
+        <VerticalStackLayout Spacing="0" Padding="0,0,0,40">
+
+            <!-- ═══════════════════════════════════════════════════════════ -->
+            <!-- HERO HEADER                                                -->
+            <!-- ═══════════════════════════════════════════════════════════ -->
+            <Grid HeightRequest="240" BackgroundColor="#0A0A0A" IsClippedToBounds="True">
+                <!-- Deep background gradient layer -->
+                <BoxView HorizontalOptions="Fill" VerticalOptions="Fill">
+                    <BoxView.Background>
+                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                            <GradientStop Color="#0A0A0A" Offset="0.0"/>
+                            <GradientStop Color="#0D1A1A" Offset="0.5"/>
+                            <GradientStop Color="#0A0A0A" Offset="1.0"/>
+                        </LinearGradientBrush>
+                    </BoxView.Background>
+                </BoxView>
+
+                <!-- Glow orb top-left -->
+                <BoxView Color="#008080" Opacity="0.07"
+             HeightRequest="320" WidthRequest="320"
+             CornerRadius="160"
+             HorizontalOptions="Start" VerticalOptions="Start"
+             TranslationX="-80" TranslationY="-80"/>
+
+                <!-- Glow orb bottom-right -->
+                <BoxView Color="#00B5B5" Opacity="0.05"
+             HeightRequest="260" WidthRequest="260"
+             CornerRadius="130"
+             HorizontalOptions="End" VerticalOptions="End"
+             TranslationX="60" TranslationY="60"/>
+
+                <!-- Subtle horizontal rule at bottom -->
+                <BoxView HeightRequest="0.5"
+             HorizontalOptions="Fill"
+             VerticalOptions="End"
+             Margin="0,0,0,0">
+                    <BoxView.Background>
+                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                            <GradientStop Color="Transparent" Offset="0.0"/>
+                            <GradientStop Color="#008080" Offset="0.5"/>
+                            <GradientStop Color="Transparent" Offset="1.0"/>
+                        </LinearGradientBrush>
+                    </BoxView.Background>
+                </BoxView>
+
+                <!-- Content -->
+                <VerticalStackLayout VerticalOptions="Center"
+                         HorizontalOptions="Center"
+                         Spacing="12"
+                         Padding="24,0">
+
+                    <!-- Live indicator pill -->
+                    <Border HorizontalOptions="Center"
+                BackgroundColor="#0D2020"
+                StrokeThickness="0.5"
+                Stroke="#008080"
+                StrokeShape="RoundRectangle 20"
+                Padding="12,5">
+                        <HorizontalStackLayout Spacing="7" VerticalOptions="Center">
+                            <!-- Pulsing dot -->
+                            <Ellipse WidthRequest="7" HeightRequest="7"
+                         Fill="#00E5A0"
+                         VerticalOptions="Center"/>
+                            <Label Text="DISCOVER MODE"
+                       FontSize="10"
+                       FontAttributes="Bold"
+                       TextColor="#00B5B5"
+                       CharacterSpacing="2"
+                       VerticalOptions="Center"/>
+                        </HorizontalStackLayout>
+                    </Border>
+
+                    <!-- Main heading -->
+                    <Label Text="Go Live"
+               FontSize="38"
+               FontAttributes="Bold"
+               TextColor="#FFFFFF"
+               HorizontalOptions="Center"
+               CharacterSpacing="1.5">
+                        <Label.Shadow>
+                            <Shadow Brush="#008080"
+                        Offset="0,0"
+                        Radius="20"
+                        Opacity="0.4"/>
+                        </Label.Shadow>
+                    </Label>
+
+                    <!-- Subtitle -->
+                    <Label Text="Let the right people find you — right now"
+               FontSize="13"
+               TextColor="#4A6A6A"
+               HorizontalOptions="Center"
+               HorizontalTextAlignment="Center"
+               CharacterSpacing="0.3"/>
+
+                </VerticalStackLayout>
+
+            </Grid>
+            <!-- ═══════════════════════════════════════════════════════════ -->
+            <!-- SEE WHO'S LIVE BANNER                                      -->
+            <!-- ═══════════════════════════════════════════════════════════ -->
+            <Border Margin="20,0,20,16"
+                    BackgroundColor="#0D1A0D"
+                    StrokeThickness="0.5"
+                    Stroke="#2A4A2A"
+                    StrokeShape="RoundRectangle 18"
+                    Padding="16,14">
+                <Border.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnSeeWhoIsLiveTapped"/>
+                </Border.GestureRecognizers>
+                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+
+                    <!-- Pulsing green dot -->
+                    <Border Grid.Column="0"
+                            x:Name="SeeWhoLiveDot"
+                            WidthRequest="10" HeightRequest="10"
+                            BackgroundColor="#4CAF50"
+                            StrokeThickness="0"
+                            StrokeShape="RoundRectangle 5"
+                            VerticalOptions="Center"/>
+
+                    <VerticalStackLayout Grid.Column="1" Spacing="2" VerticalOptions="Center">
+                        <Label Text="See who's live right now"
+                               FontSize="14" FontAttributes="Bold"
+                               TextColor="#F5F2E9"/>
+                        <Label x:Name="LiveCountBanner"
+                               Text="Tap to browse live users"
+                               FontSize="11" TextColor="#4CAF50"/>
+                    </VerticalStackLayout>
+
+                    <!-- Arrow -->
+                    <Path Grid.Column="2"
+                          Data="M400-240 160-480l240-240 42 42-198 198 198 198-42 42Zm238 0L398-480l240-240 42 42-198 198 198 198-42 42Z"
+                          Fill="#4CAF50" HeightRequest="16" WidthRequest="16"
+                          HorizontalOptions="Center" VerticalOptions="Center"
+                          Aspect="Uniform"
+                          ScaleX="-1"/>
+                </Grid>
+            </Border>
+
+            <!-- ══════════════════════════════════════════════════════════════ -->
+            <!-- PROFILE STRIP                                              -->
+            <!-- ══════════════════════════════════════════════════════════════ -->
+            <Border Margin="20,0,20,20"
+        BackgroundColor="#141414"
+        StrokeThickness="0.5"
+        Stroke="#252525"
+        StrokeShape="RoundRectangle 20"
+        Padding="16,14">
+                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="14">
+
+                    <!-- Profile image -->
+                    <Grid Grid.Column="0" WidthRequest="56" HeightRequest="56">
+                        <Image x:Name="ProfileImage"
+                   WidthRequest="56" HeightRequest="56"
+                   Aspect="AspectFill"
+                   Source="default_avatar.png">
+                            <Image.Clip>
+                                <EllipseGeometry Center="28,28" RadiusX="28" RadiusY="28"/>
+                            </Image.Clip>
+                        </Image>
+                        <!-- Live green dot -->
+                        <Border x:Name="LiveDot"
+                    WidthRequest="14" HeightRequest="14"
+                    BackgroundColor="#2A2A2A"
+                    StrokeThickness="2" Stroke="#0A0A0A"
+                    StrokeShape="RoundRectangle 7"
+                    HorizontalOptions="End" VerticalOptions="End"
+                    IsVisible="False">
+                            <!-- filled green when live -->
+                        </Border>
+                    </Grid>
+
+                    <!-- Name + status -->
+                    <VerticalStackLayout Grid.Column="1" Spacing="3" VerticalOptions="Center">
+                        <Label x:Name="UserNameLabel"
+                   Text="Your Name"
+                   FontSize="16" FontAttributes="Bold"
+                   TextColor="#F5F2E9"/>
+                        <Label x:Name="UserPhoneLabel"
+                   Text=""
+                   FontSize="12" TextColor="#555555"/>
+                        <Border x:Name="LiveStatusBadge"
+                    BackgroundColor="#1A2A1A"
+                    StrokeThickness="0.5" Stroke="#2A4A2A"
+                    StrokeShape="RoundRectangle 8"
+                    Padding="8,3"
+                    HorizontalOptions="Start"
+                    IsVisible="False">
+                            <HorizontalStackLayout Spacing="5">
+                                
+                                <Label Text="Live now" FontSize="10" TextColor="#4CAF50"
+                           FontAttributes="Bold" VerticalOptions="Center"/>
+                            </HorizontalStackLayout>
+                        </Border>
+                    </VerticalStackLayout>
+
+                    <!-- Toggle go-live -->
+                    <Border Grid.Column="2"
+                x:Name="GoLiveToggle"
+                BackgroundColor="#C05050"
+                StrokeThickness="0"
+                StrokeShape="RoundRectangle 8"
+                Padding="14,8"
+                VerticalOptions="Center">
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnGoLiveToggled"/>
+                        </Border.GestureRecognizers>
+                        <Label x:Name="GoLiveLabel"
+                   Text="Go Live"
+                   FontSize="13" FontAttributes="Bold"
+                   TextColor="White"
+                   HorizontalOptions="Center"/>
+                    </Border>
+                </Grid>
+            </Border>
+            <!-- ═══════════════════════════════════════════════════════════ -->
+            <!-- CURRENT MOOD PICKER                                        -->
+            <!-- (separate from profile mood — just for right now)         -->
+            <!-- ═══════════════════════════════════════════════════════════ -->
+            <VerticalStackLayout Spacing="10" Margin="20,0,20,20">
+
+                <HorizontalStackLayout Spacing="6">
+                    <Label Text="Current mood" FontSize="15" FontAttributes="Bold"
+                           TextColor="#E3E3E3" VerticalOptions="Center"/>
+                    <Border BackgroundColor="#1E1E1E" StrokeThickness="0.5" Stroke="#333333"
+                            StrokeShape="RoundRectangle 8" Padding="6,3">
+                        <Label Text="just for now" FontSize="10" TextColor="#666666"/>
+                    </Border>
+                </HorizontalStackLayout>
+
+                <!-- Scrollable mood chips -->
+                <ScrollView Orientation="Horizontal" HorizontalScrollBarVisibility="Never"
+                            HeightRequest="44">
+                    <HorizontalStackLayout x:Name="MoodChipsLayout"
+                                           Spacing="8" Padding="0,4,16,4"
+                                           VerticalOptions="Center"/>
+                </ScrollView>
+
+            </VerticalStackLayout>
+
+            <!-- ═══════════════════════════════════════════════════════════ -->
+            <!-- AVAILABILITY                                               -->
+            <!-- ═══════════════════════════════════════════════════════════ -->
+            <VerticalStackLayout Spacing="12" Margin="20,0,20,20">
+
+                <Label Text="Available for" FontSize="15" FontAttributes="Bold"
+                       TextColor="#E3E3E3"/>
+
+                <Grid ColumnDefinitions="*,*,*" ColumnSpacing="10">
+
+                    <!-- Chat -->
+                    <Border Grid.Column="0" x:Name="ChatBorder"
+                            BackgroundColor="#141414"
+                            StrokeThickness="0.5" Stroke="#252525"
+                            StrokeShape="RoundRectangle 8"
+                            Padding="12,14">
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnAvailabilityTapped" CommandParameter="Chat"/>
+                        </Border.GestureRecognizers>
+                        <VerticalStackLayout Spacing="6" HorizontalOptions="Center">
+                            <Path Data="M266-426h428v-28H266v28Zm0-120h428v-28H266v28Zm0-120h428v-28H266v28ZM132-178v-590q0-24 18-42t42-18h596q24 0 42 18t18 42v416q0 24-18 42t-42 18H244L132-178Zm98-138h562v-432H192v498l38-66Zm-38 0v-432 432Z"
+                                  x:Name="ChatIcon"
+                                  Fill="#555555" HeightRequest="22" WidthRequest="22"
+                                  HorizontalOptions="Center" Aspect="Uniform"/>
+                            <Label Text="Chat" FontSize="12" TextColor="#666666"
+                                   x:Name="ChatLabel" HorizontalOptions="Center"/>
+                        </VerticalStackLayout>
+                    </Border>
+
+                    <!-- Voice -->
+                    <Border Grid.Column="1" x:Name="VoiceBorder"
+                            BackgroundColor="#141414"
+                            StrokeThickness="0.5" Stroke="#252525"
+                            StrokeShape="RoundRectangle 8"
+                            Padding="12,14">
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnAvailabilityTapped" CommandParameter="Voice"/>
+                        </Border.GestureRecognizers>
+                        <VerticalStackLayout Spacing="6" HorizontalOptions="Center">
+                            <Path Data="M798-120q-125 0-247-54.5T329-329Q229-429 174.5-551T120-798q0-18 12-30t30-12h162q14 0 25 9.5t13 22.5l26 140q2 16-1 27t-11 19l-97 98q20 37 47.5 71.5T387-386q31 31 65 57.5t72 48.5l94-94q9-9 23.5-13.5T670-390l138 28q14 3 23 14t9 25v162q0 18-12 30t-30 12Z"
+                                  x:Name="VoiceIcon"
+                                  Fill="#555555" HeightRequest="22" WidthRequest="22"
+                                  HorizontalOptions="Center" Aspect="Uniform"/>
+                            <Label Text="Voice" FontSize="12" TextColor="#666666"
+                                   x:Name="VoiceLabel" HorizontalOptions="Center"/>
+                        </VerticalStackLayout>
+                    </Border>
+
+                    <!-- Video -->
+                    <Border Grid.Column="2" x:Name="VideoBorder"
+                            BackgroundColor="#141414"
+                            StrokeThickness="0.5" Stroke="#252525"
+                            StrokeShape="RoundRectangle 8"
+                            Padding="12,14">
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnAvailabilityTapped" CommandParameter="Video"/>
+                        </Border.GestureRecognizers>
+                        <VerticalStackLayout Spacing="6" HorizontalOptions="Center">
+                            <Path Data="M160-160q-33 0-56.5-23.5T80-240v-480q0-33 23.5-56.5T160-800h480q33 0 56.5 23.5T720-720v180l160-160v440L720-420v180q0 33-23.5 56.5T640-160H160Zm0-80h480v-480H160v480Zm0 0v-480 480Z"
+                                  x:Name="VideoIcon"
+                                  Fill="#555555" HeightRequest="22" WidthRequest="22"
+                                  HorizontalOptions="Center" Aspect="Uniform"/>
+                            <Label Text="Video" FontSize="12" TextColor="#666666"
+                                   x:Name="VideoLabel" HorizontalOptions="Center"/>
+                        </VerticalStackLayout>
+                    </Border>
+
+                </Grid>
+            </VerticalStackLayout>
+
+            <!-- ═══════════════════════════════════════════════════════════ -->
+            <!-- LOCATION                                                   -->
+            <!-- ═══════════════════════════════════════════════════════════ -->
+            <VerticalStackLayout Spacing="10" Margin="20,0,20,20">
+                <Label Text="Location" FontSize="15" FontAttributes="Bold" TextColor="#E3E3E3"/>
+                <Border BackgroundColor="#141414" StrokeThickness="0.5" Stroke="#252525"
+                        StrokeShape="RoundRectangle 8" Padding="14,0">
+                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                        <Path Grid.Column="0"
+                              Data="M480-480q33 0 56.5-23.5T560-560q0-33-23.5-56.5T480-640q-33 0-56.5 23.5T400-560q0 33 23.5 56.5T480-480Zm0 294q122-112 181-203.5T720-552q0-109-69.5-178.5T480-800q-101 0-170.5 69.5T240-552q0 71 59 162.5T480-186Zm0 106Q319-217 239.5-334.5T160-552q0-150 96.5-239T480-880q127 0 223.5 89T800-552q0 100-79.5 217.5T480-80Zm0-480Z"
+                              Fill="#555555" HeightRequest="18" WidthRequest="18"
+                              HorizontalOptions="Center" VerticalOptions="Center" Aspect="Uniform"/>
+                        <Entry Grid.Column="1" x:Name="LocationEntry"
+                               Placeholder="City or area you're in right now"
+                               PlaceholderColor="#444444"
+                               TextColor="#F5F2E9"
+                               BackgroundColor="Transparent"
+                               FontSize="14"
+                               HeightRequest="50"/>
+                    </Grid>
+                </Border>
+            </VerticalStackLayout>
+
+            <!-- ═══════════════════════════════════════════════════════════ -->
+            <!-- LIVE DURATION                                              -->
+            <!-- ═══════════════════════════════════════════════════════════ -->
+            <VerticalStackLayout Spacing="10" Margin="20,0,20,20">
+                <Label Text="Live Duration" FontSize="15" FontAttributes="Bold" TextColor="#E3E3E3"/>
+                <Border BackgroundColor="#141414" StrokeThickness="0.5" Stroke="#252525"
+            StrokeShape="RoundRectangle 8" Padding="14,8">
+                    <Grid ColumnDefinitions="*,Auto,*" ColumnSpacing="10">
+                        <!-- Duration picker -->
+                        <Picker x:Name="DurationPicker"
+                    Grid.Column="0"
+                    Title="Select duration"
+                    TextColor="#F5F2E9"
+                    BackgroundColor="Transparent"
+                    FontSize="14">
+                            <Picker.Items>
+                                <x:String>5 minutes</x:String>
+                                <x:String>15 minutes</x:String>
+                                <x:String>30 minutes</x:String>
+                                <x:String>1 hour</x:String>
+                                <x:String>2 hours</x:String>
+                                <x:String>3 hours</x:String>
+                                <x:String>6 hours</x:String>
+                                <x:String>12 hours</x:String>
+                                <x:String>24 hours</x:String>
+                            </Picker.Items>
+                        </Picker>
+
+                        <!-- Optional: Info icon with tooltip -->
+                        <Border Grid.Column="2"
+                    BackgroundColor="#1E1E1E" 
+                    StrokeThickness="0.5" 
+                    Stroke="#333333"
+                    StrokeShape="RoundRectangle 8" 
+                    Padding="8,4"
+                    HorizontalOptions="End">
+                            <Label Text="ℹ️" 
+                       FontSize="12" 
+                       TextColor="#666666"
+                       HorizontalOptions="Center">
+                                <Label.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OnDurationInfoTapped"/>
+                                </Label.GestureRecognizers>
+                            </Label>
+                        </Border>
+                    </Grid>
+                </Border>
+            </VerticalStackLayout>
+
+            <!-- ═══════════════════════════════════════════════════════════ -->
+            <!-- QUICK MESSAGE                                              -->
+            <!-- ═══════════════════════════════════════════════════════════ -->
+            <VerticalStackLayout Spacing="10" Margin="20,0,20,20">
+                <HorizontalStackLayout Spacing="6">
+                    <Label Text="Quick message" FontSize="15" FontAttributes="Bold"
+                           TextColor="#E3E3E3" VerticalOptions="Center"/>
+                    <Border BackgroundColor="#1E1E1E" StrokeThickness="0.5" Stroke="#333333"
+                            StrokeShape="RoundRectangle 8" Padding="6,3">
+                        <Label Text="tap to use a suggestion" FontSize="10" TextColor="#666666"/>
+                    </Border>
+                </HorizontalStackLayout>
+
+                <!-- Suggestion pills (dynamically built in code) -->
+                <ScrollView Orientation="Horizontal" HorizontalScrollBarVisibility="Never"
+                            HeightRequest="36">
+                    <HorizontalStackLayout x:Name="SuggestionChipsLayout"
+                                           Spacing="8" Padding="0,2,16,2"
+                                           VerticalOptions="Center"/>
+                </ScrollView>
+
+                <!-- Message editor -->
+                <Border BackgroundColor="#141414" StrokeThickness="0.5" Stroke="#252525"
+                        StrokeShape="RoundRectangle 8" Padding="14,10">
+                    <Editor x:Name="MessageEditor"
+                            HeightRequest="100"
+                            TextColor="#F5F2E9"
+                            Placeholder="What's your vibe right now…"
+                            PlaceholderColor="#444444"
+                            BackgroundColor="Transparent"
+                            FontSize="14"/>
+                </Border>
+            </VerticalStackLayout>
+
+            <!-- ═══════════════════════════════════════════════════════════ -->
+            <!-- IMAGES SECTION                                             -->
+            <!-- ═══════════════════════════════════════════════════════════ -->
+            <VerticalStackLayout Spacing="10" Margin="20,0,20,20">
+                <HorizontalStackLayout Spacing="6">
+                    <Label Text="Add images" FontSize="15" FontAttributes="Bold"
+               TextColor="#E3E3E3" VerticalOptions="Center"/>
+                    <Border BackgroundColor="#1E1E1E" StrokeThickness="0.5" Stroke="#333333"
+                StrokeShape="RoundRectangle 8" Padding="6,3">
+                        <Label Text="up to 5 images" FontSize="10" TextColor="#666666"/>
+                    </Border>
+                </HorizontalStackLayout>
+
+                <!-- Image selection button -->
+                <Border BackgroundColor="#141414" StrokeThickness="0.5" Stroke="#252525"
+            StrokeShape="RoundRectangle 8" Padding="14,10">
+                    <Border.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnAddImagesTapped"/>
+                    </Border.GestureRecognizers>
+                    <HorizontalStackLayout Spacing="10" HorizontalOptions="Center">
+                        <Path Data="M440-440v-120h80v120h120v80H520v120h-80V520H320v-80h120Z"
+                  Fill="#555555" HeightRequest="20" WidthRequest="20"
+                  HorizontalOptions="Center" VerticalOptions="Center" Aspect="Uniform"/>
+                        <Label Text="Add images to your live feed" 
+                   FontSize="13" TextColor="#888888" VerticalOptions="Center"/>
+                    </HorizontalStackLayout>
+                </Border>
+
+                <!-- Images preview scroll view -->
+                <ScrollView x:Name="ImagesScrollView" 
+                Orientation="Horizontal" 
+                IsVisible="False"
+                HeightRequest="120"
+                HorizontalScrollBarVisibility="Always">
+                    <HorizontalStackLayout x:Name="ImagesPreviewLayout" 
+                               Spacing="10" 
+                               Padding="0,0,16,0"
+                               VerticalOptions="Center"
+                               HorizontalOptions="Start"/>
+                </ScrollView>
+            </VerticalStackLayout>
+
+            <!-- ═══════════════════════════════════════════════════════════ -->
+            <!-- LIVE PREVIEW CARD                                          -->
+            <!-- ═══════════════════════════════════════════════════════════ -->
+            <VerticalStackLayout x:Name="PreviewSection" IsVisible="False"
+                     Spacing="12" Margin="20,0,20,20">
+
+                <HorizontalStackLayout Spacing="8" HorizontalOptions="Center">
+                    <BoxView Color="#4CAF50" WidthRequest="8" HeightRequest="8"
+                 CornerRadius="4" VerticalOptions="Center"/>
+                    <Label Text="How others see you"
+               FontSize="13" TextColor="#4CAF50"
+               FontAttributes="Bold" VerticalOptions="Center"/>
+                </HorizontalStackLayout>
+
+                <!-- Preview card -->
+                <Border BackgroundColor="#141414"
+            StrokeThickness="1" Stroke="#008080"
+            StrokeShape="RoundRectangle 16"
+            Padding="18">
+                    <VerticalStackLayout Spacing="14">
+
+                        <!-- Top: avatar + name + live badge -->
+                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="14">
+                            <Grid Grid.Column="0" WidthRequest="52" HeightRequest="52">
+                                <Image x:Name="PreviewAvatar"
+                           WidthRequest="52" HeightRequest="52"
+                           Aspect="AspectFill"
+                           Source="default_avatar.png">
+                                    <Image.Clip>
+                                        <EllipseGeometry Center="26,26" RadiusX="26" RadiusY="26"/>
+                                    </Image.Clip>
+                                </Image>
+                                <Border WidthRequest="12" HeightRequest="12"
+                            BackgroundColor="#4CAF50"
+                            StrokeThickness="1.5" Stroke="#141414"
+                            StrokeShape="RoundRectangle 6"
+                            HorizontalOptions="End" VerticalOptions="End"/>
+                            </Grid>
+
+                            <VerticalStackLayout Grid.Column="1" Spacing="3" VerticalOptions="Center">
+                                <Label x:Name="PreviewName"
+                           FontSize="16" FontAttributes="Bold" TextColor="#F5F2E9"/>
+                                <HorizontalStackLayout Spacing="6">
+                                    <Border BackgroundColor="#2A1A1A" StrokeThickness="0.5"
+                                Stroke="#008080" StrokeShape="RoundRectangle 8"
+                                Padding="7,3">
+                                        <Label x:Name="PreviewMood"
+                                   FontSize="11" TextColor="#008080"
+                                   FontAttributes="Bold"/>
+                                    </Border>
+                                    <HorizontalStackLayout Spacing="4"
+                                               IsVisible="{Binding Source={x:Reference PreviewLocation}, Path=IsVisible}">
+                                        <Label Text="📍" FontSize="10" VerticalOptions="Center"/>
+                                        <Label x:Name="PreviewLocation"
+                                   FontSize="11" TextColor="#888888"
+                                   VerticalOptions="Center"/>
+                                    </HorizontalStackLayout>
+                                </HorizontalStackLayout>
+                            </VerticalStackLayout>
+
+                            <!-- Countdown Timer Badge (NEW) -->
+                            <Border x:Name="PreviewCountdownBadge"
+                        Grid.Column="2"
+                        BackgroundColor="#1A2A1A"
+                        StrokeThickness="0.5"
+                        Stroke="#4CAF50"
+                        StrokeShape="RoundRectangle 8"
+                        Padding="8,4"
+                        VerticalOptions="Center"
+                        IsVisible="False">
+                                <HorizontalStackLayout Spacing="4">
+                                    <Label Text="⏱️" FontSize="10" VerticalOptions="Center"/>
+                                    <Label x:Name="PreviewCountdownLabel"
+                               Text=""
+                               FontSize="10"
+                               TextColor="#4CAF50"
+                               FontAttributes="Bold"
+                               VerticalOptions="Center"/>
+                                </HorizontalStackLayout>
+                            </Border>
+                        </Grid>
+
+                        <!-- Availability icons -->
+                        <HorizontalStackLayout x:Name="PreviewAvailability"
+                                   Spacing="16" HorizontalOptions="Start"/>
+
+                        <!-- Divider -->
+                        <BoxView HeightRequest="0.5" BackgroundColor="#252525"/>
+
+                        <!-- Message bubble -->
+                        <Border BackgroundColor="#1A1A1A" StrokeThickness="0"
+                    StrokeShape="RoundRectangle 12" Padding="12,10"
+                    x:Name="MessageBubble" ClassId="MessageBubble">
+                            <Label x:Name="PreviewMessage"
+                       TextColor="#DDDDDD" FontSize="14"
+                       LineBreakMode="WordWrap"/>
+                        </Border>
+
+                    </VerticalStackLayout>
+                </Border>
+            </VerticalStackLayout>
+
+            <!-- ═══════════════════════════════════════════════════════════ -->
+            <!-- GO LIVE BUTTON                                             -->
+            <!-- ═══════════════════════════════════════════════════════════ -->
+            <Border x:Name="MainButtonBorder"
+        Margin="20,0,20,0"
+        BackgroundColor="#008080"
+        StrokeThickness="0"
+        StrokeShape="RoundRectangle 18"
+        Padding="0,18">
+
+                <Border.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnPostDiscoverClicked"/>
+                </Border.GestureRecognizers>
+
+                <HorizontalStackLayout HorizontalOptions="Center" Spacing="10">
+                    <BoxView x:Name="MainButtonDot" 
+                 Color="White" 
+                 WidthRequest="8" HeightRequest="8"
+                 CornerRadius="4" VerticalOptions="Center"/>
+
+                    <Label x:Name="MainButtonLabel"
+               Text="Go Live Now"
+               FontSize="16" FontAttributes="Bold"
+               TextColor="White" VerticalOptions="Center"/>
+                </HorizontalStackLayout>
+            </Border>
+
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

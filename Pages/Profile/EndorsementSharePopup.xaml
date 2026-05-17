@@ -1,0 +1,242 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<toolkit:Popup xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+               xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+               xmlns:toolkit="http://schemas.microsoft.com/dotnet/2022/maui/toolkit"
+               x:Class="Lock.Pages.Profile.EndorsementSharePopup"
+               Color="Transparent"
+               CanBeDismissedByTappingOutsideOfPopup="True">
+
+    <Border BackgroundColor="#1E1E1E"
+            StrokeThickness="0"
+            StrokeShape="RoundRectangle 20"
+            Padding="0"
+            Margin="20"
+            MaximumWidthRequest="420"
+            MaximumHeightRequest="560">
+
+        <ScrollView Orientation="Vertical">
+            <VerticalStackLayout Spacing="0">
+
+                <!-- Header with Close -->
+                <Grid Padding="16,16,16,8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <Label Grid.Column="0"
+                           Text="Share Endorsement Request"
+                           FontAttributes="Bold"
+                           TextColor="White"
+                           FontSize="18"
+                           VerticalOptions="Center" />
+
+                    <Path Grid.Column="1"
+                          Data="M19,6.41L17.59,5 12,10.59 6.41,5 5,6.41 10.59,12 5,17.59 6.41,19 12,13.41 17.59,19 19,17.59 13.41,12z"
+                          Fill="#E6E6E6"
+                          HeightRequest="24"
+                          WidthRequest="24"
+                          HorizontalOptions="Center"
+                          VerticalOptions="Center"
+                          Aspect="Uniform">
+                        <Path.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnCloseTapped" />
+                        </Path.GestureRecognizers>
+                    </Path>
+                </Grid>
+
+                <!-- Preview -->
+                <Border BackgroundColor="#2A2A2A"
+                        StrokeThickness="0"
+                        StrokeShape="RoundRectangle 12"
+                        Padding="12"
+                        Margin="16,8,16,16">
+                    <VerticalStackLayout Spacing="8">
+                        <HorizontalStackLayout Spacing="8">
+                            <Image Source="{Binding RequestorProfileImage}"
+                                   WidthRequest="32"
+                                   HeightRequest="32"
+                                   Aspect="AspectFill">
+                                <Image.Clip>
+                                    <EllipseGeometry Center="16,16" RadiusX="16" RadiusY="16" />
+                                </Image.Clip>
+                            </Image>
+                            <Label Text="{Binding RequestorName}"
+                                   FontAttributes="Bold"
+                                   TextColor="White"
+                                   VerticalOptions="Center" />
+                        </HorizontalStackLayout>
+                        <Label Text="{Binding PreviewText}"
+                               TextColor="#DDDDDD"
+                               FontSize="13"
+                               LineBreakMode="WordWrap"
+                               MaxLines="3" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <Label Text="Share to"
+                       FontSize="13"
+                       TextColor="#BBBBBB"
+                       Padding="16,8,16,6" />
+
+                <!-- Share within app -->
+                <Grid Padding="16,10,16,10"
+                      ColumnDefinitions="28,*,Auto"
+                      ColumnSpacing="14">
+                    <Grid.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnShareActionTapped"
+                                              CommandParameter="Share with contact" />
+                    </Grid.GestureRecognizers>
+                    <Path Grid.Column="0"
+                          Data="M657.35-137q-36.35 0-61.1-24.85Q571.5-202.71 571.5-239q0-10 7.5-32L302.5-424q-12 14-28.94 22t-36.3 8q-35.11 0-59.68-25.27Q153-444.54 153-479.77q0-35.23 24.65-60.73Q202.29-566 237.5-566q19.23 0 36 7.87 16.78 7.86 28.5 21.63l245-152.08q-3.5-7.42-5.5-15.73t-2-17.19q0-35.63 24.9-60.56 24.89-24.94 61-24.94 36.1 0 60.85 25.04T711-721.15q0 35.98-24.96 60.82-24.96 24.83-60.62 24.83-19.69 0-35.8-8.25-16.11-8.25-28.12-22.75L317-513.5q3 8 5.25 16.63 2.25 8.62 2.25 16.95 0 8.32-2 16.58-2 8.27-5 16.28L561.5-294q11.79-14 28.06-22.5t35.86-8.5q35.66 0 60.62 25.25T711-239q0 36.5-24.98 61.25T657.35-137Z"
+                          Fill="#008080"
+                          HeightRequest="20"
+                          WidthRequest="20"
+                          Aspect="Uniform" />
+                    <Label Grid.Column="1"
+                           Text="Share with contact"
+                           TextColor="#E6E6E6"
+                           FontSize="14"
+                           VerticalOptions="Center" />
+                </Grid>
+
+                <BoxView HeightRequest="1" BackgroundColor="#333333" Margin="16,0,16,0" />
+
+                <!-- Social Media Section -->
+                <Label Text="Share via social media"
+                       FontSize="13"
+                       TextColor="#BBBBBB"
+                       Padding="16,16,16,6" />
+
+                <!-- WhatsApp -->
+                <Grid Padding="16,10,16,10"
+                      ColumnDefinitions="28,*,Auto"
+                      ColumnSpacing="14">
+                    <Grid.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnShareActionTapped"
+                                              CommandParameter="WhatsApp" />
+                    </Grid.GestureRecognizers>
+                    <Path Grid.Column="0"
+                          Data="M12.04 2.07C6.62 2.07 2.15 6.54 2.15 11.96c0 2.13.6 4.12 1.64 5.83L2.2 21.89l4.3-1.47c1.65.94 3.56 1.49 5.54 1.49 5.42 0 9.89-4.47 9.89-9.89 0-5.42-4.47-9.85-9.89-9.85zM9.86 7.82c.21 0 .44.03.63.03.24 0 .55-.03.8.54.26.57.92 1.99 1.01 2.14.09.15.12.33.03.53-.09.2-.18.27-.33.44-.15.17-.3.3-.44.49-.15.18-.27.33-.12.63.15.3.67 1.1 1.44 1.79.99.88 1.82 1.15 2.08 1.28.26.13.41.11.56-.03.15-.14.66-.76.84-1.03.18-.27.36-.23.6-.14.24.09 1.54.73 1.81.86.27.13.45.2.52.3.09.15.09.87-.21 1.72-.3.85-1.5 1.63-2.06 1.7-.56.07-1.13.13-2.3-.45-1.56-.77-2.58-1.89-3.55-3.43-.75-1.19-1.26-2.33-1.41-2.72-.15-.39-.01-.6.11-.79.11-.17.24-.21.36-.33.12-.12.15-.18.23-.3.08-.12.04-.21-.01-.3-.06-.09-.5-1.2-.68-1.64-.18-.44-.36-.38-.5-.39-.13-.01-.28-.01-.43-.01-.15 0-.39.06-.6.27-.21.21-.81.79-.81 1.93 0 1.14.84 2.24.95 2.4.11.15 1.64 2.45 3.98 3.45 1.42.6 1.98.64 2.7.54.53-.07 1.64-.64 1.87-1.26.23-.62.23-1.15.16-1.26-.07-.11-.26-.15-.56-.26-.3-.11-1.76-.83-2.03-.93-.27-.1-.48-.06-.65.09-.17.15-.66.72-.81.86-.15.15-.3.17-.56.06-.26-.11-1.12-.41-2.13-1.31-.79-.7-1.33-1.57-1.48-1.84-.15-.27-.02-.41.11-.55.11-.12.24-.3.36-.45.12-.15.15-.26.23-.42.08-.17.04-.33-.01-.45-.05-.12-.51-1.22-.7-1.67-.19-.45-.39-.42-.53-.43z"
+                          Fill="#25D366"
+                          HeightRequest="20"
+                          WidthRequest="20"
+                          Aspect="Uniform" />
+                    <Label Grid.Column="1"
+                           Text="WhatsApp"
+                           TextColor="#E6E6E6"
+                           FontSize="14"
+                           VerticalOptions="Center" />
+                </Grid>
+
+                <!-- Telegram -->
+                <Grid Padding="16,10,16,10"
+                      ColumnDefinitions="28,*,Auto"
+                      ColumnSpacing="14">
+                    <Grid.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnShareActionTapped"
+                                              CommandParameter="Telegram" />
+                    </Grid.GestureRecognizers>
+                    <Path Grid.Column="0"
+                          Data="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69.01-.03.02-.14-.09-.2-.11-.06-.27-.04-.39-.02-.17.02-2.85 1.85-3.22 2.19-.3.27-.56.41-.99.41-.43 0-.86-.15-1.3-.27-.53-.14-.95-.23-.92-.78.02-.29.42-.59 1.15-.89 2.18-.95 3.63-1.58 4.36-1.89 2.07-.9 2.51-1.06 2.79-1.06.06 0 .21.01.3.12.08.09.09.21.08.28-.02.11-.12.48-.26.98z"
+                          Fill="#0088cc"
+                          HeightRequest="20"
+                          WidthRequest="20"
+                          Aspect="Uniform" />
+                    <Label Grid.Column="1"
+                           Text="Telegram"
+                           TextColor="#E6E6E6"
+                           FontSize="14"
+                           VerticalOptions="Center" />
+                </Grid>
+
+                <!-- Facebook -->
+                <Grid Padding="16,10,16,10"
+                      ColumnDefinitions="28,*,Auto"
+                      ColumnSpacing="14">
+                    <Grid.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnShareActionTapped"
+                                              CommandParameter="Facebook" />
+                    </Grid.GestureRecognizers>
+                    <Path Grid.Column="0"
+                          Data="M22 12c0-5.52-4.48-10-10-10S2 6.48 2 12c0 4.84 3.44 8.87 8 9.8V15H8v-3h2V9.5C10 7.57 11.57 6 13.5 6H16v3h-2c-.55 0-1 .45-1 1v2h3v3h-3v6.8c4.56-.93 8-4.96 8-9.8z"
+                          Fill="#4267B2"
+                          HeightRequest="20"
+                          WidthRequest="20"
+                          Aspect="Uniform" />
+                    <Label Grid.Column="1"
+                           Text="Facebook"
+                           TextColor="#E6E6E6"
+                           FontSize="14"
+                           VerticalOptions="Center" />
+                </Grid>
+
+                <!-- Twitter / X -->
+                <Grid Padding="16,10,16,10"
+                      ColumnDefinitions="28,*,Auto"
+                      ColumnSpacing="14">
+                    <Grid.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnShareActionTapped"
+                                              CommandParameter="Twitter" />
+                    </Grid.GestureRecognizers>
+                    <Path Grid.Column="0"
+                          Data="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"
+                          Fill="#1DA1F2"
+                          HeightRequest="20"
+                          WidthRequest="20"
+                          Aspect="Uniform" />
+                    <Label Grid.Column="1"
+                           Text="Twitter / X"
+                           TextColor="#E6E6E6"
+                           FontSize="14"
+                           VerticalOptions="Center" />
+                </Grid>
+
+                <!-- Copy Link -->
+                <BoxView HeightRequest="1" BackgroundColor="#333333" Margin="16,8,16,0" />
+
+                <Grid Padding="16,10,16,10"
+                      ColumnDefinitions="28,*,Auto"
+                      ColumnSpacing="14">
+                    <Grid.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnShareActionTapped"
+                                              CommandParameter="Copy link" />
+                    </Grid.GestureRecognizers>
+                    <Path Grid.Column="0"
+                          Data="M16 6l-3-3H6C4.9 3 4 3.9 4 5v10c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V6zm-1.5 8.5h-7V13h7v1.5zm0-3h-7V10h7v1.5zm0-3h-7V7h7v1.5zM20 8v10c0 1.1-.9 2-2 2H8v-1.5h10V8h1.5z"
+                          Fill="#008080"
+                          HeightRequest="20"
+                          WidthRequest="20"
+                          Aspect="Uniform" />
+                    <Label Grid.Column="1"
+                           Text="Copy request link"
+                           TextColor="#E6E6E6"
+                           FontSize="14"
+                           VerticalOptions="Center" />
+                </Grid>
+
+                <!-- More options -->
+                <Grid Padding="16,10,16,16"
+                      ColumnDefinitions="28,*,Auto"
+                      ColumnSpacing="14">
+                    <Grid.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnShareActionTapped"
+                                              CommandParameter="More" />
+                    </Grid.GestureRecognizers>
+                    <Path Grid.Column="0"
+                          Data="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"
+                          Fill="#008080"
+                          HeightRequest="20"
+                          WidthRequest="20"
+                          Aspect="Uniform" />
+                    <Label Grid.Column="1"
+                           Text="More options"
+                           TextColor="#E6E6E6"
+                           FontSize="14"
+                           VerticalOptions="Center" />
+                </Grid>
+
+            </VerticalStackLayout>
+        </ScrollView>
+    </Border>
+</toolkit:Popup>

@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<toolkit:Popup xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+               xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+               xmlns:toolkit="http://schemas.microsoft.com/dotnet/2022/maui/toolkit"
+               x:Class="Lock.Pages.Chat.Popups.PinEntryPopup"
+               CanBeDismissedByTappingOutsideOfPopup="False"
+               Size="320,420">
+
+    <Border BackgroundColor="#16141F"
+            StrokeThickness="1"
+            Stroke="#2A2535"
+            StrokeShape="RoundRectangle 28"
+            Padding="28,30,28,26">
+
+        <VerticalStackLayout Spacing="0">
+
+            <!-- Icon Badge -->
+            <Border BackgroundColor="#C667FF"
+                    StrokeThickness="0"
+                    StrokeShape="RoundRectangle 14"
+                    HeightRequest="52"
+                    WidthRequest="52"
+                    HorizontalOptions="Center"
+                    Margin="0,0,0,14">
+                <Label Text="🔒"
+                       FontSize="22"
+                       HorizontalOptions="Center"
+                       VerticalOptions="Center"/>
+            </Border>
+
+            <!-- Title -->
+            <Label Text="Chat Lock"
+                   FontSize="20"
+                   FontAttributes="Bold"
+                   TextColor="#F0EBF8"
+                   CharacterSpacing="-0.3"
+                   HorizontalOptions="Center"
+                   Margin="0,0,0,4"/>
+
+            <!-- Subtitle -->
+            <Label x:Name="TitleLabel"
+                   Text="Enter your PIN to continue"
+                   FontSize="13"
+                   TextColor="#7A6F8A"
+                   HorizontalOptions="Center"
+                   Margin="0,0,0,28"/>
+
+            <!-- PIN Dot Indicators -->
+            <HorizontalStackLayout x:Name="PinDotsLayout"
+                                   HorizontalOptions="Center"
+                                   Spacing="14"
+                                   Margin="0,0,0,20">
+                <Ellipse x:Name="Dot1"
+                         WidthRequest="13"
+                         HeightRequest="13"
+                         Fill="#2A2535"
+                         Stroke="#3D3550"
+                         StrokeThickness="1.5"/>
+                <Ellipse x:Name="Dot2"
+                         WidthRequest="13"
+                         HeightRequest="13"
+                         Fill="#2A2535"
+                         Stroke="#3D3550"
+                         StrokeThickness="1.5"/>
+                <Ellipse x:Name="Dot3"
+                         WidthRequest="13"
+                         HeightRequest="13"
+                         Fill="#2A2535"
+                         Stroke="#3D3550"
+                         StrokeThickness="1.5"/>
+                <Ellipse x:Name="Dot4"
+                         WidthRequest="13"
+                         HeightRequest="13"
+                         Fill="#2A2535"
+                         Stroke="#3D3550"
+                         StrokeThickness="1.5"/>
+                <Ellipse x:Name="Dot5"
+                         WidthRequest="13"
+                         HeightRequest="13"
+                         Fill="#2A2535"
+                         Stroke="#3D3550"
+                         StrokeThickness="1.5"/>
+                <Ellipse x:Name="Dot6"
+                         WidthRequest="13"
+                         HeightRequest="13"
+                         Fill="#2A2535"
+                         Stroke="#3D3550"
+                         StrokeThickness="1.5"/>
+            </HorizontalStackLayout>
+
+            <!-- Hidden PIN Entry -->
+            <Border BackgroundColor="#211E2E"
+                    StrokeThickness="1.5"
+                    Stroke="#3D3550"
+                    StrokeShape="RoundRectangle 14"
+                    Margin="0,0,0,6">
+                <Entry x:Name="PinEntry"
+                       Placeholder="● ● ● ● ● ●"
+                       TextColor="#F0EBF8"
+                       PlaceholderColor="#3D3550"
+                       BackgroundColor="Transparent"
+                       Keyboard="Numeric"
+                       MaxLength="6"
+                       IsPassword="True"
+                       HorizontalTextAlignment="Center"
+                       FontSize="20"
+                       HeightRequest="52"
+                       Margin="0"/>
+            </Border>
+
+            <!-- Error Message -->
+            <Label x:Name="ErrorMessageLabel"
+                   Text=""
+                   TextColor="#FF6B9D"
+                   FontSize="12"
+                   IsVisible="False"
+                   HorizontalOptions="Center"
+                   Margin="0,0,0,20"/>
+
+            <!-- Buttons -->
+            <Grid ColumnDefinitions="*,*"
+                  ColumnSpacing="10"
+                  Margin="0,16,0,0">
+
+                <Border BackgroundColor="#211E2E"
+                        StrokeThickness="1"
+                        Stroke="#3D3550"
+                        StrokeShape="RoundRectangle 14">
+                    <Button Text="Cancel"
+                            BackgroundColor="Transparent"
+                            TextColor="#7A6F8A"
+                            FontSize="15"
+                            FontAttributes="Bold"
+                            HeightRequest="50"
+                            BorderWidth="0"
+                            Clicked="OnCancelClicked"/>
+                </Border>
+
+                <Border Grid.Column="1"
+                        StrokeThickness="0"
+                        StrokeShape="RoundRectangle 14">
+                    <Border.Background>
+                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                            <GradientStop Color="#C667FF" Offset="0"/>
+                            <GradientStop Color="#FF6B9D" Offset="1"/>
+                        </LinearGradientBrush>
+                    </Border.Background>
+                    <Button Text="Unlock"
+                            BackgroundColor="Transparent"
+                            TextColor="White"
+                            FontSize="15"
+                            FontAttributes="Bold"
+                            HeightRequest="50"
+                            BorderWidth="0"
+                            Clicked="OnConfirmClicked"/>
+                </Border>
+
+            </Grid>
+
+        </VerticalStackLayout>
+    </Border>
+</toolkit:Popup>

@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Lock.Pages.Profile.VoiceIntroModal"
+             BackgroundColor="#CC000000"
+             Shell.NavBarIsVisible="False"
+             Shell.BackgroundColor="Transparent">
+
+    <Grid>
+        <Border BackgroundColor="{AppThemeBinding Light=#FFFFFF, Dark=#1A1A24}"
+                StrokeThickness="0"
+                StrokeShape="RoundRectangle 24"
+                Padding="24,32"
+                Margin="20"
+                VerticalOptions="Center">
+            <VerticalStackLayout Spacing="20">
+
+                <Label Text="Voice Intro"
+                       FontSize="22"
+                       FontAttributes="Bold"
+                       TextColor="{AppThemeBinding Light=#1A1A1A, Dark=#FFFFFF}"
+                       HorizontalOptions="Center" />
+
+                <Label Text="Record a 30-second audio clip to let others hear your voice and personality."
+                       FontSize="13"
+                       TextColor="{AppThemeBinding Light=#666666, Dark=#AAAAAA}"
+                       HorizontalOptions="Center"
+                       HorizontalTextAlignment="Center"
+                       LineBreakMode="WordWrap" />
+
+                <!-- Timer Display -->
+                <Label x:Name="TimerLabel"
+                       Text="00:00"
+                       FontSize="36"
+                       FontAttributes="Bold"
+                       TextColor="#FF3B6F"
+                       HorizontalOptions="Center" />
+
+                <!-- Waveform Visualization -->
+                <HorizontalStackLayout x:Name="WaveformLayout"
+                                       Spacing="3"
+                                       HeightRequest="40"
+                                       HorizontalOptions="Center"
+                                       VerticalOptions="Center">
+                    <!-- Will be populated dynamically -->
+                </HorizontalStackLayout>
+
+                <!-- Recording/Playback Controls -->
+                <HorizontalStackLayout Spacing="20" HorizontalOptions="Center">
+                    <Button x:Name="RecordButton"
+                            Text="● RECORD"
+                            BackgroundColor="#FF3B6F"
+                            TextColor="White"
+                            CornerRadius="25"
+                            HeightRequest="50"
+                            WidthRequest="120"
+                            FontSize="14"
+                            FontAttributes="Bold"
+                            Clicked="OnRecordClicked" />
+
+                    <Button x:Name="PlayButton"
+                            Text="► PLAY"
+                            BackgroundColor="{AppThemeBinding Light=#F0EDE8, Dark=#2A2A2E}"
+                            TextColor="{AppThemeBinding Light=#333333, Dark=#FFFFFF}"
+                            CornerRadius="25"
+                            HeightRequest="50"
+                            WidthRequest="100"
+                            FontSize="14"
+                            IsVisible="False"
+                            Clicked="OnPlayClicked" />
+                </HorizontalStackLayout>
+
+                <!-- Action Buttons -->
+                <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                    <Button x:Name="SaveButton"
+                            Grid.Column="0"
+                            Text="Save"
+                            BackgroundColor="#FF3B6F"
+                            TextColor="White"
+                            CornerRadius="25"
+                            HeightRequest="44"
+                            IsEnabled="False"
+                            Clicked="OnSaveClicked" />
+
+                    <Button x:Name="DeleteButton"
+                            Grid.Column="0"
+                            Text="Delete"
+                            BackgroundColor="#FF4444"
+                            TextColor="White"
+                            CornerRadius="25"
+                            HeightRequest="44"
+                            IsVisible="False"
+                            Clicked="OnDeleteClicked" />
+
+                    <Button Grid.Column="1"
+                            Text="Cancel"
+                            BackgroundColor="Transparent"
+                            TextColor="{AppThemeBinding Light=#666666, Dark=#AAAAAA}"
+                            CornerRadius="25"
+                            HeightRequest="44"
+                            Clicked="OnCancelClicked" />
+                </Grid>
+
+                <Label x:Name="StatusLabel"
+                       Text=""
+                       FontSize="11"
+                       TextColor="#FF6B6B"
+                       HorizontalOptions="Center"
+                       IsVisible="False" />
+            </VerticalStackLayout>
+        </Border>
+    </Grid>
+</ContentPage>

@@ -1,0 +1,622 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:local="clr-namespace:Lock.Pages.Admin"
+             x:Class="Lock.Pages.Admin.ReportAdminPage"
+             NavigationPage.HasNavigationBar="False"
+             BackgroundColor="#0D0D14">
+
+    <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,*,Auto">
+
+        <!-- ── Header ── -->
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto" Padding="16,18,12,6" BackgroundColor="#0D0D14" ColumnSpacing="8">
+            <VerticalStackLayout Grid.Column="0" Spacing="1">
+                <Label Text="Moderation" FontSize="17" FontAttributes="Bold" TextColor="White" />
+                <Label Text="Reports, Appeals &amp; Users" FontSize="10" TextColor="#7A7A8C" />
+            </VerticalStackLayout>
+
+            <!-- Select / Cancel bulk mode toggle (Users tab only) -->
+            <Border x:Name="BulkToggleBtn" Grid.Column="1"
+                    BackgroundColor="#12122A" Stroke="#1E1E3A" StrokeThickness="1"
+                    Padding="0" WidthRequest="36" HeightRequest="36"
+                    VerticalOptions="Center" IsVisible="False">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="10" />
+                </Border.StrokeShape>
+                <Border.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnBulkToggleTapped" />
+                </Border.GestureRecognizers>
+                <!-- AFTER -->
+                <Label x:Name="BulkToggleIcon" Text="[ ]"
+       TextColor="#00C9C9" FontSize="11" FontAttributes="Bold"
+       HorizontalOptions="Center" VerticalOptions="Center" />
+            </Border>
+
+            <!-- Refresh icon -->
+            <Border Grid.Column="2"
+                    BackgroundColor="#12122A" Stroke="#1E1E3A" StrokeThickness="1"
+                    Padding="0" WidthRequest="36" HeightRequest="36" VerticalOptions="Center">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="10" />
+                </Border.StrokeShape>
+                <Border.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnRefreshTapped" />
+                </Border.GestureRecognizers>
+                <Label Text="↻" TextColor="#00C9C9" FontSize="18"
+                       HorizontalOptions="Center" VerticalOptions="Center" />
+            </Border>
+        </Grid>
+
+        <!-- ── Tabs ── -->
+        <Grid Grid.Row="1" ColumnDefinitions="*,*,*" Margin="12,0,12,6" ColumnSpacing="6">
+            <Border x:Name="TabReports" Grid.Column="0"
+                    BackgroundColor="#00C9C9" Stroke="Transparent" StrokeThickness="1" Padding="8,8">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="10" />
+                </Border.StrokeShape>
+                <Border.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnTabTapped" CommandParameter="Reports" />
+                </Border.GestureRecognizers>
+                <Label Text="Reports" TextColor="White" FontAttributes="Bold" FontSize="12" HorizontalOptions="Center" />
+            </Border>
+
+            <Border x:Name="TabAppeals" Grid.Column="1"
+                    BackgroundColor="#16161C" Stroke="#1E1E3A" StrokeThickness="1" Padding="8,8">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="10" />
+                </Border.StrokeShape>
+                <Border.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnTabTapped" CommandParameter="Appeals" />
+                </Border.GestureRecognizers>
+                <Grid ColumnDefinitions="*,Auto" HorizontalOptions="Center">
+                    <Label Text="Appeals" TextColor="#CCCCCC" FontAttributes="Bold" FontSize="12"
+                           HorizontalOptions="Center" VerticalOptions="Center" />
+                    <Border x:Name="AppealsBadge" Grid.Column="1" BackgroundColor="#C2455E"
+                            IsVisible="False" Margin="4,0,0,0" Padding="4,2">
+                        <Border.StrokeShape>
+                            <RoundRectangle CornerRadius="8" />
+                        </Border.StrokeShape>
+                        <Label x:Name="AppealsBadgeLabel" Text="0" TextColor="White" FontSize="10" FontAttributes="Bold" />
+                    </Border>
+                </Grid>
+            </Border>
+
+            <Border x:Name="TabUsers" Grid.Column="2"
+                    BackgroundColor="#16161C" Stroke="#1E1E3A" StrokeThickness="1" Padding="8,8">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="10" />
+                </Border.StrokeShape>
+                <Border.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnTabTapped" CommandParameter="Users" />
+                </Border.GestureRecognizers>
+                <StackLayout Orientation="Horizontal" HorizontalOptions="Center" Spacing="4">
+                    <Label Text="🌍" FontSize="11" VerticalOptions="Center" />
+                    <Label Text="Users" TextColor="#CCCCCC" FontAttributes="Bold" FontSize="12" VerticalOptions="Center" />
+                </StackLayout>
+            </Border>
+        </Grid>
+
+        <!-- ── Filter pills (Reports only) ── -->
+        <ScrollView x:Name="FilterScrollView" Grid.Row="2"
+                    Orientation="Horizontal" HorizontalScrollBarVisibility="Never"
+                    Margin="12,0,12,6">
+            <HorizontalStackLayout Spacing="6">
+                <Border x:Name="FilterAll" BackgroundColor="#00C9C9" Stroke="Transparent" Padding="12,6">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="20" />
+                    </Border.StrokeShape>
+                    <Border.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnFilterTapped" CommandParameter="All" />
+                    </Border.GestureRecognizers>
+                    <Label Text="All" TextColor="White" FontSize="12" FontAttributes="Bold" />
+                </Border>
+                <Border x:Name="FilterPending" BackgroundColor="#12122A" Stroke="#1E1E3A" Padding="12,6">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="20" />
+                    </Border.StrokeShape>
+                    <Border.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnFilterTapped" CommandParameter="Pending" />
+                    </Border.GestureRecognizers>
+                    <Label Text="Pending" TextColor="#AAAAAA" FontSize="12" />
+                </Border>
+                <Border x:Name="FilterReview" BackgroundColor="#12122A" Stroke="#1E1E3A" Padding="12,6">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="20" />
+                    </Border.StrokeShape>
+                    <Border.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnFilterTapped" CommandParameter="UnderReview" />
+                    </Border.GestureRecognizers>
+                    <Label Text="In Review" TextColor="#AAAAAA" FontSize="12" />
+                </Border>
+                <Border x:Name="FilterResolved" BackgroundColor="#12122A" Stroke="#1E1E3A" Padding="12,6">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="20" />
+                    </Border.StrokeShape>
+                    <Border.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnFilterTapped" CommandParameter="Resolved" />
+                    </Border.GestureRecognizers>
+                    <Label Text="Resolved" TextColor="#AAAAAA" FontSize="12" />
+                </Border>
+                <Border x:Name="FilterDismissed" BackgroundColor="#12122A" Stroke="#1E1E3A" Padding="12,6">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="20" />
+                    </Border.StrokeShape>
+                    <Border.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnFilterTapped" CommandParameter="Dismissed" />
+                    </Border.GestureRecognizers>
+                    <Label Text="Dismissed" TextColor="#AAAAAA" FontSize="12" />
+                </Border>
+            </HorizontalStackLayout>
+        </ScrollView>
+
+        <!-- ── Users search bar ── -->
+        <Border x:Name="UsersSearchBar" Grid.Row="2"
+                BackgroundColor="#12122A" Stroke="#1E1E3A" StrokeThickness="1"
+                IsVisible="False" Margin="12,0,12,6" Padding="10,0">
+            <Border.StrokeShape>
+                <RoundRectangle CornerRadius="10" />
+            </Border.StrokeShape>
+            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="6">
+                <Label Grid.Column="0" Text="🔍" FontSize="13" VerticalOptions="Center" TextColor="#7A7A8C" />
+                <Entry x:Name="UsersSearchEntry" Grid.Column="1"
+                       Placeholder="Search by name or location…" PlaceholderColor="#555566"
+                       TextColor="White" FontSize="13" BackgroundColor="Transparent"
+                       HeightRequest="38" TextChanged="OnUsersSearchChanged" />
+                <Label x:Name="UsersSearchClear" Grid.Column="2" Text="✕" FontSize="13"
+                       TextColor="#555566" VerticalOptions="Center" IsVisible="False">
+                    <Label.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnUsersSearchClearTapped" />
+                    </Label.GestureRecognizers>
+                </Label>
+            </Grid>
+        </Border>
+
+        <!-- ── Users: status pills + gender/country dropdowns ── -->
+        <VerticalStackLayout x:Name="UsersControlsRow" Grid.Row="3"
+                             IsVisible="False" Margin="12,0,12,4" Spacing="5">
+            <ScrollView x:Name="UsersFilterScrollView" Orientation="Horizontal" HorizontalScrollBarVisibility="Never">
+                <HorizontalStackLayout Spacing="6">
+                    <Border x:Name="UsersFilterAll" BackgroundColor="#4CAF50" Stroke="Transparent" Padding="12,5">
+                        <Border.StrokeShape>
+                            <RoundRectangle CornerRadius="20" />
+                        </Border.StrokeShape>
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnUsersFilterTapped" CommandParameter="All" />
+                        </Border.GestureRecognizers>
+                        <Label Text="All" TextColor="White" FontSize="12" FontAttributes="Bold" />
+                    </Border>
+                    <Border x:Name="UsersFilterActive" BackgroundColor="#12122A" Stroke="#1E1E3A" Padding="12,5">
+                        <Border.StrokeShape>
+                            <RoundRectangle CornerRadius="20" />
+                        </Border.StrokeShape>
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnUsersFilterTapped" CommandParameter="Active" />
+                        </Border.GestureRecognizers>
+                        <Label Text="Active" TextColor="#AAAAAA" FontSize="12" />
+                    </Border>
+                    <Border x:Name="UsersFilterBanned" BackgroundColor="#12122A" Stroke="#1E1E3A" Padding="12,5">
+                        <Border.StrokeShape>
+                            <RoundRectangle CornerRadius="20" />
+                        </Border.StrokeShape>
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnUsersFilterTapped" CommandParameter="Banned" />
+                        </Border.GestureRecognizers>
+                        <Label Text="Banned" TextColor="#AAAAAA" FontSize="12" />
+                    </Border>
+                    <Border x:Name="UsersFilterWarned" BackgroundColor="#12122A" Stroke="#1E1E3A" Padding="12,5">
+                        <Border.StrokeShape>
+                            <RoundRectangle CornerRadius="20" />
+                        </Border.StrokeShape>
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnUsersFilterTapped" CommandParameter="Warned" />
+                        </Border.GestureRecognizers>
+                        <Label Text="Warned" TextColor="#AAAAAA" FontSize="12" />
+                    </Border>
+                </HorizontalStackLayout>
+            </ScrollView>
+
+            <ScrollView x:Name="UsersGenderLocationFilterScrollView"
+                        Orientation="Horizontal" HorizontalScrollBarVisibility="Never">
+                <HorizontalStackLayout Spacing="8">
+                    <Border BackgroundColor="#12122A" Stroke="#1E1E3A" StrokeThickness="1" Padding="10,4">
+                        <Border.StrokeShape>
+                            <RoundRectangle CornerRadius="20" />
+                        </Border.StrokeShape>
+                        <Grid ColumnDefinitions="Auto,Auto" ColumnSpacing="2">
+                            <Label Text="Gender:" TextColor="#7A7A8C" FontSize="11" VerticalOptions="Center" />
+                            <Picker x:Name="GenderPicker" Grid.Column="1" Title="All" TextColor="#00C9C9"
+                                    TitleColor="#7A7A8C" BackgroundColor="Transparent" FontSize="11"
+                                    SelectedIndexChanged="OnGenderPickerChanged" WidthRequest="70">
+                                <Picker.Items>
+                                    <x:String>All</x:String>
+                                    <x:String>Female</x:String>
+                                    <x:String>Male</x:String>
+                                </Picker.Items>
+                            </Picker>
+                        </Grid>
+                    </Border>
+                    <Border BackgroundColor="#12122A" Stroke="#1E1E3A" StrokeThickness="1" Padding="10,4">
+                        <Border.StrokeShape>
+                            <RoundRectangle CornerRadius="20" />
+                        </Border.StrokeShape>
+                        <Grid ColumnDefinitions="Auto,Auto" ColumnSpacing="2">
+                            <Label Text="Country:" TextColor="#7A7A8C" FontSize="11" VerticalOptions="Center" />
+                            <Picker x:Name="CountryPicker" Grid.Column="1" Title="All" TextColor="#00C9C9"
+                                    TitleColor="#7A7A8C" BackgroundColor="Transparent" FontSize="11"
+                                    SelectedIndexChanged="OnCountryPickerChanged" WidthRequest="100" />
+                        </Grid>
+                    </Border>
+                </HorizontalStackLayout>
+            </ScrollView>
+        </VerticalStackLayout>
+
+        <!-- ── Users stats bar ── -->
+        <Grid x:Name="UsersStatsBar" Grid.Row="4"
+              ColumnDefinitions="*,*,*" IsVisible="False"
+              Margin="12,0,12,6" ColumnSpacing="6">
+            <Border Grid.Column="0" BackgroundColor="#12122A" Stroke="#1E1E3A" StrokeThickness="1" Padding="8,6">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="8" />
+                </Border.StrokeShape>
+                <VerticalStackLayout>
+                    <Label x:Name="UsersTotalLabel" Text="0" TextColor="White" FontSize="18" FontAttributes="Bold" HorizontalOptions="Center" />
+                    <Label Text="Total" TextColor="#7A7A8C" FontSize="9" HorizontalOptions="Center" />
+                </VerticalStackLayout>
+            </Border>
+            <Border Grid.Column="1" BackgroundColor="#12122A" Stroke="#1E1E3A" StrokeThickness="1" Padding="8,6">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="8" />
+                </Border.StrokeShape>
+                <VerticalStackLayout>
+                    <Label x:Name="UsersActiveLabel" Text="0" TextColor="#4CAF50" FontSize="18" FontAttributes="Bold" HorizontalOptions="Center" />
+                    <Label Text="Active" TextColor="#7A7A8C" FontSize="9" HorizontalOptions="Center" />
+                </VerticalStackLayout>
+            </Border>
+            <Border Grid.Column="2" BackgroundColor="#12122A" Stroke="#1E1E3A" StrokeThickness="1" Padding="8,6">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="8" />
+                </Border.StrokeShape>
+                <VerticalStackLayout>
+                    <Label x:Name="UsersBannedLabel" Text="0" TextColor="#FF3B6F" FontSize="18" FontAttributes="Bold" HorizontalOptions="Center" />
+                    <Label Text="Banned" TextColor="#7A7A8C" FontSize="9" HorizontalOptions="Center" />
+                </VerticalStackLayout>
+            </Border>
+        </Grid>
+
+        <!-- ── Bulk selection header (select-all + count) — Users tab only ── -->
+        <Grid x:Name="BulkSelectionBar" Grid.Row="5"
+              ColumnDefinitions="Auto,*,Auto"
+              IsVisible="False"
+              Margin="12,0,12,6"
+              Padding="10,8"
+              BackgroundColor="#0E1A2A"
+              ColumnSpacing="10">
+            <Grid.GestureRecognizers>
+                <TapGestureRecognizer Tapped="OnSelectAllTapped" />
+            </Grid.GestureRecognizers>
+
+            <!-- Select-all checkbox -->
+            <Border Grid.Column="0"
+                    x:Name="SelectAllCheckbox"
+                    WidthRequest="22" HeightRequest="22"
+                    BackgroundColor="Transparent"
+                    Stroke="#00C9C9" StrokeThickness="2"
+                    VerticalOptions="Center">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="5" />
+                </Border.StrokeShape>
+                <Label x:Name="SelectAllCheckmark" Text="✓"
+                       TextColor="#00C9C9" FontSize="13" FontAttributes="Bold"
+                       HorizontalOptions="Center" VerticalOptions="Center"
+                       IsVisible="False" />
+            </Border>
+
+            <Label Grid.Column="1"
+                   x:Name="BulkSelectionLabel"
+                   Text="Select All"
+                   TextColor="#CCCCCC" FontSize="13"
+                   VerticalOptions="Center" />
+
+            <!-- Selected count badge -->
+            <Border Grid.Column="2"
+                    x:Name="SelectedCountBadge"
+                    BackgroundColor="#1E3A5F"
+                    Stroke="#00C9C9" StrokeThickness="1"
+                    Padding="8,3" IsVisible="False"
+                    VerticalOptions="Center">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="10" />
+                </Border.StrokeShape>
+                <Label x:Name="SelectedCountLabel"
+                       Text="0 selected"
+                       TextColor="#00C9C9" FontSize="11" FontAttributes="Bold" />
+            </Border>
+        </Grid>
+
+        <!-- ── Main content area ── -->
+        <Grid Grid.Row="6">
+
+            <VerticalStackLayout x:Name="LoadingState" IsVisible="False"
+                                 VerticalOptions="Center" HorizontalOptions="Center" Spacing="10">
+                <ActivityIndicator IsRunning="True" Color="#00C9C9" WidthRequest="32" HeightRequest="32" />
+                <Label Text="Loading..." TextColor="#7A7A8C" FontSize="13" HorizontalOptions="Center" />
+            </VerticalStackLayout>
+
+            <VerticalStackLayout x:Name="EmptyState" IsVisible="False"
+                                 VerticalOptions="Center" HorizontalOptions="Center" Spacing="6">
+                <Label Text="📭" FontSize="40" HorizontalOptions="Center" />
+                <Label Text="Nothing here yet" TextColor="#7A7A8C" FontSize="14" HorizontalOptions="Center" />
+            </VerticalStackLayout>
+
+            <!-- Reports collection -->
+            <CollectionView x:Name="ReportsCollection" ItemsSource="{Binding Reports}" IsVisible="True">
+                <CollectionView.Header>
+                    <Grid ColumnDefinitions="*,*,*,*" Padding="12,6" ColumnSpacing="6">
+                        <Border Grid.Column="0" BackgroundColor="#12122A" Padding="8,6">
+                            <Border.StrokeShape>
+                                <RoundRectangle CornerRadius="8" />
+                            </Border.StrokeShape>
+                            <VerticalStackLayout>
+                                <Label x:Name="TotalCountLabel" Text="0" TextColor="White" FontSize="18" FontAttributes="Bold" HorizontalOptions="Center" />
+                                <Label Text="Total" TextColor="#7A7A8C" FontSize="9" HorizontalOptions="Center" />
+                            </VerticalStackLayout>
+                        </Border>
+                        <Border Grid.Column="1" BackgroundColor="#12122A" Padding="8,6">
+                            <Border.StrokeShape>
+                                <RoundRectangle CornerRadius="8" />
+                            </Border.StrokeShape>
+                            <VerticalStackLayout>
+                                <Label x:Name="PendingCountLabel" Text="0" TextColor="#FF9800" FontSize="18" FontAttributes="Bold" HorizontalOptions="Center" />
+                                <Label Text="Pending" TextColor="#7A7A8C" FontSize="9" HorizontalOptions="Center" />
+                            </VerticalStackLayout>
+                        </Border>
+                        <Border Grid.Column="2" BackgroundColor="#12122A" Padding="8,6">
+                            <Border.StrokeShape>
+                                <RoundRectangle CornerRadius="8" />
+                            </Border.StrokeShape>
+                            <VerticalStackLayout>
+                                <Label x:Name="ReviewCountLabel" Text="0" TextColor="#2196F3" FontSize="18" FontAttributes="Bold" HorizontalOptions="Center" />
+                                <Label Text="Review" TextColor="#7A7A8C" FontSize="9" HorizontalOptions="Center" />
+                            </VerticalStackLayout>
+                        </Border>
+                        <Border Grid.Column="3" BackgroundColor="#12122A" Padding="8,6">
+                            <Border.StrokeShape>
+                                <RoundRectangle CornerRadius="8" />
+                            </Border.StrokeShape>
+                            <VerticalStackLayout>
+                                <Label x:Name="ResolvedCountLabel" Text="0" TextColor="#4CAF50" FontSize="18" FontAttributes="Bold" HorizontalOptions="Center" />
+                                <Label Text="Resolved" TextColor="#7A7A8C" FontSize="9" HorizontalOptions="Center" />
+                            </VerticalStackLayout>
+                        </Border>
+                    </Grid>
+                </CollectionView.Header>
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+                        <Border BackgroundColor="#16161C" Stroke="#1E1E3A" StrokeThickness="1"
+                                Margin="12,0,12,8" Padding="12,10" Opacity="{Binding RowOpacity}">
+                            <Border.StrokeShape>
+                                <RoundRectangle CornerRadius="12" />
+                            </Border.StrokeShape>
+                            <Border.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="OnReportTapped" CommandParameter="{Binding .}" />
+                            </Border.GestureRecognizers>
+                            <Grid ColumnDefinitions="40,*,Auto" ColumnSpacing="10">
+                                <Image Grid.Column="0" Source="{Binding ReportedUserAvatar}"
+                                       WidthRequest="36" HeightRequest="36" Aspect="AspectFill">
+                                    <Image.Clip>
+                                        <EllipseGeometry RadiusX="18" RadiusY="18" Center="18,18" />
+                                    </Image.Clip>
+                                </Image>
+                                <VerticalStackLayout Grid.Column="1" Spacing="2">
+                                    <Label Text="{Binding ReportedUserName}" TextColor="White" FontAttributes="Bold" FontSize="14" />
+                                    <Label Text="{Binding Category}" TextColor="#7A7A8C" FontSize="12" />
+                                    <Label Text="{Binding ReportedAt, StringFormat='{0:MMM dd, yyyy}'}" TextColor="#555566" FontSize="11" />
+                                </VerticalStackLayout>
+                                <Border Grid.Column="2" BackgroundColor="{Binding StatusColor}" Padding="7,3" VerticalOptions="Center">
+                                    <Border.StrokeShape>
+                                        <RoundRectangle CornerRadius="6" />
+                                    </Border.StrokeShape>
+                                    <Label Text="{Binding StatusLabel}" TextColor="White" FontSize="9" FontAttributes="Bold" />
+                                </Border>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+
+            <!-- Appeals collection -->
+            <CollectionView x:Name="AppealsCollection" ItemsSource="{Binding Appeals}" IsVisible="False">
+                <CollectionView.Header>
+                    <Grid Padding="12,6">
+                        <Label>
+                            <Label.FormattedText>
+                                <FormattedString>
+                                    <Span Text="Pending appeals: " TextColor="#7A7A8C" FontSize="12" />
+                                    <Span x:Name="AppealsCountLabel" Text="0" TextColor="#FF9800" FontSize="12" FontAttributes="Bold" />
+                                </FormattedString>
+                            </Label.FormattedText>
+                        </Label>
+                    </Grid>
+                </CollectionView.Header>
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+                        <Border BackgroundColor="#1A0A00" Stroke="{Binding StatusColor}" StrokeThickness="1"
+                                Margin="12,0,12,8" Padding="12,10" Opacity="{Binding RowOpacity}">
+                            <Border.StrokeShape>
+                                <RoundRectangle CornerRadius="12" />
+                            </Border.StrokeShape>
+                            <Border.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="OnReportTapped" CommandParameter="{Binding .}" />
+                            </Border.GestureRecognizers>
+                            <Grid ColumnDefinitions="40,*,Auto" ColumnSpacing="10">
+                                <Image Grid.Column="0" Source="{Binding ReportedUserAvatar}"
+                                       WidthRequest="36" HeightRequest="36" Aspect="AspectFill">
+                                    <Image.Clip>
+                                        <EllipseGeometry RadiusX="18" RadiusY="18" Center="18,18" />
+                                    </Image.Clip>
+                                </Image>
+                                <VerticalStackLayout Grid.Column="1" Spacing="2">
+                                    <Label Text="{Binding ReportedUserName}" TextColor="White" FontAttributes="Bold" FontSize="14" />
+                                    <Label Text="{Binding Category}" TextColor="#FF9800" FontSize="12" />
+                                    <Label Text="{Binding ReportedAt, StringFormat='{0:MMM dd, yyyy}'}" TextColor="#555566" FontSize="11" />
+                                </VerticalStackLayout>
+                                <Border Grid.Column="2" BackgroundColor="{Binding StatusColor}" Padding="7,3" VerticalOptions="Center">
+                                    <Border.StrokeShape>
+                                        <RoundRectangle CornerRadius="6" />
+                                    </Border.StrokeShape>
+                                    <Label Text="{Binding StatusLabel}" TextColor="White" FontSize="9" FontAttributes="Bold" />
+                                </Border>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+
+            <!-- ── Users collection with per-row checkboxes ── -->
+            <CollectionView x:Name="UsersCollection" ItemsSource="{Binding UserLocations}" IsVisible="False">
+                <CollectionView.ItemTemplate>
+                    <DataTemplate x:DataType="{x:Type local:UserLocationViewModel}">
+                        <Border BackgroundColor="{Binding RowBackground}"
+                                Stroke="{Binding RowStroke}"
+                                StrokeThickness="1"
+                                StrokeShape="RoundRectangle 12"
+                                Margin="12,0,12,8" Padding="10,9">
+                            <Border.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="OnUserRowTapped" CommandParameter="{Binding .}" />
+                            </Border.GestureRecognizers>
+
+                            <Grid ColumnDefinitions="Auto,38,*,Auto" ColumnSpacing="9">
+
+                                <!-- REPLACE the per-row checkbox Border entirely -->
+                                <Border Grid.Column="0"
+        WidthRequest="24" HeightRequest="24"
+        BackgroundColor="{Binding CheckboxBackground}"
+        Stroke="{Binding CheckboxStroke}"
+        StrokeThickness="2"
+        IsVisible="{Binding IsBulkMode}"
+        VerticalOptions="Center">
+                                    <Border.StrokeShape>
+                                        <RoundRectangle CornerRadius="5" />
+                                    </Border.StrokeShape>
+                                    <Grid>
+                                        <Label Text="✓"
+               TextColor="White"
+               FontSize="14"
+               FontAttributes="Bold"
+               HorizontalOptions="Center"
+               VerticalOptions="Center"
+               IsVisible="{Binding IsSelected}"
+               Margin="0,0,0,1" />
+                                    </Grid>
+                                </Border>
+
+                                <!-- Avatar -->
+                                <Image Grid.Column="1" Source="{Binding Avatar}"
+                                       WidthRequest="34" HeightRequest="34" Aspect="AspectFill" VerticalOptions="Center">
+                                    <Image.Clip>
+                                        <EllipseGeometry RadiusX="17" RadiusY="17" Center="17,17" />
+                                    </Image.Clip>
+                                </Image>
+
+                                <!-- Name / location -->
+                                <VerticalStackLayout Grid.Column="2" Spacing="2" VerticalOptions="Center">
+                                    <HorizontalStackLayout Spacing="4">
+                                        <Label Text="{Binding Name}" TextColor="White" FontSize="13" FontAttributes="Bold" VerticalOptions="Center" />
+                                        <Label Text="{Binding AgeLabel}" TextColor="#888888" FontSize="11" VerticalOptions="Center" />
+                                        <Label Text="·" TextColor="#444455" FontSize="11" VerticalOptions="Center" />
+                                        <Label Text="{Binding GenderIcon}" FontSize="11" VerticalOptions="Center" />
+                                    </HorizontalStackLayout>
+                                    <HorizontalStackLayout Spacing="3">
+                                        <Label Text="📍" FontSize="10" VerticalOptions="Center" />
+                                        <Label Text="{Binding LocationDisplay}" TextColor="#00C9C9" FontSize="11" VerticalOptions="Center" />
+                                    </HorizontalStackLayout>
+                                    <Label Text="{Binding LastActive, StringFormat='Last active {0}'}" TextColor="#555566" FontSize="10" />
+                                </VerticalStackLayout>
+
+                                <!-- Status badge -->
+                                <Border Grid.Column="3" BackgroundColor="{Binding StatusColor}" Stroke="Transparent" Padding="7,3" VerticalOptions="Center">
+                                    <Border.StrokeShape>
+                                        <RoundRectangle CornerRadius="6" />
+                                    </Border.StrokeShape>
+                                    <Label Text="{Binding StatusLabel}" TextColor="White" FontSize="9" FontAttributes="Bold" />
+                                </Border>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+
+        </Grid>
+
+        <!-- ── Bulk action bar (slides up when items are selected) ── -->
+        <Border x:Name="BulkActionBar" Grid.Row="7"
+                BackgroundColor="#0E1A2A"
+                Stroke="#00C9C9"
+                StrokeThickness="1"
+                IsVisible="False"
+                Margin="12,4,12,10"
+                Padding="10,8">
+            <Border.StrokeShape>
+                <RoundRectangle CornerRadius="14" />
+            </Border.StrokeShape>
+            <Grid ColumnDefinitions="*,*,*" ColumnSpacing="8">
+
+                <!-- Issue Warning -->
+                <Border Grid.Column="0"
+                        BackgroundColor="#1A2800"
+                        Stroke="#FF9800"
+                        StrokeThickness="1"
+                        Padding="0,10">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="10" />
+                    </Border.StrokeShape>
+                    <Border.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnBulkWarnTapped" />
+                    </Border.GestureRecognizers>
+                    <VerticalStackLayout Spacing="2" HorizontalOptions="Center">
+                        <Label Text="⚠️" FontSize="16" HorizontalOptions="Center" />
+                        <Label Text="Warn" TextColor="#FF9800" FontSize="11" FontAttributes="Bold" HorizontalOptions="Center" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- Temporary Ban -->
+                <Border Grid.Column="1"
+                        BackgroundColor="#1A0E00"
+                        Stroke="#FF6B00"
+                        StrokeThickness="1"
+                        Padding="0,10">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="10" />
+                    </Border.StrokeShape>
+                    <Border.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnBulkTempBanTapped" />
+                    </Border.GestureRecognizers>
+                    <VerticalStackLayout Spacing="2" HorizontalOptions="Center">
+                        <Label Text="⏱️" FontSize="16" HorizontalOptions="Center" />
+                        <Label Text="Temp Ban" TextColor="#FF6B00" FontSize="11" FontAttributes="Bold" HorizontalOptions="Center" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- Permanent Ban -->
+                <Border Grid.Column="2"
+                        BackgroundColor="#200010"
+                        Stroke="#FF3B6F"
+                        StrokeThickness="1"
+                        Padding="0,10">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="10" />
+                    </Border.StrokeShape>
+                    <Border.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnBulkPermBanTapped" />
+                    </Border.GestureRecognizers>
+                    <VerticalStackLayout Spacing="2" HorizontalOptions="Center">
+                        <Label Text="🚫" FontSize="16" HorizontalOptions="Center" />
+                        <Label Text="Perm Ban" TextColor="#FF3B6F" FontSize="11" FontAttributes="Bold" HorizontalOptions="Center" />
+                    </VerticalStackLayout>
+                </Border>
+
+            </Grid>
+        </Border>
+
+    </Grid>
+</ContentPage>

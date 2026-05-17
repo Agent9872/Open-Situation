@@ -1,0 +1,427 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:models="clr-namespace:Lock.Models;assembly=Lock"
+             xmlns:conv="clr-namespace:Lock.Converter.Post"
+             xmlns:shapes="clr-namespace:Microsoft.Maui.Controls.Shapes;assembly=Microsoft.Maui.Controls"
+             x:Class="Lock.Pages.Post.HiddenPostsPage"
+             Title="Hidden &amp; Saved"
+             BackgroundColor="#121212"
+             Padding="0"
+             Shell.NavBarIsVisible="False">
+
+    <ContentPage.Resources>
+        <ResourceDictionary>
+            <conv:HasImagesConverter x:Key="HasImagesConverter"/>
+            <conv:FirstImageConverter x:Key="FirstImageConverter"/>
+        </ResourceDictionary>
+    </ContentPage.Resources>
+
+    <Grid RowDefinitions="Auto,Auto,Auto,*"
+          BackgroundColor="#121212">
+
+        <!-- HEADER -->
+        <Grid Grid.Row="0"
+              Padding="16,16,16,12" 
+              ColumnDefinitions="*,Auto">
+            <Label Text="Hidden &amp; Saved"
+                   FontSize="18"
+                   FontAttributes="Bold"
+                   TextColor="#F5F2E9"
+                   VerticalOptions="Center" />
+        </Grid>
+
+        <!-- Divider -->
+        <BoxView Grid.Row="0"
+                 HeightRequest="0.5"
+                 BackgroundColor="#2A2A2A"
+                 VerticalOptions="End"/>
+
+        <!-- FILTER TABS -->
+        <Grid Grid.Row="1"
+              Padding="0,8,0,0">
+            <HorizontalStackLayout Padding="16,0"
+                                   Spacing="20">
+                <Button x:Name="HiddenTabButton"
+                        Text="Hidden"
+                        BackgroundColor="Transparent"
+                        FontSize="16"
+                        FontAttributes="Bold"
+                        TextColor="#FF3B6F"
+                        Clicked="OnTabClicked"
+                        CommandParameter="Hidden"/>
+
+                <Button x:Name="SavedTabButton"
+                        Text="Saved"
+                        BackgroundColor="Transparent"
+                        FontSize="16"
+                        FontAttributes="Bold"
+                        TextColor="#888888"
+                        Clicked="OnTabClicked"
+                        CommandParameter="Saved"/>
+
+                <Button x:Name="MutedTabButton"
+                        Text="Muted"
+                        BackgroundColor="Transparent"
+                        FontSize="16"
+                        FontAttributes="Bold"
+                        TextColor="#888888"
+                        Clicked="OnTabClicked"
+                        CommandParameter="Muted"/>
+            </HorizontalStackLayout>
+        </Grid>
+
+        <!-- Divider -->
+        <BoxView Grid.Row="2"
+                 HeightRequest="0.5"
+                 BackgroundColor="#2A2A2A"
+                 Margin="0,4,0,0"/>
+
+        <!-- HIDDEN POSTS LIST -->
+        <CollectionView Grid.Row="3"
+                        x:Name="HiddenPostsCollectionView"
+                        BackgroundColor="Transparent"
+                        SelectionMode="None"
+                        IsVisible="True">
+            <CollectionView.ItemTemplate>
+                <DataTemplate x:DataType="models:Post">
+                    <Grid>
+                        <Grid.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnPostTapped"
+                                                  CommandParameter="{Binding .}" />
+                        </Grid.GestureRecognizers>
+
+                        <VerticalStackLayout Spacing="0">
+                            <Grid Padding="12,6,12,6"  
+                                  ColumnDefinitions="*,Auto"
+                                  ColumnSpacing="8">
+                                <!-- MAIN CONTENT AREA -->
+                                <VerticalStackLayout Grid.Column="0" Spacing="2">
+                                    <!-- PROFILE IMAGE + NAME ROW -->
+                                    <HorizontalStackLayout Spacing="8" VerticalOptions="Center">
+                                        <Frame WidthRequest="32" 
+                                               HeightRequest="32"
+                                               CornerRadius="16" 
+                                               Padding="0"
+                                               IsClippedToBounds="True" 
+                                               HasShadow="False"
+                                               BackgroundColor="Transparent"
+                                               BorderColor="#333333">
+                                            <Image Source="{Binding AuthorProfileImagePath}"
+                                                   Aspect="AspectFill"
+                                                   HeightRequest="32" 
+                                                   WidthRequest="32"/>
+                                        </Frame>
+
+                                        <Label FontSize="13"
+                                               TextColor="#F5F2E9"
+                                               VerticalOptions="Center">
+                                            <Label.FormattedText>
+                                                <FormattedString>
+                                                    <Span Text="{Binding AuthorDisplayName}" FontAttributes="Bold"/>
+                                                    <Span Text=" posted"/>
+                                                </FormattedString>
+                                            </Label.FormattedText>
+                                        </Label>
+                                    </HorizontalStackLayout>
+
+                                    <!-- POST PREVIEW -->
+                                    <Label Text="{Binding DisplayContent}"
+                                           FontSize="11"
+                                           TextColor="#666666"
+                                           LineBreakMode="TailTruncation"
+                                           MaxLines="1"
+                                           Margin="40,0,0,0"/>
+                                </VerticalStackLayout>
+
+                                <!-- RIGHT SIDE: THUMBNAIL + TIME + MENU -->
+                                <Grid Grid.Column="1"
+                                      ColumnDefinitions="Auto,Auto"
+                                      ColumnSpacing="8">
+
+                                    <!-- Post Image Thumbnail (if exists) -->
+                                    <Frame Grid.Column="0"
+                                           WidthRequest="40"
+                                           HeightRequest="40"
+                                           CornerRadius="6"
+                                           Padding="0"
+                                           IsClippedToBounds="True"
+                                           HasShadow="False"
+                                           BackgroundColor="#2A2A2A"
+                                           BorderColor="#333333"
+                                           IsVisible="{Binding ImagePathsList, Converter={StaticResource HasImagesConverter}}">
+                                        <Image Source="{Binding ImagePathsList, Converter={StaticResource FirstImageConverter}}"
+                                               Aspect="AspectFill"
+                                               HeightRequest="40"
+                                               WidthRequest="40"/>
+                                    </Frame>
+
+                                    <!-- TIME + MENU STACK -->
+                                    <VerticalStackLayout Grid.Column="1"
+                                                         Spacing="2"
+                                                         HorizontalOptions="End">
+                                        <Label Text="{Binding CreatedAtRelative}"
+                                               FontSize="10"
+                                               TextColor="#555555"
+                                               HorizontalOptions="End"/>
+                                        <Grid WidthRequest="28"
+                                              HeightRequest="28"
+                                              HorizontalOptions="End">
+                                            <Grid.GestureRecognizers>
+                                                <TapGestureRecognizer Tapped="OnPostMenuClicked"
+                                                                      CommandParameter="{Binding .}" />
+                                            </Grid.GestureRecognizers>
+                                            <shapes:Path Data="M480-199.5q-25 0-42.5-17.5T420-259.5q0-25 17.5-42.5t42.5-17.5q25 0 42.5 17.5t17.5 42.5q0 25-17.5 42.5T480-199.5Zm0-237q-25 0-42.5-17.5T420-496.5q0-25 17.5-42.5t42.5-17.5q25 0 42.5 17.5t17.5 42.5q0 25-17.5 42.5T480-436.5Zm0-237q-25 0-42.5-17.5T420-733.5q0-25 17.5-42.5t42.5-17.5q25 0 42.5 17.5t17.5 42.5q0 25-17.5 42.5T480-673.5Z"
+                                                          Fill="#555555"
+                                                          Stroke="#555555"
+                                                          StrokeThickness="1.2"
+                                                          HeightRequest="18"
+                                                          WidthRequest="18"
+                                                          HorizontalOptions="Center"
+                                                          VerticalOptions="Center"
+                                                          Aspect="Uniform" />
+                                        </Grid>
+                                    </VerticalStackLayout>
+                                </Grid>
+                            </Grid>
+                            <!-- Divider -->
+                            <BoxView HeightRequest="0.5"
+                                     BackgroundColor="#2A2A2A"
+                                     Margin="12,0,0,0"/>
+                        </VerticalStackLayout>
+                    </Grid>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+
+        <!-- Saved Content with Categories -->
+        <Grid Grid.Row="3"
+              x:Name="SavedContent"
+              IsVisible="False">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <!-- Category Tabs -->
+            <ScrollView Grid.Row="0"
+                        Orientation="Horizontal"
+                        HorizontalScrollBarVisibility="Never"
+                        Margin="12,8,12,4">
+                <HorizontalStackLayout x:Name="CategoryTabsLayout" Spacing="12">
+                    <Button x:Name="AllCategoriesButton"
+                            Text="All"
+                            BackgroundColor="#FF3B6F"
+                            TextColor="White"
+                            CornerRadius="20"
+                            Padding="12,6"
+                            FontSize="13"
+                            Clicked="OnCategoryTabClicked"
+                            CommandParameter="All"/>
+                </HorizontalStackLayout>
+            </ScrollView>
+
+            <!-- Posts List -->
+            <CollectionView Grid.Row="1"
+                            x:Name="SavedPostsCollectionView"
+                            BackgroundColor="Transparent"
+                            SelectionMode="None">
+                <CollectionView.ItemTemplate>
+                    <DataTemplate x:DataType="models:Post">
+                        <Grid>
+                            <Grid.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="OnPostTapped"
+                                                      CommandParameter="{Binding .}" />
+                            </Grid.GestureRecognizers>
+                            <VerticalStackLayout Spacing="0">
+                                <Grid Padding="12,6,12,6"  
+                                      ColumnDefinitions="*,Auto"
+                                      ColumnSpacing="8">
+                                    <VerticalStackLayout Grid.Column="0" Spacing="2">
+                                        <HorizontalStackLayout Spacing="8" VerticalOptions="Center">
+                                            <Frame WidthRequest="32" 
+                                                   HeightRequest="32"
+                                                   CornerRadius="16" 
+                                                   Padding="0"
+                                                   IsClippedToBounds="True" 
+                                                   HasShadow="False"
+                                                   BackgroundColor="Transparent"
+                                                   BorderColor="#333333">
+                                                <Image Source="{Binding AuthorProfileImagePath}"
+                                                       Aspect="AspectFill"
+                                                       HeightRequest="32" 
+                                                       WidthRequest="32"/>
+                                            </Frame>
+                                            <Label FontSize="13"
+                                                   TextColor="#F5F2E9"
+                                                   VerticalOptions="Center">
+                                                <Label.FormattedText>
+                                                    <FormattedString>
+                                                        <Span Text="{Binding AuthorDisplayName}" FontAttributes="Bold"/>
+                                                        <Span Text=" saved"/>
+                                                    </FormattedString>
+                                                </Label.FormattedText>
+                                            </Label>
+                                        </HorizontalStackLayout>
+                                        <Label Text="{Binding DisplayContent}"
+                                               FontSize="11"
+                                               TextColor="#666666"
+                                               LineBreakMode="TailTruncation"
+                                               MaxLines="1"
+                                               Margin="40,0,0,0"/>
+                                    </VerticalStackLayout>
+
+                                    <Grid Grid.Column="1"
+                                          ColumnDefinitions="Auto,Auto"
+                                          ColumnSpacing="8">
+                                        <Frame Grid.Column="0"
+                                               WidthRequest="40"
+                                               HeightRequest="40"
+                                               CornerRadius="6"
+                                               Padding="0"
+                                               IsClippedToBounds="True"
+                                               HasShadow="False"
+                                               BackgroundColor="#2A2A2A"
+                                               BorderColor="#333333"
+                                               IsVisible="{Binding ImagePathsList, Converter={StaticResource HasImagesConverter}}">
+                                            <Image Source="{Binding ImagePathsList, Converter={StaticResource FirstImageConverter}}"
+                                                   Aspect="AspectFill"
+                                                   HeightRequest="40"
+                                                   WidthRequest="40"/>
+                                        </Frame>
+
+                                        <VerticalStackLayout Grid.Column="1"
+                                                             Spacing="2"
+                                                             HorizontalOptions="End">
+                                            <Label Text="{Binding CreatedAtRelative}"
+                                                   FontSize="10"
+                                                   TextColor="#555555"
+                                                   HorizontalOptions="End"/>
+                                            <Grid WidthRequest="28"
+                                                  HeightRequest="28"
+                                                  HorizontalOptions="End">
+                                                <Grid.GestureRecognizers>
+                                                    <TapGestureRecognizer Tapped="OnPostMenuClicked"
+                                                                          CommandParameter="{Binding .}" />
+                                                </Grid.GestureRecognizers>
+                                                <shapes:Path Data="M480-199.5q-25 0-42.5-17.5T420-259.5q0-25 17.5-42.5t42.5-17.5q25 0 42.5 17.5t17.5 42.5q0 25-17.5 42.5T480-199.5Zm0-237q-25 0-42.5-17.5T420-496.5q0-25 17.5-42.5t42.5-17.5q25 0 42.5 17.5t17.5 42.5q0 25-17.5 42.5T480-436.5Zm0-237q-25 0-42.5-17.5T420-733.5q0-25 17.5-42.5t42.5-17.5q25 0 42.5 17.5t17.5 42.5q0 25-17.5 42.5T480-673.5Z"
+                                                              Fill="#555555"
+                                                              Stroke="#555555"
+                                                              StrokeThickness="1.2"
+                                                              HeightRequest="18"
+                                                              WidthRequest="18"
+                                                              HorizontalOptions="Center"
+                                                              VerticalOptions="Center"
+                                                              Aspect="Uniform" />
+                                            </Grid>
+                                        </VerticalStackLayout>
+                                    </Grid>
+                                </Grid>
+                                <BoxView HeightRequest="0.5"
+                                         BackgroundColor="#2A2A2A"
+                                         Margin="12,0,0,0"/>
+                            </VerticalStackLayout>
+                        </Grid>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+        </Grid>
+
+        <!-- MUTED USERS LIST -->
+        <CollectionView Grid.Row="3"
+                        x:Name="MutedUsersCollectionView"
+                        BackgroundColor="Transparent"
+                        SelectionMode="None"
+                        IsVisible="False">
+            <CollectionView.ItemTemplate>
+                <DataTemplate>
+                    <Grid>
+                        <VerticalStackLayout Spacing="0">
+                            <Grid Padding="12,6,12,6"  
+                                  ColumnDefinitions="*,Auto"
+                                  ColumnSpacing="8">
+                                <VerticalStackLayout Grid.Column="0" Spacing="2">
+                                    <HorizontalStackLayout Spacing="8" VerticalOptions="Center">
+                                        <Frame WidthRequest="32" 
+                                               HeightRequest="32"
+                                               CornerRadius="16" 
+                                               Padding="0"
+                                               IsClippedToBounds="True" 
+                                               HasShadow="False"
+                                               BackgroundColor="Transparent"
+                                               BorderColor="#333333">
+                                            <Image Source="{Binding ProfileImagePath}"
+                                                   Aspect="AspectFill"
+                                                   HeightRequest="32" 
+                                                   WidthRequest="32"/>
+                                        </Frame>
+
+                                        <Label FontSize="13"
+                                               TextColor="#F5F2E9"
+                                               VerticalOptions="Center">
+                                            <Label.FormattedText>
+                                                <FormattedString>
+                                                    <Span Text="{Binding DisplayName}" FontAttributes="Bold"/>
+                                                    <Span Text=" muted"/>
+                                                </FormattedString>
+                                            </Label.FormattedText>
+                                        </Label>
+                                    </HorizontalStackLayout>
+
+                                    <Label Text="{Binding PhoneNumber}"
+                                           FontSize="11"
+                                           TextColor="#666666"
+                                           LineBreakMode="TailTruncation"
+                                           MaxLines="1"
+                                           Margin="40,0,0,0"/>
+                                </VerticalStackLayout>
+
+                                <VerticalStackLayout Grid.Column="1" Spacing="2" HorizontalOptions="End">
+                                    <Button Text="Unmute"
+                                            BackgroundColor="#FF3B6F"
+                                            TextColor="White"
+                                            CornerRadius="12"
+                                            FontSize="11"
+                                            FontAttributes="Bold"
+                                            HeightRequest="28"
+                                            WidthRequest="60"
+                                            Padding="0"
+                                            CommandParameter="{Binding .}"
+                                            Clicked="OnUnmuteUserClicked"
+                                            HorizontalOptions="End"/>
+                                </VerticalStackLayout>
+                            </Grid>
+                            <BoxView HeightRequest="0.5"
+                                     BackgroundColor="#2A2A2A"
+                                     Margin="12,0,0,0"/>
+                        </VerticalStackLayout>
+                    </Grid>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+
+        <!-- EMPTY STATE -->
+        <Grid Grid.Row="3"
+              x:Name="EmptyStateGrid"
+              IsVisible="False"
+              BackgroundColor="Transparent">
+            <VerticalStackLayout VerticalOptions="Center" HorizontalOptions="Center" Spacing="12">
+                <Label x:Name="EmptyStateIcon"
+                       Text="📭"
+                       FontSize="48"
+                       HorizontalOptions="Center"/>
+                <Label x:Name="EmptyStateTitle"
+                       Text="No hidden posts"
+                       FontSize="16"
+                       TextColor="#888888"
+                       HorizontalOptions="Center"/>
+                <Label x:Name="EmptyStateMessage"
+                       Text="Posts you hide will appear here"
+                       FontSize="12"
+                       TextColor="#666666"
+                       HorizontalOptions="Center"/>
+            </VerticalStackLayout>
+        </Grid>
+
+    </Grid>
+</ContentPage>

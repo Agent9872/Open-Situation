@@ -1,0 +1,416 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Lock.Pages.Chat.ReportUserPage"
+             Title=""
+             Shell.NavBarIsVisible="False"
+             BackgroundColor="#0E0E12">
+
+    <Grid RowDefinitions="Auto, *">
+
+        <!-- ══════════════════════════════════════
+             TOP BAR
+        ══════════════════════════════════════ -->
+        <Grid Grid.Row="0"
+              Padding="16,52,16,14"
+              ColumnDefinitions="Auto, *, Auto"
+              BackgroundColor="#0E0E12">
+
+            <!-- Back button -->
+            <Border Grid.Column="0"
+                    BackgroundColor="#16161C"
+                    StrokeThickness="1"
+                    Stroke="#1C1C2E"
+                    StrokeShape="RoundRectangle 20"
+                    WidthRequest="40" HeightRequest="40"
+                    VerticalOptions="Center">
+                <Border.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnCancelClicked" />
+                </Border.GestureRecognizers>
+                <Path Data="M560-253 367-446l193-193 19 19-174 174 174 174-19 19Z"
+                      Fill="#7A7A8C"
+                      HeightRequest="16" WidthRequest="16"
+                      HorizontalOptions="Center" VerticalOptions="Center"
+                      Aspect="Uniform" />
+            </Border>
+
+            <!-- Title -->
+            <VerticalStackLayout Grid.Column="1"
+                                 Spacing="1"
+                                 HorizontalOptions="Center"
+                                 VerticalOptions="Center">
+                <Label Text="REPORT USER"
+                       FontSize="10"
+                       FontAttributes="Bold"
+                       CharacterSpacing="3"
+                       TextColor="#FF3B6F"
+                       HorizontalOptions="Center" />
+                <Label Text="Community Safety"
+                       FontSize="13"
+                       TextColor="#5A5A6A"
+                       HorizontalOptions="Center" />
+            </VerticalStackLayout>
+
+            <!-- Placeholder right -->
+            <BoxView Grid.Column="2" WidthRequest="40" HeightRequest="40"
+                     BackgroundColor="Transparent" />
+        </Grid>
+
+        <BoxView Grid.Row="0"
+                 HeightRequest="1"
+                 BackgroundColor="#1C1C25"
+                 VerticalOptions="End"
+                 HorizontalOptions="Fill" />
+
+        <!-- ══════════════════════════════════════
+             SCROLLABLE CONTENT
+        ══════════════════════════════════════ -->
+        <ScrollView Grid.Row="1" BackgroundColor="#0E0E12">
+            <VerticalStackLayout Spacing="0" Padding="16,12,16,32">
+
+                <!-- ── USER INFO CARD ── -->
+                <Border BackgroundColor="#16161C"
+                        StrokeThickness="1" Stroke="#1C1C25"
+                        StrokeShape="RoundRectangle 16"
+                        Padding="14,12"
+                        Margin="0,0,0,12">
+                    <Grid ColumnDefinitions="48, *" ColumnSpacing="12">
+
+                        <!-- Avatar -->
+                        <Grid Grid.Column="0" WidthRequest="44" HeightRequest="44">
+                            <Ellipse WidthRequest="44" HeightRequest="44" StrokeThickness="2">
+                                <Ellipse.Stroke>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                        <GradientStop Color="#FF3B6F" Offset="0" />
+                                        <GradientStop Color="#00C9C9" Offset="1" />
+                                    </LinearGradientBrush>
+                                </Ellipse.Stroke>
+                            </Ellipse>
+                            <Frame WidthRequest="38" HeightRequest="38"
+                                   CornerRadius="19" Padding="0"
+                                   IsClippedToBounds="True" HasShadow="False"
+                                   BackgroundColor="#1C1C25" BorderColor="Transparent"
+                                   HorizontalOptions="Center" VerticalOptions="Center">
+                                <Image x:Name="UserProfileImage"
+                                       Aspect="AspectFill"
+                                       HeightRequest="38" WidthRequest="38" />
+                            </Frame>
+                        </Grid>
+
+                        <!-- Name + phone -->
+                        <VerticalStackLayout Grid.Column="1"
+                                             Spacing="3"
+                                             VerticalOptions="Center">
+                            <Label x:Name="UserNameLabel"
+                                   FontSize="14"
+                                   FontAttributes="Bold"
+                                   TextColor="#F0EDE8" />
+                            <Label x:Name="UserPhoneLabel"
+                                   FontSize="11"
+                                   TextColor="#5A5A6A" />
+                        </VerticalStackLayout>
+                    </Grid>
+                </Border>
+
+                <!-- Warning banner -->
+                <Border BackgroundColor="#1A0009"
+                        StrokeThickness="1" Stroke="#3A0015"
+                        StrokeShape="RoundRectangle 12"
+                        Padding="12,9"
+                        Margin="0,0,0,16">
+                    <HorizontalStackLayout Spacing="8" VerticalOptions="Center">
+                        <Label Text="⚠️" FontSize="13" VerticalOptions="Center" />
+                        <Label Text="Reports are reviewed by our admin team. False reports may result in account action."
+                               FontSize="11"
+                               TextColor="#FF6B6B"
+                               LineBreakMode="WordWrap"
+                               HorizontalOptions="Fill" />
+                    </HorizontalStackLayout>
+                </Border>
+
+                <!-- ── SECTION LABEL: CATEGORY ── -->
+                <Label Text="CATEGORY"
+                       FontSize="9"
+                       FontAttributes="Bold"
+                       CharacterSpacing="2.5"
+                       TextColor="#5A5A6A"
+                       Margin="2,0,0,8" />
+
+                <Border BackgroundColor="#16161C"
+                        StrokeThickness="1" Stroke="#1C1C25"
+                        StrokeShape="RoundRectangle 14"
+                        Padding="4,0"
+                        Margin="0,0,0,16">
+                    <Picker x:Name="CategoryPicker"
+        Title="Select a category…"
+        TitleColor="#3A3A4A"
+        BackgroundColor="Transparent"
+        TextColor="#F0EDE8"
+        FontSize="13"
+        SelectedIndexChanged="OnCategoryChanged">
+                        <Picker.Items>
+                            <x:String>Spam / Promotional</x:String>
+                            <x:String>Harassment / Bullying</x:String>
+                            <x:String>Hate Speech</x:String>
+                            <x:String>Inappropriate Content</x:String>
+                            <x:String>Impersonation</x:String>
+                            <x:String>Scam / Fraud</x:String>
+                            <x:String>Underage User</x:String>
+                            <x:String>Privacy Violation</x:String>
+                            <x:String>Violence / Threat</x:String>
+                            <x:String>Other</x:String>
+                        </Picker.Items>
+                    </Picker>
+                </Border>
+
+                <!-- ── SECTION LABEL: REPORTED MESSAGE ── -->
+                <Label Text="REPORTED MESSAGE"
+                       FontSize="9"
+                       FontAttributes="Bold"
+                       CharacterSpacing="2.5"
+                       TextColor="#5A5A6A"
+                       Margin="2,0,0,8" />
+
+                <Border BackgroundColor="#16161C"
+                        StrokeThickness="1" Stroke="#1C1C25"
+                        StrokeShape="RoundRectangle 14"
+                        Padding="14,12"
+                        Margin="0,0,0,16">
+                    <Grid RowDefinitions="Auto, Auto">
+                        <Label x:Name="MessagePreviewLabel"
+                               Grid.Row="0"
+                               Text="Tap a message in the chat to attach it here"
+                               FontSize="12"
+                               FontAttributes="Italic"
+                               TextColor="#3A3A4A"
+                               LineBreakMode="WordWrap" />
+                        <!-- Named Button so code-behind can toggle IsVisible -->
+                        <Button x:Name="ClearMessageButton"
+                                Grid.Row="1"
+                                Text="Clear"
+                                Clicked="OnClearMessageClicked"
+                                IsVisible="False"
+                                BackgroundColor="Transparent"
+                                TextColor="#FF3B6F"
+                                FontSize="11"
+                                FontAttributes="Bold"
+                                HorizontalOptions="End"
+                                Padding="0"
+                                Margin="0,4,0,0"
+                                HeightRequest="28"
+                                MinimumHeightRequest="28" />
+                    </Grid>
+                </Border>
+
+                <!-- ── SECTION LABEL: DESCRIPTION ── -->
+                <Label Text="DESCRIPTION"
+                       FontSize="9"
+                       FontAttributes="Bold"
+                       CharacterSpacing="2.5"
+                       TextColor="#5A5A6A"
+                       Margin="2,0,0,8" />
+
+                <Border BackgroundColor="#16161C"
+                        StrokeThickness="1" Stroke="#1C1C25"
+                        StrokeShape="RoundRectangle 14"
+                        Padding="10,8"
+                        Margin="0,0,0,4">
+                    <Editor x:Name="DescriptionEditor"
+                            Placeholder="Describe why you're reporting this user…"
+                            PlaceholderColor="#3A3A4A"
+                            BackgroundColor="Transparent"
+                            TextColor="#F0EDE8"
+                            FontSize="13"
+                            HeightRequest="110"
+                            AutoSize="TextChanges"
+                            MaxLength="1000"
+                            TextChanged="OnDescriptionTextChanged" />
+                </Border>
+
+                <Label x:Name="CharCountLabel"
+                       Text="0 / 1000"
+                       FontSize="10"
+                       TextColor="#3A3A4A"
+                       HorizontalOptions="End"
+                       Margin="0,0,2,16" />
+
+                <!-- ── SECTION LABEL: EVIDENCE ── -->
+                <Grid ColumnDefinitions="*, Auto" Margin="0,0,0,10">
+                    <Label Grid.Column="0"
+                           Text="EVIDENCE"
+                           FontSize="9"
+                           FontAttributes="Bold"
+                           CharacterSpacing="2.5"
+                           TextColor="#5A5A6A"
+                           VerticalOptions="Center"
+                           Margin="2,0,0,0" />
+
+                    <Border Grid.Column="1"
+                            x:Name="AddImageButton"
+                            BackgroundColor="#16161C"
+                            StrokeThickness="1" Stroke="#1C1C2E"
+                            StrokeShape="RoundRectangle 12"
+                            Padding="12,6">
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnAddImageClicked" />
+                        </Border.GestureRecognizers>
+                        <HorizontalStackLayout Spacing="5" VerticalOptions="Center">
+                            <Label Text="+"
+                                   FontSize="14"
+                                   FontAttributes="Bold"
+                                   TextColor="#00C9C9"
+                                   VerticalOptions="Center" />
+                            <Label Text="Add Image"
+                                   FontSize="11"
+                                   FontAttributes="Bold"
+                                   TextColor="#00C9C9"
+                                   VerticalOptions="Center" />
+                        </HorizontalStackLayout>
+                    </Border>
+                </Grid>
+
+                <!-- Image count label -->
+                <Label x:Name="ImageCountLabel"
+                       Text="No images attached"
+                       FontSize="11"
+                       TextColor="#3A3A4A"
+                       Margin="2,0,0,8" />
+
+                <!-- Images area -->
+                <Border BackgroundColor="#16161C"
+                        StrokeThickness="1" Stroke="#1C1C25"
+                        StrokeShape="RoundRectangle 14"
+                        Padding="12,10"
+                        Margin="0,0,0,20"
+                        MinimumHeightRequest="80">
+                    <!-- Single child wrapper — Border only accepts one direct child -->
+                    <Grid MinimumHeightRequest="80">
+
+                        <!-- Empty images placeholder -->
+                        <VerticalStackLayout x:Name="EmptyImagesPlaceholder"
+                                             HorizontalOptions="Center"
+                                             VerticalOptions="Center"
+                                             Spacing="6"
+                                             Padding="0,10">
+                            <Path Data="M233.76-176.5q-24.2 0-40.73-16.53-16.53-16.53-16.53-40.73v-492.48q0-24.2 16.53-40.73 16.53-16.53 40.73-16.53h492.48q24.2 0 40.73 16.53 16.53 16.53 16.53 40.73v492.48q0 24.2-16.53 40.73-16.53 16.53-40.73 16.53H233.76Zm50.24-137h392.5L556-474 437-326.5l-76-87-77 100Z"
+                                  Fill="#2A2A38"
+                                  HeightRequest="28" WidthRequest="28"
+                                  HorizontalOptions="Center"
+                                  Aspect="Uniform" />
+                            <Label Text="No screenshots attached"
+                                   FontSize="11"
+                                   TextColor="#2A2A38"
+                                   HorizontalOptions="Center" />
+                        </VerticalStackLayout>
+
+                        <!-- Images scroll (shown when images exist, toggled in code-behind) -->
+                        <CollectionView x:Name="ImagesCollectionView"
+                                        ItemsLayout="HorizontalList"
+                                        HeightRequest="90"
+                                        IsVisible="False">
+                            <CollectionView.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid Padding="4,0">
+                                        <Border StrokeThickness="1"
+                                                Stroke="#1C1C25"
+                                                StrokeShape="RoundRectangle 12"
+                                                WidthRequest="80" HeightRequest="80"
+                                                Padding="0"
+                                                BackgroundColor="#1C1C25">
+                                            <Grid>
+                                                <Image Source="{Binding Path}"
+                                                       Aspect="AspectFill"
+                                                       HeightRequest="80"
+                                                       WidthRequest="80" />
+                                                <!-- Remove button -->
+                                                <Border BackgroundColor="#CC000000"
+                                                        StrokeThickness="0"
+                                                        StrokeShape="RoundRectangle 12"
+                                                        WidthRequest="24" HeightRequest="24"
+                                                        HorizontalOptions="End"
+                                                        VerticalOptions="Start"
+                                                        Margin="4">
+                                                    <Border.GestureRecognizers>
+                                                        <TapGestureRecognizer Tapped="OnRemoveImageClicked"
+                                                                              CommandParameter="{Binding Path}" />
+                                                    </Border.GestureRecognizers>
+                                                    <Label Text="✕"
+                                                           FontSize="10"
+                                                           FontAttributes="Bold"
+                                                           TextColor="White"
+                                                           HorizontalOptions="Center"
+                                                           VerticalOptions="Center"
+                                                           HorizontalTextAlignment="Center"
+                                                           VerticalTextAlignment="Center" />
+                                                </Border>
+                                            </Grid>
+                                        </Border>
+                                    </Grid>
+                                </DataTemplate>
+                            </CollectionView.ItemTemplate>
+                        </CollectionView>
+
+                    </Grid>
+                </Border>
+
+                <!-- ── SUBMIT AREA ── -->
+                <Grid ColumnDefinitions="*, *" ColumnSpacing="10">
+
+                    <!-- Cancel -->
+                    <Border Grid.Column="0"
+                            BackgroundColor="Transparent"
+                            StrokeThickness="1"
+                            Stroke="#1E1E3A"
+                            StrokeShape="RoundRectangle 14"
+                            HeightRequest="48">
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnCancelClicked" />
+                        </Border.GestureRecognizers>
+                        <Label Text="Cancel"
+                               FontSize="13"
+                               FontAttributes="Bold"
+                               TextColor="#5A5A6A"
+                               HorizontalOptions="Center"
+                               VerticalOptions="Center" />
+                    </Border>
+
+                    <!-- Submit -->
+                    <Border x:Name="SubmitBorder"
+                            Grid.Column="1"
+                            StrokeThickness="0"
+                            Stroke="Transparent"
+                            StrokeShape="RoundRectangle 14"
+                            HeightRequest="48">
+                        <Border.Background>
+                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                <GradientStop Color="#FF3B6F" Offset="0" />
+                                <GradientStop Color="#CC2F59" Offset="1" />
+                            </LinearGradientBrush>
+                        </Border.Background>
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnSubmitClicked" />
+                        </Border.GestureRecognizers>
+                        <Label x:Name="SubmitLabel"
+                               Text="Submit Report"
+                               FontSize="13"
+                               FontAttributes="Bold"
+                               TextColor="White"
+                               HorizontalOptions="Center"
+                               VerticalOptions="Center" />
+                    </Border>
+
+                </Grid>
+
+                <!-- Disclaimer -->
+                <Label Text="Your report is anonymous and will be reviewed within 24 hours."
+                       FontSize="10"
+                       TextColor="#3A3A4A"
+                       HorizontalOptions="Center"
+                       HorizontalTextAlignment="Center"
+                       Margin="0,14,0,0" />
+
+            </VerticalStackLayout>
+        </ScrollView>
+
+    </Grid>
+</ContentPage>

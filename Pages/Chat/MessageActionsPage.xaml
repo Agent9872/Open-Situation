@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Lock.Pages.Chat.MessageActionsPage"
+             BackgroundColor="Transparent"
+             Title="Message actions">
+    <Grid>
+        <!-- dimmed background; tapping it closes the dialog -->
+        <BoxView Color="#80000000">
+            <BoxView.GestureRecognizers>
+                <TapGestureRecognizer Tapped="OnBackgroundTapped" NumberOfTapsRequired="1" />
+            </BoxView.GestureRecognizers>
+        </BoxView>
+
+        <!-- centered card that looks like a dialog - use Border (Frame is obsolete in .NET 9) -->
+        <Border
+            HorizontalOptions="Center"
+            VerticalOptions="Center"
+            Padding="14"
+            BackgroundColor="White"
+            StrokeThickness="0"
+            StrokeShape="RoundRectangle 12"
+            WidthRequest="360">
+            <VerticalStackLayout Spacing="12">
+                <Label x:Name="MessagePreviewLabel"
+                       FontAttributes="Bold"
+                       LineBreakMode="TailTruncation"
+                       MaxLines="3" />
+
+                <Label Text="Actions" FontSize="14" TextColor="#666" />
+
+                <CollectionView x:Name="ActionsCollectionView" SelectionMode="None" HeightRequest="180">
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate x:DataType="x:String">
+                            <Button Text="{Binding .}"
+                                    Clicked="ActionButton_Clicked"
+                                    CommandParameter="{Binding .}"
+                                    BackgroundColor="Transparent"
+                                    HorizontalOptions="Fill" />
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
+            </VerticalStackLayout>
+        </Border>
+    </Grid>
+</ContentPage>

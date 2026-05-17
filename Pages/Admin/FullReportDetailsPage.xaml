@@ -1,0 +1,491 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Lock.Pages.Admin.FullReportDetailsPage"
+             NavigationPage.HasNavigationBar="False"
+             BackgroundColor="#0D0D14">
+
+    <Grid RowDefinitions="Auto,*,Auto">
+
+        <!-- ── Header ── -->
+        <Grid Grid.Row="0"
+              ColumnDefinitions="Auto,*,Auto"
+              Padding="16,52,16,16"
+              BackgroundColor="#0D0D14">
+
+            <!-- Back button -->
+            <Border Grid.Column="0"
+                    BackgroundColor="#16161C"
+                    Stroke="#1E1E3A"
+                    StrokeThickness="1"
+                    Padding="10,8"
+                    WidthRequest="40"
+                    HeightRequest="40"
+                    VerticalOptions="Center">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="10" />
+                </Border.StrokeShape>
+                <Border.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnBackTapped" />
+                </Border.GestureRecognizers>
+                <Label Text="←" TextColor="White" FontSize="16" HorizontalOptions="Center" VerticalOptions="Center" />
+            </Border>
+
+            <!-- Title -->
+            <VerticalStackLayout Grid.Column="1" Spacing="2" Margin="12,0" VerticalOptions="Center">
+                <Label Text="Full Report Details"
+                       FontSize="18"
+                       FontAttributes="Bold"
+                       TextColor="White" />
+                <Label x:Name="HeaderSubtitle"
+                       Text=""
+                       FontSize="12"
+                       TextColor="#7A7A8C" />
+            </VerticalStackLayout>
+
+            <!-- Status badge -->
+            <Border x:Name="HeaderStatusBadge"
+                    Grid.Column="2"
+                    BackgroundColor="#FF9800"
+                    Stroke="Transparent"
+                    Padding="10,6"
+                    VerticalOptions="Center">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="8" />
+                </Border.StrokeShape>
+                <Label x:Name="HeaderStatusLabel"
+                       Text="PENDING"
+                       TextColor="White"
+                       FontSize="11"
+                       FontAttributes="Bold" />
+            </Border>
+        </Grid>
+
+        <!-- ── Scrollable content ── -->
+        <ScrollView Grid.Row="1">
+            <VerticalStackLayout Padding="16,0,16,16" Spacing="12">
+
+                <!-- ── Closed banner ── -->
+                <Border x:Name="ClosedBanner"
+                        BackgroundColor="#1A1A10"
+                        Stroke="#FF9800"
+                        StrokeThickness="1"
+                        Padding="14,10"
+                        IsVisible="False">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="10" />
+                    </Border.StrokeShape>
+                    <HorizontalStackLayout Spacing="10">
+                        <Label Text="⚠️" FontSize="16" VerticalOptions="Center" />
+                        <Label x:Name="ClosedBannerText"
+                               Text="This report is closed — no further actions available."
+                               TextColor="#FFD700"
+                               FontSize="13"
+                               VerticalOptions="Center" />
+                    </HorizontalStackLayout>
+                </Border>
+
+                <!-- ── Reported user card ── -->
+                <Border BackgroundColor="#16161C" Stroke="#1E1E3A" StrokeThickness="1" Padding="14,12">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="12" />
+                    </Border.StrokeShape>
+                    <VerticalStackLayout Spacing="10">
+
+                        <Label Text="REPORTED USER"
+                               TextColor="#FF3B6F"
+                               FontSize="11"
+                               FontAttributes="Bold"
+                               CharacterSpacing="1.5" />
+
+                        <Grid ColumnDefinitions="54,*" ColumnSpacing="12">
+                            <Image x:Name="ReportedUserAvatarImg"
+                                   Grid.Column="0"
+                                   WidthRequest="50"
+                                   HeightRequest="50"
+                                   Aspect="AspectFill"
+                                   VerticalOptions="Start">
+                                <Image.Clip>
+                                    <EllipseGeometry RadiusX="25" RadiusY="25" Center="25,25" />
+                                </Image.Clip>
+                            </Image>
+                            <VerticalStackLayout Grid.Column="1" Spacing="3">
+                                <Label x:Name="ReportedUserNameLabel"
+                                       TextColor="White"
+                                       FontSize="16"
+                                       FontAttributes="Bold" />
+                                <Label x:Name="ReportedUserPhoneLabel"
+                                       TextColor="#7A7A8C"
+                                       FontSize="13" />
+                                <HorizontalStackLayout Spacing="8">
+                                    <Label x:Name="ReportedUserGenderLabel"
+                                           TextColor="#AAAAAA"
+                                           FontSize="12" />
+                                    <Label Text="·" TextColor="#444455" FontSize="12" />
+                                    <Label x:Name="ReportedUserAgeLabel"
+                                           TextColor="#AAAAAA"
+                                           FontSize="12" />
+                                </HorizontalStackLayout>
+                            </VerticalStackLayout>
+                        </Grid>
+
+                        <!-- Extra user info row -->
+                        <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" ColumnSpacing="8" RowSpacing="6">
+                            <Border Grid.Column="0" Grid.Row="0" BackgroundColor="#0D0D14" Padding="10,8">
+                                <Border.StrokeShape>
+                                    <RoundRectangle CornerRadius="8" />
+                                </Border.StrokeShape>
+                                <VerticalStackLayout>
+                                    <Label Text="JOINED" TextColor="#555566" FontSize="10" FontAttributes="Bold" />
+                                    <Label x:Name="ReportedUserJoinedLabel" TextColor="#CCCCCC" FontSize="13" />
+                                </VerticalStackLayout>
+                            </Border>
+                            <Border Grid.Column="1" Grid.Row="0" BackgroundColor="#0D0D14" Padding="10,8">
+                                <Border.StrokeShape>
+                                    <RoundRectangle CornerRadius="8" />
+                                </Border.StrokeShape>
+                                <VerticalStackLayout>
+                                    <Label Text="LAST ACTIVE" TextColor="#555566" FontSize="10" FontAttributes="Bold" />
+                                    <Label x:Name="ReportedUserLastActiveLabel" TextColor="#CCCCCC" FontSize="13" />
+                                </VerticalStackLayout>
+                            </Border>
+                            <Border Grid.Column="0" Grid.Row="1" BackgroundColor="#0D0D14" Padding="10,8">
+                                <Border.StrokeShape>
+                                    <RoundRectangle CornerRadius="8" />
+                                </Border.StrokeShape>
+                                <VerticalStackLayout>
+                                    <Label Text="COUNTRY" TextColor="#555566" FontSize="10" FontAttributes="Bold" />
+                                    <Label x:Name="ReportedUserCountryLabel" TextColor="#CCCCCC" FontSize="13" />
+                                </VerticalStackLayout>
+                            </Border>
+                            <Border x:Name="ReportedUserBanCard"
+                                    Grid.Column="1" Grid.Row="1"
+                                    BackgroundColor="#1A0A0E"
+                                    Stroke="#FF3B6F"
+                                    StrokeThickness="1"
+                                    Padding="10,8"
+                                    IsVisible="False">
+                                <Border.StrokeShape>
+                                    <RoundRectangle CornerRadius="8" />
+                                </Border.StrokeShape>
+                                <VerticalStackLayout>
+                                    <Label Text="BAN" TextColor="#FF3B6F" FontSize="10" FontAttributes="Bold" />
+                                    <Label x:Name="ReportedUserBanLabel" TextColor="#FF8888" FontSize="13" />
+                                </VerticalStackLayout>
+                            </Border>
+                        </Grid>
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- ── Reporter card ── -->
+                <Border BackgroundColor="#16161C" Stroke="#1E1E3A" StrokeThickness="1" Padding="14,12">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="12" />
+                    </Border.StrokeShape>
+                    <VerticalStackLayout Spacing="10">
+
+                        <Label Text="REPORTER"
+                               TextColor="#2196F3"
+                               FontSize="11"
+                               FontAttributes="Bold"
+                               CharacterSpacing="1.5" />
+
+                        <Grid ColumnDefinitions="54,*" ColumnSpacing="12">
+                            <Image x:Name="ReporterAvatarImg"
+                                   Grid.Column="0"
+                                   WidthRequest="50"
+                                   HeightRequest="50"
+                                   Aspect="AspectFill"
+                                   VerticalOptions="Start">
+                                <Image.Clip>
+                                    <EllipseGeometry RadiusX="25" RadiusY="25" Center="25,25" />
+                                </Image.Clip>
+                            </Image>
+                            <VerticalStackLayout Grid.Column="1" Spacing="3">
+                                <Label x:Name="ReporterNameLabel"
+                                       TextColor="White"
+                                       FontSize="15"
+                                       FontAttributes="Bold" />
+                                <Label x:Name="ReporterPhoneLabel"
+                                       TextColor="#7A7A8C"
+                                       FontSize="13" />
+                                <HorizontalStackLayout Spacing="8">
+                                    <Label x:Name="ReporterGenderLabel"
+                                           TextColor="#AAAAAA"
+                                           FontSize="12" />
+                                    <Label Text="·" TextColor="#444455" FontSize="12" />
+                                    <Label x:Name="ReporterAgeLabel"
+                                           TextColor="#AAAAAA"
+                                           FontSize="12" />
+                                </HorizontalStackLayout>
+                            </VerticalStackLayout>
+                        </Grid>
+
+                        <Border BackgroundColor="#0D0D14" Padding="10,8">
+                            <Border.StrokeShape>
+                                <RoundRectangle CornerRadius="8" />
+                            </Border.StrokeShape>
+                            <VerticalStackLayout>
+                                <Label Text="JOINED" TextColor="#555566" FontSize="10" FontAttributes="Bold" />
+                                <Label x:Name="ReporterJoinedLabel" TextColor="#CCCCCC" FontSize="13" />
+                            </VerticalStackLayout>
+                        </Border>
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- ── Report details card ── -->
+                <Border BackgroundColor="#16161C" Stroke="#1E1E3A" StrokeThickness="1" Padding="14,12">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="12" />
+                    </Border.StrokeShape>
+                    <VerticalStackLayout Spacing="10">
+
+                        <Label Text="REPORT DETAILS"
+                               TextColor="#00C9C9"
+                               FontSize="11"
+                               FontAttributes="Bold"
+                               CharacterSpacing="1.5" />
+
+                        <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                            <Border Grid.Column="0" BackgroundColor="#0D0D14" Padding="10,8">
+                                <Border.StrokeShape>
+                                    <RoundRectangle CornerRadius="8" />
+                                </Border.StrokeShape>
+                                <VerticalStackLayout>
+                                    <Label Text="CATEGORY" TextColor="#555566" FontSize="10" FontAttributes="Bold" />
+                                    <Label x:Name="CategoryLabel" TextColor="#CCCCCC" FontSize="13" />
+                                </VerticalStackLayout>
+                            </Border>
+                            <Border Grid.Column="1" BackgroundColor="#0D0D14" Padding="10,8">
+                                <Border.StrokeShape>
+                                    <RoundRectangle CornerRadius="8" />
+                                </Border.StrokeShape>
+                                <VerticalStackLayout>
+                                    <Label Text="DATE" TextColor="#555566" FontSize="10" FontAttributes="Bold" />
+                                    <Label x:Name="DateLabel" TextColor="#CCCCCC" FontSize="13" />
+                                </VerticalStackLayout>
+                            </Border>
+                        </Grid>
+
+                        <Border BackgroundColor="#0D0D14" Padding="10,8" IsVisible="True">
+                            <Border.StrokeShape>
+                                <RoundRectangle CornerRadius="8" />
+                            </Border.StrokeShape>
+                            <VerticalStackLayout>
+                                <Label Text="CONVERSATION ID" TextColor="#555566" FontSize="10" FontAttributes="Bold" />
+                                <Label x:Name="ConversationIdLabel" TextColor="#CCCCCC" FontSize="13" />
+                            </VerticalStackLayout>
+                        </Border>
+
+                        <!-- Description -->
+                        <Border BackgroundColor="#0D0D14" Padding="12,10">
+                            <Border.StrokeShape>
+                                <RoundRectangle CornerRadius="8" />
+                            </Border.StrokeShape>
+                            <VerticalStackLayout Spacing="6">
+                                <Label Text="DESCRIPTION" TextColor="#555566" FontSize="10" FontAttributes="Bold" />
+                                <Label x:Name="DescriptionLabel"
+                                       TextColor="#DDDDDD"
+                                       FontSize="14"
+                                       LineBreakMode="WordWrap" />
+                            </VerticalStackLayout>
+                        </Border>
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- ── Reported message card ── -->
+                <Border x:Name="ReportedMessageCard"
+                        BackgroundColor="#1A0A14"
+                        Stroke="#C2455E"
+                        StrokeThickness="1"
+                        Padding="14,12"
+                        IsVisible="False">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="12" />
+                    </Border.StrokeShape>
+                    <VerticalStackLayout Spacing="8">
+                        <HorizontalStackLayout Spacing="8">
+                            <Label Text="💬" FontSize="14" VerticalOptions="Center" />
+                            <Label Text="REPORTED MESSAGE"
+                                   TextColor="#C2455E"
+                                   FontSize="11"
+                                   FontAttributes="Bold"
+                                   CharacterSpacing="1.5"
+                                   VerticalOptions="Center" />
+                        </HorizontalStackLayout>
+                        <Border BackgroundColor="#0D0D14" Padding="12,10">
+                            <Border.StrokeShape>
+                                <RoundRectangle CornerRadius="8" />
+                            </Border.StrokeShape>
+                            <Label x:Name="ReportedMessageLabel"
+                                   TextColor="#FFCCCC"
+                                   FontSize="14"
+                                   FontAttributes="Italic"
+                                   LineBreakMode="WordWrap" />
+                        </Border>
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- ── Evidence card ── -->
+                <Border x:Name="EvidenceCard"
+                        BackgroundColor="#0A1020"
+                        Stroke="#2196F3"
+                        StrokeThickness="1"
+                        Padding="14,12"
+                        IsVisible="False">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="12" />
+                    </Border.StrokeShape>
+                    <VerticalStackLayout Spacing="8">
+                        <HorizontalStackLayout Spacing="8">
+                            <Label Text="🖼️" FontSize="14" VerticalOptions="Center" />
+                            <Label x:Name="EvidenceHeaderLabel"
+                                   Text="EVIDENCE"
+                                   TextColor="#2196F3"
+                                   FontSize="11"
+                                   FontAttributes="Bold"
+                                   CharacterSpacing="1.5"
+                                   VerticalOptions="Center" />
+                        </HorizontalStackLayout>
+                        <VerticalStackLayout x:Name="EvidenceItemsContainer" Spacing="6" />
+                        <Button x:Name="OpenImagesButton"
+                                Text="Open Images"
+                                TextColor="White"
+                                BackgroundColor="#2196F3"
+                                CornerRadius="8"
+                                FontSize="13"
+                                HeightRequest="38"
+                                Clicked="OnOpenImagesClicked" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- ── Admin notes card ── -->
+                <Border x:Name="AdminNotesCard"
+                        BackgroundColor="#0A1A10"
+                        Stroke="#4CAF50"
+                        StrokeThickness="1"
+                        Padding="14,12"
+                        IsVisible="False">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="12" />
+                    </Border.StrokeShape>
+                    <VerticalStackLayout Spacing="8">
+                        <HorizontalStackLayout Spacing="8">
+                            <Label Text="📋" FontSize="14" VerticalOptions="Center" />
+                            <Label Text="ADMIN NOTES"
+                                   TextColor="#4CAF50"
+                                   FontSize="11"
+                                   FontAttributes="Bold"
+                                   CharacterSpacing="1.5"
+                                   VerticalOptions="Center" />
+                        </HorizontalStackLayout>
+                        <Border BackgroundColor="#0D0D14" Padding="12,10">
+                            <Border.StrokeShape>
+                                <RoundRectangle CornerRadius="8" />
+                            </Border.StrokeShape>
+                            <Label x:Name="AdminNotesLabel"
+                                   TextColor="#AAFFAA"
+                                   FontSize="13"
+                                   LineBreakMode="WordWrap" />
+                        </Border>
+                    </VerticalStackLayout>
+                </Border>
+
+            </VerticalStackLayout>
+        </ScrollView>
+
+        <!-- ── Action buttons (hidden when report is closed) ── -->
+        <VerticalStackLayout x:Name="ActionButtonsPanel"
+                             Grid.Row="2"
+                             Padding="16,8,16,32"
+                             Spacing="8"
+                             BackgroundColor="#0D0D14">
+
+            <!-- Row 1: Resolve + Under Review -->
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                <Border Grid.Column="0" BackgroundColor="#0A2010" Stroke="#4CAF50" StrokeThickness="1" Padding="0">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="10" />
+                    </Border.StrokeShape>
+                    <Button Text="✓  Resolve"
+                            TextColor="#4CAF50"
+                            BackgroundColor="Transparent"
+                            FontSize="13"
+                            FontAttributes="Bold"
+                            HeightRequest="44"
+                            Clicked="OnResolveClicked" />
+                </Border>
+                <Border Grid.Column="1" BackgroundColor="#0A1020" Stroke="#2196F3" StrokeThickness="1" Padding="0">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="10" />
+                    </Border.StrokeShape>
+                    <Button Text="🔍  Under Review"
+                            TextColor="#2196F3"
+                            BackgroundColor="Transparent"
+                            FontSize="13"
+                            FontAttributes="Bold"
+                            HeightRequest="44"
+                            Clicked="OnUnderReviewClicked" />
+                </Border>
+            </Grid>
+
+            <!-- Row 2: Dismiss + Warn -->
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                <Border Grid.Column="0" BackgroundColor="#1A1A1A" Stroke="#9E9E9E" StrokeThickness="1" Padding="0">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="10" />
+                    </Border.StrokeShape>
+                    <Button Text="✕  Dismiss"
+                            TextColor="#9E9E9E"
+                            BackgroundColor="Transparent"
+                            FontSize="13"
+                            FontAttributes="Bold"
+                            HeightRequest="44"
+                            Clicked="OnDismissClicked" />
+                </Border>
+                <Border Grid.Column="1" BackgroundColor="#1A1200" Stroke="#FF9800" StrokeThickness="1" Padding="0">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="10" />
+                    </Border.StrokeShape>
+                    <Button Text="⚠️  Warn User"
+                            TextColor="#FF9800"
+                            BackgroundColor="Transparent"
+                            FontSize="13"
+                            FontAttributes="Bold"
+                            HeightRequest="44"
+                            Clicked="OnWarnClicked" />
+                </Border>
+            </Grid>
+
+            <!-- Row 3: Temp ban + Permanent ban -->
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                <Border Grid.Column="0" BackgroundColor="#1A0A0A" Stroke="#FF6B6B" StrokeThickness="1" Padding="0">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="10" />
+                    </Border.StrokeShape>
+                    <Button Text="⏱  Temp Ban"
+                            TextColor="#FF6B6B"
+                            BackgroundColor="Transparent"
+                            FontSize="13"
+                            FontAttributes="Bold"
+                            HeightRequest="44"
+                            Clicked="OnTempBanClicked" />
+                </Border>
+                <Border Grid.Column="1" BackgroundColor="#1A0000" Stroke="#FF3B6F" StrokeThickness="1" Padding="0">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="10" />
+                    </Border.StrokeShape>
+                    <Button Text="🚫  Perm Ban"
+                            TextColor="#FF3B6F"
+                            BackgroundColor="Transparent"
+                            FontSize="13"
+                            FontAttributes="Bold"
+                            HeightRequest="44"
+                            Clicked="OnPermBanClicked" />
+                </Border>
+            </Grid>
+
+        </VerticalStackLayout>
+
+    </Grid>
+</ContentPage>

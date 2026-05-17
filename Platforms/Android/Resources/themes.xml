@@ -1,0 +1,12 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<!-- For Android 12+ system splash handling -->
+	<style name="Maui.SplashTheme" parent="@style/Theme.AppCompat.Light.NoActionBar">
+		<!-- Background used by the Android 12+ splash screen -->
+		<item name="android:windowSplashScreenBackground">@color/maui_splash_background</item>
+		<!-- Optional: keep your old drawable fallback -->
+		<item name="android:windowBackground">@drawable/launch_background</item>
+		<item name="android:statusBarColor">@android:color/transparent</item>
+		<item name="android:windowNoTitle">true</item>
+	</style>
+</resources>

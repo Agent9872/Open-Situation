@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:shapes="clr-namespace:Microsoft.Maui.Controls.Shapes;assembly=Microsoft.Maui.Controls"
+             x:Class="Lock.Pages.Profile.FullScreenMediaPage"
+             BackgroundColor="Black"
+             Padding="0"
+             NavigationPage.HasNavigationBar="False">
+
+    <AbsoluteLayout BackgroundColor="Black">
+
+        <!-- Image FIRST – everything else draws on top -->
+        <Image x:Name="MediaImage"
+               Aspect="AspectFit"
+               HorizontalOptions="Fill"
+               VerticalOptions="Fill"
+               AbsoluteLayout.LayoutFlags="All"
+               AbsoluteLayout.LayoutBounds="0,0,1,1" />
+
+        <!-- CLOSE icon – using your SVG path -->
+        <Grid x:Name="CloseButton"
+              WidthRequest="44"
+              HeightRequest="44"
+              AbsoluteLayout.LayoutFlags="PositionProportional"
+              AbsoluteLayout.LayoutBounds="0.95, 0.05, AutoSize, AutoSize">
+            <Grid.Shadow>
+                <Shadow Brush="Black"
+                        Radius="8"
+                        Opacity="0.45"
+                        Offset="2,2" />
+            </Grid.Shadow>
+            <Grid.GestureRecognizers>
+                <TapGestureRecognizer Tapped="OnCloseTapped" />
+            </Grid.GestureRecognizers>
+            <shapes:Path Data="M319-299.5 299.5-319 461-480 299.5-640.5 319-660l161 161.5L640.5-660l19.5 19.5L498.5-480 660-319l-19.5 19.5L480-461 319-299.5Z"
+                         Fill="White"
+                         Stroke="White"
+                         StrokeThickness="1.2"
+                         HeightRequest="20"
+                         WidthRequest="20"
+                         HorizontalOptions="Center"
+                         VerticalOptions="Center"
+                         Aspect="Uniform" />
+        </Grid>
+
+        <!-- DOWNLOAD icon – using your SVG path -->
+        <Grid x:Name="DownloadButton"
+              WidthRequest="44"
+              HeightRequest="44"
+              AbsoluteLayout.LayoutFlags="PositionProportional"
+              AbsoluteLayout.LayoutBounds="0.85, 0.05, AutoSize, AutoSize">
+            <Grid.Shadow>
+                <Shadow Brush="Black"
+                        Radius="8"
+                        Opacity="0.45"
+                        Offset="2,2" />
+            </Grid.Shadow>
+            <Grid.GestureRecognizers>
+                <TapGestureRecognizer Tapped="OnDownloadTapped" />
+            </Grid.GestureRecognizers>
+            <shapes:Path Data="m480-344.5-119.5-120 18-17.5 89 89v-350H493v350l89-89 18 17.5-120 120ZM274.36-217q-24.3 0-40.83-16.53Q217-250.06 217-274.43v-89.07h25.5v89q0 12 10 22t22 10h411q12 0 22-10t10-22v-89H743v89.07q0 24.37-16.53 40.9Q709.94-217 685.64-217H274.36Z"
+                         Fill="White"
+                         Stroke="White"
+                         StrokeThickness="1.2"
+                         HeightRequest="20"
+                         WidthRequest="20"
+                         HorizontalOptions="Center"
+                         VerticalOptions="Center"
+                         Aspect="Uniform" />
+        </Grid>
+
+        <!-- Counter – with red background -->
+        <Border BackgroundColor="#C05050"
+                StrokeThickness="0"
+                StrokeShape="RoundRectangle 15"
+                Padding="12,6"
+                AbsoluteLayout.LayoutFlags="PositionProportional"
+                AbsoluteLayout.LayoutBounds="0.5, 0.05, AutoSize, AutoSize">
+            <Border.Shadow>
+                <Shadow Brush="Black"
+                        Radius="8"
+                        Opacity="0.45"
+                        Offset="2,2" />
+            </Border.Shadow>
+            <Label x:Name="CounterLabel"
+                   Text="1/1"
+                   TextColor="White"
+                   FontSize="14"
+                   FontAttributes="Bold"
+                   HorizontalTextAlignment="Center" />
+        </Border>
+
+        <!-- LEFT ARROW – using your SVG path (circular background with arrow) -->
+        <Grid x:Name="LeftArrow"
+              WidthRequest="44"
+              HeightRequest="44"
+              AbsoluteLayout.LayoutFlags="PositionProportional"
+              AbsoluteLayout.LayoutBounds="0.05, 0.5, AutoSize, AutoSize"
+              IsVisible="False">
+            <Grid.Shadow>
+                <Shadow Brush="Black"
+                        Radius="8"
+                        Opacity="0.45"
+                        Offset="2,2" />
+            </Grid.Shadow>
+            <Grid.GestureRecognizers>
+                <TapGestureRecognizer Tapped="OnLeftArrowTapped" />
+            </Grid.GestureRecognizers>
+            <!-- Circular background -->
+            <Ellipse Fill="#80000000"
+                     HeightRequest="44"
+                     WidthRequest="44"
+                     HorizontalOptions="Center"
+                     VerticalOptions="Center" />
+            <!-- Arrow path -->
+            <shapes:Path Data="m480-359 17.5-17-91.5-91.5h207V-493H406l91.5-91-17.5-17.5L359-480l121 121Zm.24 222q-71.15 0-133.87-27.02-62.72-27.03-109.12-73.35-46.4-46.33-73.32-108.83Q137-408.7 137-479.76q0-71.15 27.02-133.87 27.03-62.72 73.35-109.12 46.33-46.4 108.83-73.32Q408.7-823 479.76-823q71.15 0 133.87 27.02 62.72 27.03 109.12 73.35 46.4 46.33 73.32 108.83Q823-551.3 823-480.24q0 71.15-27.02 133.87-27.03 62.72-73.35 109.12-46.33 46.4-108.83 73.32Q551.3-137 480.24-137Zm-.27-25.5q132.53 0 225.03-92.47 92.5-92.46 92.5-225 0-132.53-92.47-225.03-92.46-92.5-225-92.5-132.53 0-225.03 92.47-92.5 92.46-92.5 225 0 132.53 92.47 225.03 92.46 92.5 225 92.5ZM480-480Z"
+                         Fill="White"
+                         Stroke="White"
+                         StrokeThickness="1.2"
+                         HeightRequest="20"
+                         WidthRequest="20"
+                         HorizontalOptions="Center"
+                         VerticalOptions="Center"
+                         Aspect="Uniform" />
+        </Grid>
+
+        <!-- RIGHT ARROW – using your SVG path (circular background with arrow) -->
+        <Grid x:Name="RightArrow"
+              WidthRequest="44"
+              HeightRequest="44"
+              AbsoluteLayout.LayoutFlags="PositionProportional"
+              AbsoluteLayout.LayoutBounds="0.95, 0.5, AutoSize, AutoSize"
+              IsVisible="False">
+            <Grid.Shadow>
+                <Shadow Brush="Black"
+                        Radius="8"
+                        Opacity="0.45"
+                        Offset="2,2" />
+            </Grid.Shadow>
+            <Grid.GestureRecognizers>
+                <TapGestureRecognizer Tapped="OnRightArrowTapped" />
+            </Grid.GestureRecognizers>
+            <!-- Circular background -->
+            <Ellipse Fill="#80000000"
+                     HeightRequest="44"
+                     WidthRequest="44"
+                     HorizontalOptions="Center"
+                     VerticalOptions="Center" />
+            <!-- Arrow path -->
+            <shapes:Path Data="m480-359 121.5-121L480-601.5 463-584l91 91H347.5v25.5H554L463-376l17 17Zm.24 222q-71.15 0-133.87-27.02-62.72-27.03-109.12-73.35-46.4-46.33-73.32-108.83Q137-408.7 137-479.76q0-71.15 27.02-133.87 27.03-62.72 73.35-109.12 46.33-46.4 108.83-73.32Q408.7-823 479.76-823q71.15 0 133.87 27.02 62.72 27.03 109.12 73.35 46.4 46.33 73.32 108.83Q823-551.3 823-480.24q0 71.15-27.02 133.87-27.03 62.72-73.35 109.12-46.33 46.4-108.83 73.32Q551.3-137 480.24-137Zm-.27-25.5q132.53 0 225.03-92.47 92.5-92.46 92.5-225 0-132.53-92.47-225.03-92.46-92.5-225-92.5-132.53 0-225.03 92.47-92.5 92.46-92.5 225 0 132.53 92.47 225.03 92.46 92.5 225 92.5ZM480-480Z"
+                         Fill="White"
+                         Stroke="White"
+                         StrokeThickness="1.2"
+                         HeightRequest="20"
+                         WidthRequest="20"
+                         HorizontalOptions="Center"
+                         VerticalOptions="Center"
+                         Aspect="Uniform" />
+        </Grid>
+
+    </AbsoluteLayout>
+</ContentPage>

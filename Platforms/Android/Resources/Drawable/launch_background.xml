@@ -1,0 +1,10 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+	<!-- Replace with @color/maui_splash_background or a direct color -->
+	<item android:drawable="@color/maui_splash_background" />
+	<!-- Optional centered app logo; uncomment and provide a drawable resource if needed
+  <item>
+    <bitmap android:gravity="center" android:src="@drawable/maui_splash_logo" />
+  </item>
+  -->
+</layer-list>

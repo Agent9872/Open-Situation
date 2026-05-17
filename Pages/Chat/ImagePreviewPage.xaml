@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Lock.Pages.Chat.ImagePreviewPage"
+             BackgroundColor="#CC000000"
+             Shell.NavBarIsVisible="False"
+             NavigationPage.HasNavigationBar="False">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Close button -->
+        <Button Grid.Row="0"
+                Text="✕"
+                BackgroundColor="Transparent"
+                TextColor="White"
+                FontSize="20"
+                HorizontalOptions="End"
+                Margin="20,40,20,0"
+                Clicked="OnCloseTapped"/>
+
+        <!-- Image preview -->
+        <ScrollView Grid.Row="1"
+                    VerticalOptions="FillAndExpand">
+            <VerticalStackLayout Spacing="20"
+                                 Padding="20,20">
+
+                <!-- Image with counter -->
+                <Frame BackgroundColor="Transparent"
+                       HasShadow="False"
+                       Padding="0"
+                       HorizontalOptions="Center">
+                    <Grid>
+                        <Image x:Name="PreviewImage"
+                               Aspect="AspectFit"
+                               HeightRequest="350"
+                               HorizontalOptions="Center"/>
+
+                        <!-- Image counter badge -->
+                        <Border x:Name="ImageCounterBadge"
+                                IsVisible="False"
+                                BackgroundColor="#80000000"
+                                StrokeThickness="1"
+                                Stroke="#008080"
+                                StrokeShape="RoundRectangle 12"
+                                Padding="8,4"
+                                HorizontalOptions="End"
+                                VerticalOptions="Start"
+                                Margin="0,8,8,0">
+                            <Label x:Name="ImageCounterLabel"
+                                   Text="1/5"
+                                   TextColor="White"
+                                   FontSize="11"
+                                   FontAttributes="Bold"/>
+                        </Border>
+                    </Grid>
+                </Frame>
+
+                <!-- Navigation dots -->
+                <FlexLayout x:Name="NavigationDots"
+                            IsVisible="False"
+                            Direction="Row"
+                            JustifyContent="Center"
+                            AlignItems="Center"
+                            Margin="0,0,0,10">
+                </FlexLayout>
+            </VerticalStackLayout>
+        </ScrollView>
+
+        <!-- Caption input - moved to its own row -->
+        <Border Grid.Row="2"
+                BackgroundColor="#2F3337"
+                StrokeThickness="0"
+                StrokeShape="RoundRectangle 12"
+                Padding="12,8"
+                Margin="20,0,20,10">
+            <Editor x:Name="CaptionEditor"
+                    Placeholder="Add a caption..."
+                    PlaceholderColor="#666666"
+                    TextColor="White"
+                    BackgroundColor="Transparent"
+                    FontSize="14"
+                    AutoSize="TextChanges"
+                    MaximumHeightRequest="120"
+                    MinimumHeightRequest="40"/>
+        </Border>
+
+        <!-- Send button -->
+        <Border Grid.Row="3"
+                BackgroundColor="#008080"
+                StrokeThickness="0"
+                StrokeShape="RoundRectangle 25"
+                Padding="20,12"
+                Margin="40,0,40,20"
+                HorizontalOptions="Fill"
+                VerticalOptions="End">
+            <Border.GestureRecognizers>
+                <TapGestureRecognizer Tapped="OnSendTapped"/>
+            </Border.GestureRecognizers>
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                <Label Grid.Column="0"
+                       x:Name="SendButtonText"
+                       Text="Send"
+                       TextColor="White"
+                       FontSize="16"
+                       FontAttributes="Bold"
+                       HorizontalOptions="Center"/>
+                <Path Grid.Column="1"
+                      Data="M446.5-339h67v-153.5L573-433l47.5-47.5L480-621 339.5-480.5 387-433l59.5-59.5V-339ZM480-106q-76.91 0-145.07-29.26-68.15-29.27-119.29-80.5Q164.5-267 135.25-335.09 106-403.17 106-480q0-77.91 29.26-145.57 29.27-67.65 80.5-118.79Q267-795.5 335.09-824.75 403.17-854 480-854q77.91 0 145.57 29.26 67.65 29.27 118.79 80.5Q795.5-693 824.75-625.41 854-557.83 854-480q0 76.91-29.26 145.07-29.27 68.15-80.5 119.29Q693-164.5 625.41-135.25 557.83-106 480-106Zm0-67q127.5 0 217.25-89.75T787-480q0-127.5-89.75-217.25T480-787q-127.5 0-217.25 89.75T173-480q0 127.5 89.75 217.25T480-173Zm0-307Z"
+                      Fill="White"
+                      HeightRequest="18"
+                      WidthRequest="18"
+                      HorizontalOptions="End"
+                      VerticalOptions="Center"
+                      Aspect="Uniform"/>
+            </Grid>
+        </Border>
+
+        <!-- Skip caption button -->
+        <Button Grid.Row="3"
+                Text="Send without caption"
+                BackgroundColor="Transparent"
+                TextColor="#666666"
+                FontSize="13"
+                HorizontalOptions="Center"
+                VerticalOptions="End"
+                Margin="0,0,0,85"
+                Clicked="OnSendWithoutCaptionTapped"/>
+    </Grid>
+</ContentPage>

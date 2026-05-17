@@ -1,0 +1,657 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:local="clr-namespace:Lock.Pages.Post"
+             xmlns:conv="clr-namespace:Lock.Converter.Post"
+             x:Class="Lock.Pages.Post.MatchPage"
+             BackgroundColor="#0F0F0F"
+             Shell.NavBarIsVisible="False"
+             NavigationPage.HasNavigationBar="False">
+
+    <ContentPage.Resources>
+        <local:ImagePathConverter x:Key="ImagePathConverter" />
+        <local:DefaultImageConverter x:Key="DefaultImageConverter" />
+        <conv:GreaterThanZeroConverter x:Key="GreaterThanZeroConverter" />
+        <local:ScoreToColorConverter x:Key="ScoreToColorConverter" />
+    </ContentPage.Resources>
+
+    <!--
+        ROW LAYOUT (7 rows):
+        0 = Header
+        1 = Sub-tab chips
+        2 = Mode toggle (Similar / Opposites)
+        3 = Score slider
+        4 = Mood picker
+        5 = Active filter chips
+        6 = Results (scrollable)
+    -->
+    <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,*" RowSpacing="0">
+
+        <!-- ══════════════════════════════════════════════════════════════ -->
+        <!-- ROW 0 · Header                                                -->
+        <!-- ══════════════════════════════════════════════════════════════ -->
+        <Grid Grid.Row="0" Padding="16,8,16,8" BackgroundColor="#0F0F0F"
+              ColumnDefinitions="*,Auto">
+            <VerticalStackLayout Spacing="2">
+                <Label x:Name="MatchCountLabel" Text="Finding your matches…"
+                       FontSize="12" TextColor="#666666" />
+            </VerticalStackLayout>
+
+            <!-- Refresh button -->
+            <Grid Grid.Column="1" WidthRequest="40" HeightRequest="40" VerticalOptions="Center">
+                <Grid.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnRefreshTapped" />
+                </Grid.GestureRecognizers>
+                <Path Data="M480-160q-134 0-227-93t-93-227q0-134 93-227t227-93q69 0 132 28.5T720-690v-110h80v280H520v-80h168q-32-56-87.5-88T480-720q-100 0-170 70t-70 170q0 100 70 170t170 70q77 0 139-44t87-116h84q-28 106-114 173t-196 67Z"
+                      Fill="#888888" HeightRequest="20" WidthRequest="20"
+                      HorizontalOptions="Center" VerticalOptions="Center" Aspect="Uniform"/>
+            </Grid>
+        </Grid>
+
+        <!-- ══════════════════════════════════════════════════════════════ -->
+        <!-- ROW 1 · Sub-tab chips                                         -->
+        <!-- ══════════════════════════════════════════════════════════════ -->
+        <ScrollView Grid.Row="1" 
+                    Orientation="Horizontal"
+                    HorizontalScrollBarVisibility="Never"
+                    VerticalScrollBarVisibility="Never"
+                    HeightRequest="50" 
+                    Margin="0,0,0,0"
+                    VerticalOptions="Start">
+            <HorizontalStackLayout Spacing="8" Padding="16,4,16,4" VerticalOptions="Start">
+
+                <Frame x:Name="TopPicksFrame" Padding="0" CornerRadius="8"
+               BackgroundColor="#008080" HasShadow="False" BorderColor="Transparent">
+                    <Button x:Name="TopPicksTab" Text="Top Picks" Clicked="OnSubTabClicked"
+                    BackgroundColor="Transparent" TextColor="White"
+                    FontAttributes="Bold" FontSize="12" Padding="16,6" />
+                </Frame>
+
+                <Frame x:Name="MoodMatchFrame" Padding="0" CornerRadius="8"
+               BackgroundColor="#1E1E1E" BorderColor="#2E2E2E" HasShadow="False">
+                    <Button x:Name="MoodMatchTab" Text="Mood Match" Clicked="OnSubTabClicked"
+                    BackgroundColor="Transparent" TextColor="#AAAAAA"
+                    FontSize="12" Padding="16,6" />
+                </Frame>
+
+                <Frame x:Name="NearMeFrame" Padding="0" CornerRadius="8"
+               BackgroundColor="#1E1E1E" BorderColor="#2E2E2E" HasShadow="False">
+                    <Button x:Name="NearMeTab" Text="Near Me" Clicked="OnSubTabClicked"
+                    BackgroundColor="Transparent" TextColor="#AAAAAA"
+                    FontSize="12" Padding="16,6" />
+                </Frame>
+
+                <Frame x:Name="VibesFrame" Padding="0" CornerRadius="8"
+               BackgroundColor="#1E1E1E" BorderColor="#2E2E2E" HasShadow="False">
+                    <Button x:Name="VibesTab" Text="Vibes" Clicked="OnSubTabClicked"
+                    BackgroundColor="Transparent" TextColor="#AAAAAA"
+                    FontSize="12" Padding="16,6" />
+                </Frame>
+
+            </HorizontalStackLayout>
+        </ScrollView>
+        <!-- ══════════════════════════════════════════════════════════════ -->
+        <!-- ROW 2 · Matching Mode Toggle (Similar vs Complementary)       -->
+        <!-- ══════════════════════════════════════════════════════════════ -->
+        <Frame Grid.Row="2"
+               Margin="16,0,16,8"
+               Padding="6,6"
+               CornerRadius="16"
+               BackgroundColor="#1A1A1A"
+               BorderColor="#2C2C2C"
+               HasShadow="False">
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="6">
+
+                <!-- Similar Vibes (Default active) -->
+                <Border x:Name="SimilarModeBorder"
+                        Grid.Column="0"
+                        BackgroundColor="#008080"
+                        StrokeThickness="0"
+                        StrokeShape="RoundRectangle 12"
+                        Padding="10,8">
+                    <Border.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnSimilarModeTapped" />
+                    </Border.GestureRecognizers>
+                    <HorizontalStackLayout Spacing="6" HorizontalOptions="Center">
+                        <Label x:Name="SimilarModeIcon" Text="👥" FontSize="13"
+                               TextColor="White" VerticalOptions="Center"/>
+                        <Label x:Name="SimilarModeLabel" Text="Similar Vibes"
+       FontSize="12" FontAttributes="Bold"
+       TextColor="#008080" VerticalOptions="Center"/>
+                    </HorizontalStackLayout>
+                </Border>
+
+                <!-- Opposites Attract -->
+                <Border x:Name="ComplementaryModeBorder"
+                        Grid.Column="1"
+                        BackgroundColor="Transparent"
+                        StrokeThickness="1"
+                        Stroke="#3C3C3C"
+                        StrokeShape="RoundRectangle 12"
+                        Padding="10,8">
+                    <Border.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnComplementaryModeTapped" />
+                    </Border.GestureRecognizers>
+                    <HorizontalStackLayout Spacing="6" HorizontalOptions="Center">
+                        <Label x:Name="ComplementaryModeIcon" Text="⚡" FontSize="13"
+                               TextColor="#777777" VerticalOptions="Center"/>
+                        <Label x:Name="ComplementaryModeLabel" Text="Opposites Attract"
+                               FontSize="12" FontAttributes="Bold"
+                               TextColor="#777777" VerticalOptions="Center"/>
+                    </HorizontalStackLayout>
+                </Border>
+
+            </Grid>
+        </Frame>
+
+        <!-- ══════════════════════════════════════════════════════════════ -->
+        <!-- ROW 3 · Match % Slider + Mood Filter (Side by Side)           -->
+        <!-- ══════════════════════════════════════════════════════════════ -->
+        <Frame Grid.Row="3"
+       Margin="16,0,16,6"
+       Padding="14,10"
+       CornerRadius="14"
+       BackgroundColor="#1A1A1A"
+       BorderColor="#2C2C2C"
+       HasShadow="False">
+
+            <VerticalStackLayout Spacing="12">
+
+                <!-- First Row: Slider and Score -->
+                <Grid ColumnDefinitions="Auto,*,Auto,Auto" 
+              ColumnSpacing="10" 
+              VerticalOptions="Center">
+
+                    <!-- % Label -->
+                    <Label Grid.Column="0" 
+                   Text="%" 
+                   FontSize="13"
+                   TextColor="#666666" 
+                   VerticalOptions="Center"/>
+
+                    <!-- Score Slider -->
+                    <Slider Grid.Column="1"
+                    x:Name="MinScoreSlider"
+                    Minimum="0" 
+                    Maximum="80" 
+                    Value="0"
+                    ValueChanged="OnMinScoreChanged"
+                    ThumbColor="#008080"
+                    MinimumTrackColor="#008080"
+                    MaximumTrackColor="#2A2A2A"
+                    VerticalOptions="Center"/>
+
+                    <!-- Score Value Label -->
+                    <Label Grid.Column="2"
+                   x:Name="MinScoreLabel"
+                   Text="Any match"
+                   FontSize="11" 
+                   TextColor="#008080"
+                   VerticalOptions="Center"
+                   HorizontalOptions="End"
+                   MinimumWidthRequest="78"/>
+
+                    <!-- Clear Score Button -->
+                    <Border Grid.Column="3"
+                    x:Name="ClearScoreButton"
+                    BackgroundColor="#2A2A2A"
+                    StrokeThickness="0"
+                    StrokeShape="RoundRectangle 8"
+                    Padding="8,4"
+                    IsVisible="False"
+                    VerticalOptions="Center">
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnClearScoreFilter" />
+                        </Border.GestureRecognizers>
+                        <Label Text="✕" 
+                       FontSize="11" 
+                       TextColor="#888888"
+                       VerticalOptions="Center" 
+                       HorizontalOptions="Center"/>
+                    </Border>
+                </Grid>
+
+                <!-- Second Row: Mood and Location Filters (Side by Side) -->
+                <Grid ColumnDefinitions="*,*" ColumnSpacing="12" VerticalOptions="Center">
+
+                    <!-- Mood Filter -->
+                    <Grid Grid.Column="0" ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                        <Label Grid.Column="0"
+                       Text="Mood"
+                       FontSize="12"
+                       TextColor="#666666"
+                       VerticalOptions="Center"/>
+
+                        <Picker Grid.Column="1"
+                        x:Name="MoodFilterPicker"
+                        Title="Filter by mood"
+                        TitleColor="#555555"
+                        TextColor="#F0F0F0"
+                        BackgroundColor="Transparent"
+                        FontSize="12"
+                        HorizontalOptions="FillAndExpand"
+                        VerticalOptions="Center"
+                        SelectedIndexChanged="OnMoodFilterSelected">
+                            <Picker.Items>
+                                <x:String>All moods</x:String>
+                                <x:String>Serious relationship</x:String>
+                                <x:String>Long-term potential</x:String>
+                                <x:String>Just vibes / casual fun</x:String>
+                                <x:String>Something casual</x:String>
+                                <x:String>Hook-up / FWB</x:String>
+                                <x:String>ENM / Open to non-monogamy</x:String>
+                                <x:String>Deep talks and connection</x:String>
+                                <x:String>Let's see where it goes</x:String>
+                                <x:String>Networking / collabs / friends first</x:String>
+                                <x:String>OS (open situationship)</x:String>
+                                <x:String>Chalance (all-in effort)</x:String>
+                            </Picker.Items>
+                        </Picker>
+                    </Grid>
+
+                    <!-- Location Filter -->
+                    <Grid Grid.Column="1" ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                        <Label Grid.Column="0"
+                       Text="Location"
+                       FontSize="12"
+                       TextColor="#666666"
+                       VerticalOptions="Center"/>
+
+                        <Picker Grid.Column="1"
+                        x:Name="LocationFilterPicker"
+                        Title="Anywhere"
+                        TitleColor="#555555"
+                        TextColor="#F0F0F0"
+                        BackgroundColor="Transparent"
+                        FontSize="12"
+                        HorizontalOptions="FillAndExpand"
+                        VerticalOptions="Center"
+                        SelectedIndexChanged="OnLocationFilterSelected" />
+                    </Grid>
+
+                </Grid>
+
+            </VerticalStackLayout>
+        </Frame>
+        <!-- ══════════════════════════════════════════════════════════════ -->
+        <!-- ROW 5 · Active filter chips row                               -->
+        <!-- ══════════════════════════════════════════════════════════════ -->
+        <ScrollView Grid.Row="5"
+                    x:Name="ActiveFiltersScrollView"
+                    Orientation="Horizontal"
+                    HorizontalScrollBarVisibility="Never"
+                    VerticalScrollBarVisibility="Never"
+                    IsVisible="False"
+                    HeightRequest="44"
+                    Margin="16,0,16,4">
+            <HorizontalStackLayout x:Name="ActiveFiltersLayout"
+                                   Spacing="8"
+                                   VerticalOptions="Center"/>
+        </ScrollView>
+
+        <!-- ══════════════════════════════════════════════════════════════ -->
+        <!-- ROW 6 · Results area (fills remaining space, scrolls inside)  -->
+        <!-- ══════════════════════════════════════════════════════════════ -->
+        <Grid Grid.Row="6">
+
+            <!-- Skeleton loader -->
+            <CollectionView x:Name="SkeletonView" IsVisible="True"
+                            BackgroundColor="Transparent"
+                            ItemsLayout="VerticalList"
+                            SelectionMode="None">
+                <CollectionView.ItemsSource>
+                    <x:Array Type="{x:Type x:Int32}">
+                        <x:Int32>1</x:Int32>
+                        <x:Int32>2</x:Int32>
+                        <x:Int32>3</x:Int32>
+                        <x:Int32>4</x:Int32>
+                        <x:Int32>5</x:Int32>
+                    </x:Array>
+                </CollectionView.ItemsSource>
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+                        <Grid Padding="16,8,16,0">
+                            <Frame BackgroundColor="#161616" CornerRadius="18"
+                                   HasShadow="False" BorderColor="#252525" Padding="14">
+                                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="14">
+                                    <Frame Grid.Column="0" WidthRequest="60" HeightRequest="60"
+                                           CornerRadius="30" BackgroundColor="#2A2A2A"
+                                           HasShadow="False" Padding="0"/>
+                                    <VerticalStackLayout Grid.Column="1" Spacing="8" VerticalOptions="Center">
+                                        <BoxView HeightRequest="14" WidthRequest="120"
+                                                 BackgroundColor="#2A2A2A" CornerRadius="4"/>
+                                        <BoxView HeightRequest="10" WidthRequest="80"
+                                                 BackgroundColor="#2A2A2A" CornerRadius="4"/>
+                                        <BoxView HeightRequest="6" BackgroundColor="#2A2A2A" CornerRadius="3"/>
+                                    </VerticalStackLayout>
+                                </Grid>
+                            </Frame>
+                        </Grid>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+
+            <!-- ── Match result cards ── -->
+            <CollectionView x:Name="MatchCollectionView"
+                            IsVisible="False"
+                            BackgroundColor="Transparent"
+                            ItemsLayout="VerticalList"
+                            SelectionMode="None">
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+                        <Grid Padding="16,6,16,0">
+                            <Frame BackgroundColor="#161616" CornerRadius="18"
+                                   HasShadow="False" BorderColor="#252525" Padding="14">
+                                <Frame.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OnMatchCardTapped"
+                                                          CommandParameter="{Binding .}" />
+                                </Frame.GestureRecognizers>
+
+                                <VerticalStackLayout Spacing="10">
+
+                                    <!-- ── Avatar + info + score badge ── -->
+                                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="14">
+
+                                        <Image Grid.Column="0"
+                                               WidthRequest="60" HeightRequest="60"
+                                               Aspect="AspectFill" VerticalOptions="Center">
+                                            <Image.Clip>
+                                                <EllipseGeometry Center="30,30" RadiusX="30" RadiusY="30"/>
+                                            </Image.Clip>
+                                            <Image.Source>
+                                                <MultiBinding Converter="{StaticResource ImagePathConverter}">
+                                                    <Binding Path="ProfileImagePath"/>
+                                                    <Binding Path="." Converter="{StaticResource DefaultImageConverter}"/>
+                                                </MultiBinding>
+                                            </Image.Source>
+                                        </Image>
+
+                                        <VerticalStackLayout Grid.Column="1" Spacing="4" VerticalOptions="Center">
+                                            <HorizontalStackLayout Spacing="8">
+                                                <Label Text="{Binding Name}"
+                                                       FontAttributes="Bold" FontSize="16"
+                                                       TextColor="White"
+                                                       MaxLines="1" LineBreakMode="TailTruncation"/>
+                                                <Frame Padding="5,2" CornerRadius="6"
+                                                       BackgroundColor="#1E1E1E"
+                                                       IsVisible="{Binding HasAge}"
+                                                       HasShadow="False">
+                                                    <Label Text="{Binding Age}"
+                                                           FontSize="11" TextColor="#008080"/>
+                                                </Frame>
+                                            </HorizontalStackLayout>
+
+                                            <Label Text="{Binding Mood}"
+                                                   FontSize="12" TextColor="#008080"
+                                                   FontAttributes="Bold"
+                                                   MaxLines="1" LineBreakMode="TailTruncation"
+                                                   IsVisible="{Binding HasMood}"/>
+
+                                            <HorizontalStackLayout Spacing="4"
+                                                                   IsVisible="{Binding HasLocation}">
+                                                <Label Text="📍" FontSize="10"/>
+                                                <Label Text="{Binding Location}"
+                                                       FontSize="10" TextColor="#AAAAAA"
+                                                       MaxLines="1" LineBreakMode="TailTruncation"/>
+                                            </HorizontalStackLayout>
+                                        </VerticalStackLayout>
+
+                                        <!-- Score badge -->
+                                        <VerticalStackLayout Grid.Column="2"
+                                                             HorizontalOptions="End"
+                                                             VerticalOptions="Center"
+                                                             Spacing="2">
+                                            <Border BackgroundColor="#008080" StrokeThickness="0"
+                                                    StrokeShape="RoundRectangle 10"
+                                                    Padding="8,4" HorizontalOptions="End">
+                                                <Label Text="{Binding TotalScore, StringFormat='{0:F0}%'}"
+                                                       FontSize="13" FontAttributes="Bold"
+                                                       TextColor="White" HorizontalOptions="Center"/>
+                                            </Border>
+                                            <Label Text="match" FontSize="9"
+                                                   TextColor="#666666" HorizontalOptions="Center"/>
+                                        </VerticalStackLayout>
+
+                                    </Grid>
+
+                                    <!-- ── 4-segment score bar ── -->
+                                    <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="3" HeightRequest="5">
+                                        <BoxView Grid.Column="0" CornerRadius="3" HeightRequest="5" VerticalOptions="Center">
+                                            <BoxView.Color>
+                                                <Binding Path="IntentScore" Converter="{StaticResource ScoreToColorConverter}"/>
+                                            </BoxView.Color>
+                                        </BoxView>
+                                        <BoxView Grid.Column="1" CornerRadius="3" HeightRequest="5" VerticalOptions="Center">
+                                            <BoxView.Color>
+                                                <Binding Path="LifestyleScore" Converter="{StaticResource ScoreToColorConverter}"/>
+                                            </BoxView.Color>
+                                        </BoxView>
+                                        <BoxView Grid.Column="2" CornerRadius="3" HeightRequest="5" VerticalOptions="Center">
+                                            <BoxView.Color>
+                                                <Binding Path="DemographicScore" Converter="{StaticResource ScoreToColorConverter}"/>
+                                            </BoxView.Color>
+                                        </BoxView>
+                                        <BoxView Grid.Column="3" CornerRadius="3" HeightRequest="5" VerticalOptions="Center">
+                                            <BoxView.Color>
+                                                <Binding Path="ActivityScore" Converter="{StaticResource ScoreToColorConverter}"/>
+                                            </BoxView.Color>
+                                        </BoxView>
+                                    </Grid>
+
+                                    <!-- Score bar legend -->
+                                    <Grid ColumnDefinitions="*,*,*,*">
+                                        <Label Grid.Column="0" Text="Intent"    FontSize="9" TextColor="#555555" HorizontalOptions="Center"/>
+                                        <Label Grid.Column="1" Text="Lifestyle" FontSize="9" TextColor="#555555" HorizontalOptions="Center"/>
+                                        <Label Grid.Column="2" Text="Location"  FontSize="9" TextColor="#555555" HorizontalOptions="Center"/>
+                                        <Label Grid.Column="3" Text="Activity"  FontSize="9" TextColor="#555555" HorizontalOptions="Center"/>
+                                    </Grid>
+
+                                    <!-- ── Why matched pills ── -->
+                                    <ScrollView Orientation="Horizontal"
+                                                HorizontalScrollBarVisibility="Never"
+                                                VerticalScrollBarVisibility="Never"
+                                                HeightRequest="28">
+                                        <HorizontalStackLayout Spacing="6"
+                                                               BindableLayout.ItemsSource="{Binding WhyMatched}">
+                                            <BindableLayout.ItemTemplate>
+                                                <DataTemplate x:DataType="x:String">
+                                                    <Border BackgroundColor="#1E1E1E"
+                                                            StrokeThickness="0.5" Stroke="#333333"
+                                                            StrokeShape="RoundRectangle 12" Padding="8,4">
+                                                        <Label Text="{Binding .}" FontSize="10"
+                                                               TextColor="#AAAAAA" VerticalOptions="Center"/>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </BindableLayout.ItemTemplate>
+                                        </HorizontalStackLayout>
+                                    </ScrollView>
+
+                                    <!-- ════════════════════════════════════════════════════ -->
+                                    <!-- Attribute Comparison Panel                          -->
+                                    <!-- Green = Shared | Orange = You have | Red = They have-->
+                                    <!-- ════════════════════════════════════════════════════ -->
+                                    <Border Margin="0,2,0,0"
+                                            Padding="12,10"
+                                            BackgroundColor="#121212"
+                                            StrokeThickness="1"
+                                            Stroke="#2A2A2A"
+                                            StrokeShape="RoundRectangle 12">
+                                        <VerticalStackLayout Spacing="8">
+
+                                            <!-- ── Shared Attributes (GREEN) ── -->
+                                            <VerticalStackLayout Spacing="5"
+                                                                 IsVisible="{Binding HasSharedAttributes}">
+                                                <HorizontalStackLayout Spacing="6">
+                                                    <Border BackgroundColor="#10B98125"
+                                                            StrokeThickness="0"
+                                                            StrokeShape="RoundRectangle 4"
+                                                            Padding="5,2">
+                                                        <Label Text="✓ IN COMMON" FontSize="9"
+                                                               FontAttributes="Bold"
+                                                               TextColor="#10B981"/>
+                                                    </Border>
+                                                </HorizontalStackLayout>
+                                                <ScrollView Orientation="Horizontal"
+                                                            HorizontalScrollBarVisibility="Never"
+                                                            VerticalScrollBarVisibility="Never">
+                                                    <HorizontalStackLayout Spacing="6"
+                                                                           BindableLayout.ItemsSource="{Binding SharedAttributes}">
+                                                        <BindableLayout.ItemTemplate>
+                                                            <DataTemplate x:DataType="x:String">
+                                                                <Border BackgroundColor="#10B98118"
+                                                                        StrokeThickness="1"
+                                                                        Stroke="#10B981"
+                                                                        StrokeShape="RoundRectangle 8"
+                                                                        Padding="8,4">
+                                                                    <Label Text="{Binding .}"
+                                                                           FontSize="10"
+                                                                           TextColor="#10B981"/>
+                                                                </Border>
+                                                            </DataTemplate>
+                                                        </BindableLayout.ItemTemplate>
+                                                    </HorizontalStackLayout>
+                                                </ScrollView>
+                                            </VerticalStackLayout>
+
+                                            <!-- Divider between sections when both visible -->
+                                            <BoxView HeightRequest="1" BackgroundColor="#1E1E1E"
+                                                     IsVisible="{Binding HasSharedAttributes}"
+                                                     Margin="0,0,0,0"/>
+
+                                            <!-- ── You have / They don't (ORANGE) ── -->
+                                            <VerticalStackLayout Spacing="5"
+                                                                 IsVisible="{Binding HasYourUniqueAttributes}">
+                                                <HorizontalStackLayout Spacing="6">
+                                                    <Border BackgroundColor="#F59E0B25"
+                                                            StrokeThickness="0"
+                                                            StrokeShape="RoundRectangle 4"
+                                                            Padding="5,2">
+                                                        <Label Text="✨ YOU BRING" FontSize="9"
+                                                               FontAttributes="Bold"
+                                                               TextColor="#F59E0B"/>
+                                                    </Border>
+                                                </HorizontalStackLayout>
+                                                <ScrollView Orientation="Horizontal"
+                                                            HorizontalScrollBarVisibility="Never"
+                                                            VerticalScrollBarVisibility="Never">
+                                                    <HorizontalStackLayout Spacing="6"
+                                                                           BindableLayout.ItemsSource="{Binding YourUniqueAttributes}">
+                                                        <BindableLayout.ItemTemplate>
+                                                            <DataTemplate x:DataType="x:String">
+                                                                <Border BackgroundColor="#F59E0B18"
+                                                                        StrokeThickness="1"
+                                                                        Stroke="#F59E0B"
+                                                                        StrokeShape="RoundRectangle 8"
+                                                                        Padding="8,4">
+                                                                    <Label Text="{Binding .}"
+                                                                           FontSize="10"
+                                                                           TextColor="#F59E0B"/>
+                                                                </Border>
+                                                            </DataTemplate>
+                                                        </BindableLayout.ItemTemplate>
+                                                    </HorizontalStackLayout>
+                                                </ScrollView>
+                                            </VerticalStackLayout>
+
+                                            <BoxView HeightRequest="1" BackgroundColor="#1E1E1E"
+                                                     IsVisible="{Binding HasYourUniqueAttributes}"
+                                                     Margin="0,0,0,0"/>
+
+                                            <!-- ── They have / You don't (RED) ── -->
+                                            <VerticalStackLayout Spacing="5"
+                                                                 IsVisible="{Binding HasTheirUniqueAttributes}">
+                                                <HorizontalStackLayout Spacing="6">
+                                                    <Border BackgroundColor="#EF444425"
+                                                            StrokeThickness="0"
+                                                            StrokeShape="RoundRectangle 4"
+                                                            Padding="5,2">
+                                                        <Label Text="! THEY BRING" FontSize="9"
+                                                               FontAttributes="Bold"
+                                                               TextColor="#EF4444"/>
+                                                    </Border>
+                                                </HorizontalStackLayout>
+                                                <ScrollView Orientation="Horizontal"
+                                                            HorizontalScrollBarVisibility="Never"
+                                                            VerticalScrollBarVisibility="Never">
+                                                    <HorizontalStackLayout Spacing="6"
+                                                                           BindableLayout.ItemsSource="{Binding TheirUniqueAttributes}">
+                                                        <BindableLayout.ItemTemplate>
+                                                            <DataTemplate x:DataType="x:String">
+                                                                <Border BackgroundColor="#EF444418"
+                                                                        StrokeThickness="1"
+                                                                        Stroke="#EF4444"
+                                                                        StrokeShape="RoundRectangle 8"
+                                                                        Padding="8,4">
+                                                                    <Label Text="{Binding .}"
+                                                                           FontSize="10"
+                                                                           TextColor="#EF4444"/>
+                                                                </Border>
+                                                            </DataTemplate>
+                                                        </BindableLayout.ItemTemplate>
+                                                    </HorizontalStackLayout>
+                                                </ScrollView>
+                                            </VerticalStackLayout>
+
+                                        </VerticalStackLayout>
+                                    </Border>
+
+                                    <!-- ── Shared interests chips (teal) ── -->
+                                    <ScrollView Orientation="Horizontal"
+                                                HorizontalScrollBarVisibility="Never"
+                                                VerticalScrollBarVisibility="Never"
+                                                HeightRequest="26"
+                                                IsVisible="{Binding CommonInterests.Count,
+                                                            Converter={StaticResource GreaterThanZeroConverter}}">
+                                        <HorizontalStackLayout Spacing="5"
+                                                               BindableLayout.ItemsSource="{Binding CommonInterests}">
+                                            <BindableLayout.ItemTemplate>
+                                                <DataTemplate x:DataType="x:String">
+                                                    <Border BackgroundColor="#0D2626"
+                                                            StrokeThickness="0.5" Stroke="#008080"
+                                                            StrokeShape="RoundRectangle 10" Padding="7,3">
+                                                        <Label Text="{Binding .}" FontSize="10"
+                                                               TextColor="#008080" VerticalOptions="Center"/>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </BindableLayout.ItemTemplate>
+                                        </HorizontalStackLayout>
+                                    </ScrollView>
+
+                                </VerticalStackLayout>
+                            </Frame>
+                        </Grid>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+
+                <CollectionView.Footer>
+                    <BoxView HeightRequest="100" BackgroundColor="Transparent"/>
+                </CollectionView.Footer>
+            </CollectionView>
+
+            <!-- ── Empty state ── -->
+            <VerticalStackLayout x:Name="EmptyContainer"
+                                 IsVisible="False"
+                                 VerticalOptions="Center"
+                                 HorizontalOptions="Center"
+                                 Spacing="12">
+                <Label Text="No matches found" FontAttributes="Bold"
+                       FontSize="18" TextColor="#FFFFFF" HorizontalOptions="Center"/>
+                <Label x:Name="EmptySubLabel"
+                       Text="Complete your profile to get better matches"
+                       FontSize="13" TextColor="#555555"
+                       HorizontalOptions="Center" HorizontalTextAlignment="Center"
+                       Margin="32,0"/>
+                <Border BackgroundColor="#008080" StrokeThickness="0"
+                        StrokeShape="RoundRectangle 12"
+                        Padding="20,10" HorizontalOptions="Center" Margin="0,8,0,0">
+                    <Border.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnCompleteProfileTapped"/>
+                    </Border.GestureRecognizers>
+                    <Label Text="Complete Profile" TextColor="White"
+                           FontSize="13" FontAttributes="Bold"/>
+                </Border>
+            </VerticalStackLayout>
+
+        </Grid>
+    </Grid>
+</ContentPage>

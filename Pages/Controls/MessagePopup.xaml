@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<toolkit:Popup xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+               xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+               xmlns:toolkit="http://schemas.microsoft.com/dotnet/2022/maui/toolkit"
+               x:Class="Lock.Pages.Controls.MessagePopup"
+               CanBeDismissedByTappingOutsideOfPopup="True"
+               HorizontalOptions="Center"
+               VerticalOptions="Start">
+
+    <Border BackgroundColor="#2F3337"
+            StrokeThickness="0"
+            StrokeShape="RoundRectangle 12"
+            Padding="8,6">
+
+        <Grid ColumnDefinitions="Auto,*,Auto" RowDefinitions="Auto,Auto" RowSpacing="2">
+            <Image Grid.Row="0" Grid.RowSpan="2" Grid.Column="0"
+                   x:Name="AvatarImage"
+                   Source="default_avatar.png"
+                   HeightRequest="44" WidthRequest="44"
+                   HorizontalOptions="Center" VerticalOptions="Center">
+                <Image.Clip>
+                    <EllipseGeometry Center="22,22" RadiusX="22" RadiusY="22"/>
+                </Image.Clip>
+            </Image>
+
+            <Label Grid.Row="0" Grid.Column="1"
+                   x:Name="SenderNameLabel"
+                   Text="Someone"
+                   FontAttributes="Bold"
+                   TextColor="#F5F5F5"
+                   FontSize="14"
+                   Margin="10,0,0,0"/>
+
+            <Label Grid.Row="1" Grid.Column="1"
+                   x:Name="MessagePreviewLabel"
+                   Text="New message"
+                   TextColor="#B8B8B8"
+                   FontSize="12"
+                   MaxLines="2"
+                   LineBreakMode="TailTruncation"
+                   Margin="10,0,0,0"/>
+
+            <Button Grid.Row="0" Grid.Column="2"
+                    Text="✕"
+                    FontSize="14"
+                    BackgroundColor="Transparent"
+                    TextColor="#888880"
+                    WidthRequest="28" HeightRequest="28"
+                    CornerRadius="14"
+                    VerticalOptions="Start"
+                    Clicked="OnCloseClicked"/>
+        </Grid>
+    </Border>
+</toolkit:Popup>

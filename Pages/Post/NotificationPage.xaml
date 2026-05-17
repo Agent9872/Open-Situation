@@ -1,0 +1,387 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:conv="clr-namespace:Lock.Converter.Post"
+             x:Class="Lock.Pages.Post.NotificationPage"
+             Title="Notifications"
+             BackgroundColor="#0E0E12"
+             Shell.NavBarIsVisible="False">
+
+    <ContentPage.Resources>
+        <ResourceDictionary>
+            <conv:InverseBoolConverter x:Key="InverseBoolConverter" />
+            <conv:FilterTextColorConverter x:Key="FilterTextColorConverter" />
+            <conv:ReadBackgroundConverter x:Key="ReadBackgroundConverter" />
+            <!-- Add this converter -->
+            <conv:StringNotNullOrEmptyConverter x:Key="StringNotNullOrEmptyConverter" />
+        </ResourceDictionary>
+    </ContentPage.Resources>
+
+    <Grid RowDefinitions="Auto,Auto,*" BackgroundColor="#0E0E12">
+
+        <!-- ── HEADER ── -->
+        <Grid Grid.Row="0"
+              Padding="16,52,16,12"
+              ColumnDefinitions="*,Auto"
+              BackgroundColor="#0E0E12">
+
+            <VerticalStackLayout Grid.Column="0" Spacing="2" VerticalOptions="Center">
+                <Label Text="Notifications"
+                       FontSize="26" FontAttributes="Bold"
+                       TextColor="#F0EDE8" />
+                <HorizontalStackLayout Spacing="6" IsVisible="{Binding HasUnread}">
+                    <Ellipse WidthRequest="7" HeightRequest="7"
+                             Fill="#00B5B5" VerticalOptions="Center" />
+                    <Label FontSize="11" TextColor="#00B5B5" VerticalOptions="Center">
+                        <Label.Text>
+                            <Binding Path="UnreadCount" StringFormat="{}{0} unread" />
+                        </Label.Text>
+                    </Label>
+                </HorizontalStackLayout>
+            </VerticalStackLayout>
+
+            <HorizontalStackLayout Grid.Column="1" Spacing="8"
+                                   HorizontalOptions="End" VerticalOptions="Center">
+                <Border BackgroundColor="Transparent" StrokeThickness="1" Stroke="#1C1C25"
+                        StrokeShape="RoundRectangle 20" Padding="12,6"
+                        IsVisible="{Binding HasUnread}">
+                    <Border.GestureRecognizers>
+                        <TapGestureRecognizer Command="{Binding MarkAllReadCommand}" />
+                    </Border.GestureRecognizers>
+                    <Label Text="Mark all read" FontSize="12" FontAttributes="Bold"
+                           TextColor="#00B5B5" />
+                </Border>
+
+                <Border BackgroundColor="Transparent" StrokeThickness="1" Stroke="#1C1C25"
+                        StrokeShape="RoundRectangle 20" Padding="12,6">
+                    <Border.GestureRecognizers>
+                        <TapGestureRecognizer Command="{Binding ShowMenuCommand}" />
+                    </Border.GestureRecognizers>
+                    <Path Data="M264-452q-11.55 0-19.77-8.23Q236-468.45 236-480q0-11.55 8.23-19.77Q252.45-508 264-508q11.55 0 19.77 8.23Q292-491.55 292-480q0 11.55-8.23 19.77Q275.55-452 264-452Zm216 0q-11.55 0-19.77-8.23Q452-468.45 452-480q0-11.55 8.23-19.77Q468.45-508 480-508q11.55 0 19.77 8.23Q508-491.55 508-480q0 11.55-8.23 19.77Q491.55-452 480-452Zm216 0q-11.55 0-19.78-8.23Q668-468.45 668-480q0-11.55 8.22-19.77Q684.45-508 696-508t19.78 8.23Q724-491.55 724-480q0 11.55-8.22 19.77Q707.55-452 696-452Z"
+                          Fill="#5A5A6A" HeightRequest="18" WidthRequest="18"
+                          HorizontalOptions="Center" VerticalOptions="Center" Aspect="Uniform" />
+                </Border>
+            </HorizontalStackLayout>
+        </Grid>
+
+        <!-- ── HEADER DIVIDER ── -->
+        <BoxView Grid.Row="0" HeightRequest="1" BackgroundColor="#1C1C25" VerticalOptions="End" />
+
+        <!-- ── FILTER TABS ── -->
+        <ScrollView Grid.Row="1"
+            Orientation="Horizontal"
+            HorizontalScrollBarVisibility="Never"
+            VerticalScrollBarVisibility="Never"  
+            Padding="16,10,16,10"
+            BackgroundColor="#0E0E12">
+            <HorizontalStackLayout Spacing="8">
+
+                <!-- All -->
+                <Border StrokeThickness="0" StrokeShape="RoundRectangle 20" Padding="0">
+                    <Border.Triggers>
+                        <DataTrigger TargetType="Border" Binding="{Binding IsAllSelected}" Value="True">
+                            <Setter Property="BackgroundColor" Value="#00B5B5" />
+                            <Setter Property="StrokeThickness" Value="0" />
+                        </DataTrigger>
+                        <DataTrigger TargetType="Border" Binding="{Binding IsAllSelected}" Value="False">
+                            <Setter Property="BackgroundColor" Value="#16161C" />
+                            <Setter Property="Stroke" Value="#2A2A38" />
+                            <Setter Property="StrokeThickness" Value="1" />
+                        </DataTrigger>
+                    </Border.Triggers>
+                    <Border.GestureRecognizers>
+                        <TapGestureRecognizer Command="{Binding SelectAllCommand}" />
+                    </Border.GestureRecognizers>
+                    <Label Text="All" FontSize="12" FontAttributes="Bold" Padding="16,7">
+                        <Label.Triggers>
+                            <DataTrigger TargetType="Label" Binding="{Binding IsAllSelected}" Value="True">
+                                <Setter Property="TextColor" Value="White" />
+                            </DataTrigger>
+                            <DataTrigger TargetType="Label" Binding="{Binding IsAllSelected}" Value="False">
+                                <Setter Property="TextColor" Value="#5A5A6A" />
+                            </DataTrigger>
+                        </Label.Triggers>
+                    </Label>
+                </Border>
+                <!-- Priority -->
+                <Border StrokeThickness="1" Stroke="#2A2A38"
+                        StrokeShape="RoundRectangle 20" Padding="0">
+                    <Border.Triggers>
+                        <DataTrigger TargetType="Border" Binding="{Binding IsPrioritySelected}" Value="True">
+                            <Setter Property="BackgroundColor" Value="#FF3B6F" />
+                            <Setter Property="StrokeThickness" Value="0" />
+                        </DataTrigger>
+                        <DataTrigger TargetType="Border" Binding="{Binding IsPrioritySelected}" Value="False">
+                            <Setter Property="BackgroundColor" Value="#16161C" />
+                        </DataTrigger>
+                    </Border.Triggers>
+                    <Border.GestureRecognizers>
+                        <TapGestureRecognizer Command="{Binding SelectPriorityCommand}" />
+                    </Border.GestureRecognizers>
+                    <Label Text="Priority" FontSize="12" FontAttributes="Bold" Padding="16,7">
+                        <Label.Triggers>
+                            <DataTrigger TargetType="Label" Binding="{Binding IsPrioritySelected}" Value="True">
+                                <Setter Property="TextColor" Value="White" />
+                            </DataTrigger>
+                            <DataTrigger TargetType="Label" Binding="{Binding IsPrioritySelected}" Value="False">
+                                <Setter Property="TextColor" Value="#5A5A6A" />
+                            </DataTrigger>
+                        </Label.Triggers>
+                    </Label>
+                </Border>
+
+                <!-- Unread -->
+                <Border StrokeThickness="1" Stroke="#2A2A38"
+                        StrokeShape="RoundRectangle 20" Padding="0">
+                    <Border.Triggers>
+                        <DataTrigger TargetType="Border" Binding="{Binding IsUnreadSelected}" Value="True">
+                            <Setter Property="BackgroundColor" Value="#00B5B5" />
+                            <Setter Property="StrokeThickness" Value="0" />
+                        </DataTrigger>
+                        <DataTrigger TargetType="Border" Binding="{Binding IsUnreadSelected}" Value="False">
+                            <Setter Property="BackgroundColor" Value="#16161C" />
+                        </DataTrigger>
+                    </Border.Triggers>
+                    <Border.GestureRecognizers>
+                        <TapGestureRecognizer Command="{Binding SelectUnreadCommand}" />
+                    </Border.GestureRecognizers>
+                    <Label Text="Unread" FontSize="12" FontAttributes="Bold" Padding="16,7">
+                        <Label.Triggers>
+                            <DataTrigger TargetType="Label" Binding="{Binding IsUnreadSelected}" Value="True">
+                                <Setter Property="TextColor" Value="White" />
+                            </DataTrigger>
+                            <DataTrigger TargetType="Label" Binding="{Binding IsUnreadSelected}" Value="False">
+                                <Setter Property="TextColor" Value="#5A5A6A" />
+                            </DataTrigger>
+                        </Label.Triggers>
+                    </Label>
+                </Border>
+
+                <!-- Mentions -->
+                <Border StrokeThickness="1" Stroke="#2A2A38"
+                        StrokeShape="RoundRectangle 20" Padding="0">
+                    <Border.Triggers>
+                        <DataTrigger TargetType="Border" Binding="{Binding IsMentionsSelected}" Value="True">
+                            <Setter Property="BackgroundColor" Value="#FF3B6F" />
+                            <Setter Property="StrokeThickness" Value="0" />
+                        </DataTrigger>
+                        <DataTrigger TargetType="Border" Binding="{Binding IsMentionsSelected}" Value="False">
+                            <Setter Property="BackgroundColor" Value="#16161C" />
+                        </DataTrigger>
+                    </Border.Triggers>
+                    <Border.GestureRecognizers>
+                        <TapGestureRecognizer Command="{Binding SelectMentionsCommand}" />
+                    </Border.GestureRecognizers>
+                    <Label Text="Mentions" FontSize="12" FontAttributes="Bold" Padding="16,7">
+                        <Label.Triggers>
+                            <DataTrigger TargetType="Label" Binding="{Binding IsMentionsSelected}" Value="True">
+                                <Setter Property="TextColor" Value="White" />
+                            </DataTrigger>
+                            <DataTrigger TargetType="Label" Binding="{Binding IsMentionsSelected}" Value="False">
+                                <Setter Property="TextColor" Value="#5A5A6A" />
+                            </DataTrigger>
+                        </Label.Triggers>
+                    </Label>
+                </Border>
+
+            </HorizontalStackLayout>
+        </ScrollView>
+
+        <!-- ── NOTIFICATION LIST ── -->
+        <RefreshView Grid.Row="2"
+             IsRefreshing="{Binding IsRefreshing}"
+             Command="{Binding RefreshCommand}"
+             RefreshColor="#00B5B5">
+
+
+            <ScrollView VerticalScrollBarVisibility="Never"
+                HorizontalScrollBarVisibility="Never">
+                <CollectionView ItemsSource="{Binding FilteredNotifications}"
+                        SelectionMode="None"
+                        BackgroundColor="#0E0E12">
+
+                    <CollectionView.ItemTemplate>
+                    <DataTemplate>
+
+                        <!-- Notification Row -->
+                        <Grid Padding="16,6,16,0">
+                            <Grid.GestureRecognizers>
+                                <TapGestureRecognizer
+                                    Command="{Binding Source={RelativeSource AncestorType={x:Type ContentPage}}, Path=BindingContext.NotificationTappedCommand}"
+                                    CommandParameter="{Binding .}" />
+                            </Grid.GestureRecognizers>
+
+                            <Border Padding="14,12"
+                                    StrokeThickness="1"
+                                    StrokeShape="RoundRectangle 16">
+                                <!-- Unread = slightly highlighted, read = standard surface -->
+                                <Border.Triggers>
+                                    <DataTrigger TargetType="Border"
+                                                 Binding="{Binding IsRead}" Value="False">
+                                        <Setter Property="BackgroundColor" Value="#0D1F1F" />
+                                        <Setter Property="Stroke" Value="#1A3A3A" />
+                                    </DataTrigger>
+                                    <DataTrigger TargetType="Border"
+                                                 Binding="{Binding IsRead}" Value="True">
+                                        <Setter Property="BackgroundColor" Value="#16161C" />
+                                        <Setter Property="Stroke" Value="#1C1C25" />
+                                    </DataTrigger>
+                                </Border.Triggers>
+
+                                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+
+                                    <!-- ── AVATAR ── -->
+                                    <Grid Grid.Column="0" WidthRequest="46" HeightRequest="46">
+
+                                        <!-- Gradient ring only on unread -->
+                                        <Ellipse WidthRequest="46" HeightRequest="46" StrokeThickness="2">
+                                            <Ellipse.Triggers>
+                                                <DataTrigger TargetType="Ellipse"
+                                                             Binding="{Binding IsRead}" Value="False">
+                                                    <Setter Property="Stroke">
+                                                        <Setter.Value>
+                                                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                                                <GradientStop Color="#FF3B6F" Offset="0" />
+                                                                <GradientStop Color="#00B5B5" Offset="1" />
+                                                            </LinearGradientBrush>
+                                                        </Setter.Value>
+                                                    </Setter>
+                                                </DataTrigger>
+                                                <DataTrigger TargetType="Ellipse"
+                                                             Binding="{Binding IsRead}" Value="True">
+                                                    <Setter Property="Stroke" Value="#2A2A38" />
+                                                </DataTrigger>
+                                            </Ellipse.Triggers>
+                                        </Ellipse>
+
+                                        <Frame WidthRequest="38" HeightRequest="38"
+                                               CornerRadius="19" Padding="0"
+                                               IsClippedToBounds="True" HasShadow="False"
+                                               BackgroundColor="#1C1C25" BorderColor="Transparent"
+                                               HorizontalOptions="Center" VerticalOptions="Center">
+                                            <Image Source="{Binding ActorProfileImagePath}"
+                                                   Aspect="AspectFill"
+                                                   HeightRequest="38" WidthRequest="38" />
+                                        </Frame>
+
+                                    </Grid>
+
+                                    <!-- ── CONTENT ── -->
+                                    <VerticalStackLayout Grid.Column="1" Spacing="4"
+                                                         VerticalOptions="Center">
+
+                                        <!-- Actor + Action -->
+                                        <Label LineBreakMode="TailTruncation" MaxLines="2">
+                                            <Label.FormattedText>
+                                                <FormattedString>
+                                                    <Span Text="{Binding DisplayActorText}"
+                                                          FontAttributes="Bold"
+                                                          FontSize="14"
+                                                          TextColor="#F0EDE8" />
+                                                    <Span Text=" " TextColor="#F0EDE8" />
+                                                    <Span Text="{Binding Action}"
+                                                          FontSize="14"
+                                                          TextColor="#7A7A8C" />
+                                                </FormattedString>
+                                            </Label.FormattedText>
+                                        </Label>
+
+                                        <!-- Preview -->
+                                        <Label Text="{Binding Preview}"
+                                               FontSize="12"
+                                               TextColor="#5A5A6A"
+                                               LineBreakMode="TailTruncation"
+                                               MaxLines="2"
+                                               IsVisible="{Binding Preview, Converter={StaticResource StringNotNullOrEmptyConverter}}" />
+
+                                        <!-- Time + Priority badge -->
+                                        <HorizontalStackLayout Spacing="8">
+                                            <Label Text="{Binding DisplayTime}"
+                                                   FontSize="11" TextColor="#3A3A4A" />
+                                            <Border BackgroundColor="#1A0D20"
+                                                    StrokeThickness="1" Stroke="#FF3B6F"
+                                                    StrokeShape="RoundRectangle 8"
+                                                    Padding="6,2"
+                                                    IsVisible="{Binding IsPriority}">
+                                                <Label Text="Priority" FontSize="9"
+                                                       FontAttributes="Bold" TextColor="#FF3B6F" />
+                                            </Border>
+                                        </HorizontalStackLayout>
+
+                                    </VerticalStackLayout>
+
+                                    <!-- ── RIGHT: POST IMAGE + MENU ── -->
+                                    <VerticalStackLayout Grid.Column="2" Spacing="6"
+                                                         VerticalOptions="Center"
+                                                         HorizontalOptions="End">
+
+                                        <!-- Post image thumbnail -->
+                                        <Border WidthRequest="52" HeightRequest="52"
+        StrokeThickness="1" Stroke="#2A2A38"
+        StrokeShape="RoundRectangle 10"
+        IsVisible="{Binding HasPostImage}">
+                                            <Image Source="{Binding PostImagePath}" 
+                                                HeightRequest="52" WidthRequest="52"
+           Aspect="AspectFill" />
+                                        </Border>
+
+                                        <!-- Three-dot menu -->
+                                        <Grid WidthRequest="32" HeightRequest="32"
+                                              HorizontalOptions="Center">
+                                            <Grid.GestureRecognizers>
+                                                <TapGestureRecognizer
+                                                    Command="{Binding Source={RelativeSource AncestorType={x:Type ContentPage}}, Path=BindingContext.MenuCommand}"
+                                                    CommandParameter="{Binding .}" />
+                                            </Grid.GestureRecognizers>
+                                            <Path Data="M264-452q-11.55 0-19.77-8.23Q236-468.45 236-480q0-11.55 8.23-19.77Q252.45-508 264-508q11.55 0 19.77 8.23Q292-491.55 292-480q0 11.55-8.23 19.77Q275.55-452 264-452Zm216 0q-11.55 0-19.77-8.23Q452-468.45 452-480q0-11.55 8.23-19.77Q468.45-508 480-508q11.55 0 19.77 8.23Q508-491.55 508-480q0 11.55-8.23 19.77Q491.55-452 480-452Zm216 0q-11.55 0-19.78-8.23Q668-468.45 668-480q0-11.55 8.22-19.77Q684.45-508 696-508t19.78 8.23Q724-491.55 724-480q0 11.55-8.22 19.77Q707.55-452 696-452Z"
+                                                  Fill="#3A3A4A"
+                                                  HeightRequest="16" WidthRequest="16"
+                                                  HorizontalOptions="Center" VerticalOptions="Center"
+                                                  Aspect="Uniform" />
+                                        </Grid>
+
+                                    </VerticalStackLayout>
+
+                                </Grid>
+                            </Border>
+
+                            <!-- Unread dot indicator -->
+                            <Ellipse WidthRequest="8" HeightRequest="8"
+                                     Fill="#00B5B5"
+                                     HorizontalOptions="Start" VerticalOptions="Start"
+                                     Margin="8,14,0,0"
+                                     IsVisible="{Binding IsRead, Converter={StaticResource InverseBoolConverter}}" />
+
+                        </Grid>
+
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+
+                <!-- Empty state -->
+                <CollectionView.EmptyView>
+                    <VerticalStackLayout HorizontalOptions="Center"
+                                         VerticalOptions="Center"
+                                         Spacing="14"
+                                         Padding="40,60,40,40">
+                        <Path Data="M298-298q-11-55 27-100.5T432-459q27-5 54.5-15.5T536-500q26-22 35-53t2-63l-26 22-24-28 75-64 64 75-28 24-22-26q12 43-1 84t-45 68q-20 17-44 28t-51 16q-53 10-83.5 43.5T337-308l-39-10Zm-20 138q-26 0-43-17t-17-43q0-26 17-43t43-17q26 0 43 17t17 43q0 26-17 43t-43 17Z"
+                              Fill="#2A2A38"
+                              HeightRequest="52" WidthRequest="52"
+                              HorizontalOptions="Center" Aspect="Uniform" />
+                        <Label Text="{Binding EmptyMessage}"
+                               FontSize="17" FontAttributes="Bold"
+                               TextColor="#F0EDE8"
+                               HorizontalOptions="Center" />
+                        <Label Text="New activity will appear here"
+                               FontSize="12" TextColor="#5A5A6A"
+                               HorizontalOptions="Center"
+                               HorizontalTextAlignment="Center" />
+                    </VerticalStackLayout>
+                </CollectionView.EmptyView>
+
+            </CollectionView>
+            </ScrollView>
+
+        </RefreshView>
+
+    </Grid>
+</ContentPage>

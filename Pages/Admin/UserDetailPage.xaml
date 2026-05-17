@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Lock.Pages.Admin.UserDetailPage"
+             BackgroundColor="#0A0A0F">
+
+    <Grid RowDefinitions="Auto,*">
+
+        <!-- ══ HEADER ══ -->
+        <Grid Grid.Row="0" BackgroundColor="#0D0D14" Padding="20,52,20,16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <Grid Grid.Column="0" WidthRequest="40" HeightRequest="40"
+                  VerticalOptions="Center" Margin="0,0,12,0">
+                <Grid.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnBackTapped"/>
+                </Grid.GestureRecognizers>
+                <Border BackgroundColor="#16161C" StrokeThickness="1" Stroke="#2A2A38"
+                        StrokeShape="RoundRectangle 10" WidthRequest="40" HeightRequest="40">
+                    <Label Text="‹" FontSize="22" FontAttributes="Bold"
+                           TextColor="#F0EDE8"
+                           HorizontalOptions="Center" VerticalOptions="Center"/>
+                </Border>
+            </Grid>
+
+            <VerticalStackLayout Grid.Column="1" Spacing="2" VerticalOptions="Center">
+                <Label Text="User Profile" FontSize="20" FontAttributes="Bold" TextColor="#F0EDE8"/>
+                <Label Text="Full account details" FontSize="11" TextColor="#5A5A6A"/>
+            </VerticalStackLayout>
+        </Grid>
+
+        <BoxView Grid.Row="0" HeightRequest="1" BackgroundColor="#1C1C25" VerticalOptions="End"/>
+
+        <ScrollView Grid.Row="1" VerticalScrollBarVisibility="Never"
+                    HorizontalScrollBarVisibility="Never">
+            <!-- THIS x:Name is what the C# code references -->
+            <VerticalStackLayout x:Name="PageContent" Spacing="0" Padding="0,0,0,40"/>
+        </ScrollView>
+
+        <ActivityIndicator x:Name="LoadingIndicator" Grid.Row="1"
+                           IsVisible="False" IsRunning="False"
+                           Color="#00B5B5"
+                           HorizontalOptions="Center" VerticalOptions="Center"
+                           WidthRequest="40" HeightRequest="40"/>
+    </Grid>
+</ContentPage>

@@ -1,0 +1,220 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:shapes="clr-namespace:Microsoft.Maui.Controls.Shapes;assembly=Microsoft.Maui.Controls"
+             x:Class="Lock.Pages.Post.StatusViewerPage"
+             BackgroundColor="Black"
+             NavigationPage.HasNavigationBar="False">
+
+    <AbsoluteLayout BackgroundColor="Black">
+
+        <!-- Media content hosted here -->
+        <Frame x:Name="MediaFrame"
+               Padding="0"
+               HasShadow="False"
+               BackgroundColor="Transparent"
+               BorderColor="Transparent"
+               CornerRadius="0"
+               AbsoluteLayout.LayoutFlags="All"
+               AbsoluteLayout.LayoutBounds="0,0,1,1" />
+
+        <!-- Top overlay: name · mood + progress bars -->
+        <Grid AbsoluteLayout.LayoutFlags="WidthProportional"
+              AbsoluteLayout.LayoutBounds="0,0,1,AutoSize"
+              BackgroundColor="Transparent"
+              Padding="10,44,10,0"
+              RowSpacing="2">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <!-- Name · Mood on one row -->
+            <HorizontalStackLayout Grid.Row="0" Spacing="5" VerticalOptions="Center">
+                <Label x:Name="UserNameLabel"
+                       Text="User Name"
+                       TextColor="White"
+                       FontSize="14"
+                       FontAttributes="Bold"
+                       VerticalOptions="Center" />
+                <Label x:Name="MoodDot"
+                       Text="·"
+                       TextColor="#888888"
+                       FontSize="14"
+                       VerticalOptions="Center"
+                       IsVisible="False" />
+                <Label x:Name="MoodLabel"
+                       Text=""
+                       TextColor="#008080"
+                       FontSize="13"
+                       FontAttributes="Bold"
+                       VerticalOptions="Center"
+                       IsVisible="False" />
+            </HorizontalStackLayout>
+
+            <!-- Progress bars -->
+            <Grid x:Name="ProgressBarsContainer"
+                  Grid.Row="1"
+                  HeightRequest="4"
+                  MinimumHeightRequest="4"
+                  HorizontalOptions="Fill"
+                  VerticalOptions="Center"
+                  ColumnSpacing="4"
+                  Margin="0,6,0,0" />
+        </Grid>
+
+        <!-- Tap gesture areas -->
+        <Grid AbsoluteLayout.LayoutFlags="All"
+              AbsoluteLayout.LayoutBounds="0,0,1,1"
+              BackgroundColor="Transparent">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="0.25*" />
+                <ColumnDefinition Width="0.5*" />
+                <ColumnDefinition Width="0.25*" />
+            </Grid.ColumnDefinitions>
+
+            <Grid Grid.Column="0" BackgroundColor="Transparent">
+                <Grid.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnLeftTapped" />
+                </Grid.GestureRecognizers>
+            </Grid>
+
+            <Grid Grid.Column="1" BackgroundColor="Transparent">
+                <Grid.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnCenterTapped" />
+                </Grid.GestureRecognizers>
+            </Grid>
+
+            <Grid Grid.Column="2" BackgroundColor="Transparent">
+                <Grid.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnRightTapped" />
+                </Grid.GestureRecognizers>
+            </Grid>
+        </Grid>
+
+        <!-- Bottom controls — always visible -->
+        <HorizontalStackLayout x:Name="BottomControls"
+                               Spacing="20"
+                               HorizontalOptions="Center"
+                               VerticalOptions="End"
+                               Margin="0,0,0,30"
+                               IsVisible="True"
+                               AbsoluteLayout.LayoutFlags="PositionProportional"
+                               AbsoluteLayout.LayoutBounds="0.5,1,AutoSize,AutoSize">
+
+            <Border x:Name="PrevUserButton"
+                    BackgroundColor="#80000000"
+                    StrokeThickness="0"
+                    StrokeShape="RoundRectangle 20"
+                    Padding="15,8">
+                <Border.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnPrevUserTapped" />
+                </Border.GestureRecognizers>
+                <Label Text="← Previous"
+                       TextColor="White"
+                       FontSize="14"
+                       HorizontalOptions="Center"
+                       VerticalOptions="Center" />
+            </Border>
+
+            <Border x:Name="NextUserButton"
+                    BackgroundColor="#80000000"
+                    StrokeThickness="0"
+                    StrokeShape="RoundRectangle 20"
+                    Padding="15,8">
+                <Border.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnNextUserTapped" />
+                </Border.GestureRecognizers>
+                <Label Text="Next →"
+                       TextColor="White"
+                       FontSize="14"
+                       HorizontalOptions="Center"
+                       VerticalOptions="Center" />
+            </Border>
+        </HorizontalStackLayout>
+
+        <!-- Action controls (Edit, Delete, Download, Cancel) — always visible -->
+        <VerticalStackLayout x:Name="ActionControls"
+                             Spacing="8"
+                             HorizontalOptions="End"
+                             VerticalOptions="End"
+                             Margin="0,0,15,30"
+                             IsVisible="True"
+                             AbsoluteLayout.LayoutFlags="PositionProportional"
+                             AbsoluteLayout.LayoutBounds="1,1,AutoSize,AutoSize">
+
+            <!-- Edit -->
+            <Border x:Name="EditButton"
+                    BackgroundColor="#80000000"
+                    StrokeThickness="0"
+                    StrokeShape="RoundRectangle 18"
+                    Padding="8"
+                    HeightRequest="36"
+                    WidthRequest="36">
+                <Border.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnEditTapped" />
+                </Border.GestureRecognizers>
+                <shapes:Path Data="M202.5-202.5h38L680-642l-38-38-439.5 439.5v38ZM177-177v-74.5L700-776q3.89-3.35 8.6-5.17 4.7-1.83 10.05-1.83 5.16 0 10.01 1.5 4.84 1.5 9.84 5.5l37.5 37.5q4 4.5 5.5 9.41t1.5 9.84q0 5.25-1.8 10.24-1.81 5-5.29 8.6L251.5-177H177Zm581.5-542.5-39-39 39 39Zm-97.85 58.85L642-680l38 38-19.35-18.65Z"
+                              Fill="White"
+                              HeightRequest="16" WidthRequest="16"
+                              HorizontalOptions="Center" VerticalOptions="Center"
+                              Aspect="Uniform" />
+            </Border>
+
+            <!-- Delete -->
+            <Border x:Name="DeleteButton"
+                    BackgroundColor="#80000000"
+                    StrokeThickness="0"
+                    StrokeShape="RoundRectangle 18"
+                    Padding="8"
+                    HeightRequest="36"
+                    WidthRequest="36">
+                <Border.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnDeleteTapped" />
+                </Border.GestureRecognizers>
+                <shapes:Path Data="m377.5-338.5 103-103 103 103L602-357 499-460l103-103-18.5-18.5-103 103-103-103L359-563l103 103-103 103 18.5 18.5Zm-64 161.5q-24.44 0-40.97-16.53Q256-210.06 256-234.27V-718.5h-39.5v-25.33H361V-771h238.5v27H744v25.5h-39.5v484.23q0 24.21-16.53 40.74T647-177H313.5ZM679-718.5H281.5v484q0 12 10 22t22 10H647q12 0 22-10t10-22v-484Zm-397.5 0v516-516Z"
+                              Fill="White"
+                              HeightRequest="16" WidthRequest="16"
+                              HorizontalOptions="Center" VerticalOptions="Center"
+                              Aspect="Uniform" />
+            </Border>
+
+            <!-- Download -->
+            <Border x:Name="DownloadButton"
+                    BackgroundColor="#80000000"
+                    StrokeThickness="0"
+                    StrokeShape="RoundRectangle 18"
+                    Padding="8"
+                    HeightRequest="36"
+                    WidthRequest="36">
+                <Border.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnDownloadTapped" />
+                </Border.GestureRecognizers>
+                <shapes:Path Data="M480-342 356-466l20-20 90 90v-352h28v352l90-90 20 20-124 124ZM272-212q-26 0-43-17t-17-43v-90h28v90q0 12 10 22t22 10h416q12 0 22-10t10-22v-90h28v90q0 26-17 43t-43 17H272Z"
+                              Fill="White"
+                              HeightRequest="16" WidthRequest="16"
+                              HorizontalOptions="Center" VerticalOptions="Center"
+                              Aspect="Uniform" />
+            </Border>
+
+            <!-- Cancel -->
+            <Border x:Name="CancelButton"
+                    BackgroundColor="#80000000"
+                    StrokeThickness="0"
+                    StrokeShape="RoundRectangle 18"
+                    Padding="8"
+                    HeightRequest="36"
+                    WidthRequest="36">
+                <Border.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnCancelTapped" />
+                </Border.GestureRecognizers>
+                <shapes:Path Data="M480-427 293-240l-20-20 187-187-187-187 20-20 187 187 187-187 20 20-187 187 187 187-20 20-187-187Z"
+                              Fill="White"
+                              HeightRequest="16" WidthRequest="16"
+                              HorizontalOptions="Center" VerticalOptions="Center"
+                              Aspect="Uniform" />
+            </Border>
+
+        </VerticalStackLayout>
+    </AbsoluteLayout>
+</ContentPage>

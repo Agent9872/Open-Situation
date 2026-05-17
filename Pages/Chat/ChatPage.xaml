@@ -1,0 +1,1750 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:conv="clr-namespace:Lock.Converter.Chat"
+             xmlns:local="clr-namespace:Lock.Pages.Chat"
+             x:Class="Lock.Pages.Chat.ChatPage">
+
+    <ContentPage.Resources>
+        <!-- Your existing converters -->
+        <conv:InverseBoolConverter x:Key="InverseBoolConverter" />
+        <conv:IsNotEmptyConverter x:Key="IsNotEmptyConverter" />
+        <conv:IsGreaterThanOneConverter x:Key="IsGreaterThanOneConverter" />
+        <conv:SubtractTwoConverter x:Key="SubtractTwoConverter" />
+        <conv:NullOrEmptyToVisibilityConverter x:Key="NullOrEmptyToVisibilityConverter" />
+        <conv:BoolToPlayPauseConverter x:Key="BoolToPlayPauseConverter" />
+        <conv:JsonToByteArrayConverter x:Key="JsonToByteArrayConverter" />
+        <conv:AmplitudeToHeightConverter x:Key="AmplitudeToHeightConverter" />
+        <conv:ProgressToWidthConverter x:Key="ProgressToWidthConverter" />
+        <conv:DurationToProgressConverter x:Key="DurationToProgressConverter" />
+        <conv:TimeSpanToStringConverter x:Key="TimeSpanToStringConverter" />
+        <conv:IsEqualToConverter x:Key="IsEqualToConverter" />
+        <conv:IsNotEqualToConverter x:Key="IsNotEqualToConverter" />
+        <conv:SecondsToTimeConverter x:Key="SecondsToTimeConverter" />
+        <conv:ScreenToImageWidthConverter x:Key="ScreenToImageWidthConverter" />
+        <conv:ScreenToImageHeightConverter x:Key="ScreenToImageHeightConverter" />
+        <conv:MaxBubbleWidthConverter x:Key="MaxBubbleWidthConverter" />
+
+
+        <!-- Bubble Style -->
+        <Style x:Key="BubbleStyle" TargetType="Border">
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Margin" Value="0"/>
+            <Setter Property="StrokeThickness" Value="0"/>
+            <Setter Property="StrokeShape">
+                <Setter.Value>
+                    <RoundRectangle CornerRadius="4"/>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </ContentPage.Resources>
+
+    <!-- UPDATED: Main Grid with RowSpacing="0" to eliminate gaps -->
+    <Grid RowDefinitions="Auto,Auto,Auto,*,Auto" 
+      Padding="0,0,4,4"
+      RowSpacing="0">
+
+        <!-- Background Image Layer -->
+        <Image x:Name="ChatBackgroundImage"
+               Source="{Binding ChatBackgroundPath, FallbackValue=''}"
+               Aspect="AspectFill"
+               Opacity="{Binding BackgroundBrightness}"
+               IsVisible="{Binding ChatBackgroundPath, Converter={StaticResource NullOrEmptyToVisibilityConverter}}"
+               Grid.RowSpan="5"
+               ZIndex="-1" />
+
+        <Grid Grid.Row="0" 
+      ColumnDefinitions="*,Auto,Auto,Auto,Auto" 
+      Padding="12,0,12,0"
+      HeightRequest="74"
+      BackgroundColor="#0E0E12">
+            <BoxView Grid.ColumnSpan="5" 
+             HeightRequest="0.5" 
+             BackgroundColor="#2A2A38" 
+             VerticalOptions="End" />
+
+            <HorizontalStackLayout Grid.Column="0" 
+                           Spacing="12" 
+                           VerticalOptions="Center">
+                <Border Padding="0" 
+                StrokeThickness="0" 
+                HeightRequest="44" 
+                WidthRequest="44" 
+                StrokeShape="RoundRectangle 22">
+                    <Border.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OtherProfileImage_Tapped" />
+                    </Border.GestureRecognizers>
+                    <Image x:Name="OtherProfileImage" 
+                   HeightRequest="44" 
+                   WidthRequest="44" 
+                   Aspect="AspectFill">
+                        <Image.Clip>
+                            <EllipseGeometry Center="22,22" RadiusX="22" RadiusY="22" />
+                        </Image.Clip>
+                    </Image>
+                </Border>
+                <Label x:Name="OtherNameLabel" 
+               Text="" 
+               FontAttributes="Bold" 
+               FontSize="16"
+               VerticalOptions="Center" 
+               TextColor="#F0EDE8"/>
+            </HorizontalStackLayout>
+
+            <ContentView Grid.Column="1" 
+                 WidthRequest="44" 
+                 HeightRequest="44" 
+                 VerticalOptions="Center" 
+                 HorizontalOptions="Center">
+                <Grid>
+                    <Grid.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="PhoneCallIcon_Tapped" />
+                    </Grid.GestureRecognizers>
+                    <Path Data="M745-172q-94 0-195.5-49.5T359.5-360q-88.5-89-138-190T172-745q0-18.43 12-30.71Q196-788 214-788h80q17 0 29.5 10.5T341-750l18 82q3 17-1 30t-14 21l-85 77q26 47 56.5 86.5T380-379q36 36 78 67t93 59l83-85q10-11 21.5-14t26.5-1l68 14q17 4 27.5 17t10.5 30v78q0 18-12.29 30-12.28 12-30.71 12ZM246-566l80-72q5-4 6.5-11t-.5-13l-18-82q-2-8-7-12t-13-4h-80q-6 0-10 4t-4 10q0 41 12.5 87t33.5 93Zm332 326q41 21 88.5 30.5T746-200q6 0 10-4t4-10v-78q0-8-4-13t-12-7l-68-14q-6-2-10.5-.5T656-320l-78 80ZM246-566Zm332 326Z"
+                  Fill="#00B5B5" 
+                  HeightRequest="20"
+                  WidthRequest="20"
+                  HorizontalOptions="Center"
+                  VerticalOptions="Center"
+                  Aspect="Uniform" />
+                </Grid>
+            </ContentView>
+
+            <ContentView Grid.Column="2" 
+                 WidthRequest="44" 
+                 HeightRequest="44" 
+                 VerticalOptions="Center" 
+                 HorizontalOptions="Center">
+                <Grid>
+                    <Grid.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="VideoCallIcon_Tapped" />
+                    </Grid.GestureRecognizers>
+                    <Path Data="M411-346h28v-120h120v-28H439v-120h-28v120H291v28h120v120ZM217-212q-26 0-43-17t-17-43v-416q0-26 17-43t43-17h416q26 0 43 17t17 43v188l110-110v260L693-460v188q0 26-17 43t-43 17H217Zm0-28h416q14 0 23-9t9-23v-416q0-14-9-23t-23-9H217q-14 0-23 9t-9 23v416q0 14 9 23t23 9Zm-32 0v-480 480Z"
+                  Fill="#00B5B5" 
+                  HeightRequest="20"
+                  WidthRequest="20"
+                  HorizontalOptions="Center"
+                  VerticalOptions="Center"
+                  Aspect="Uniform" />
+                </Grid>
+            </ContentView>
+
+            <!-- Search Button -->
+            <ContentView Grid.Column="3" 
+                 WidthRequest="44" 
+                 HeightRequest="44" 
+                 VerticalOptions="Center" 
+                 HorizontalOptions="Center">
+                <Grid>
+                    <Grid.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnSearchTapped" />
+                    </Grid.GestureRecognizers>
+                    <Path Data="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"
+                  Fill="#7A7A8C" 
+                  HeightRequest="18"
+                  WidthRequest="18"
+                  HorizontalOptions="Center"
+                  VerticalOptions="Center" />
+                </Grid>
+            </ContentView>
+
+            <!-- Menu Button -->
+            <ContentView Grid.Column="4" 
+                 WidthRequest="44" 
+                 HeightRequest="44" 
+                 VerticalOptions="Center" 
+                 HorizontalOptions="End">
+                <Grid>
+                    <Grid.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="HeaderMenu_Tapped" />
+                    </Grid.GestureRecognizers>
+                    <Path Data="M12,8c1.1,0 2,-0.9 2,-2s-0.9,-2 -2,-2 -2,0.9 -2,2 0.9,2 2,2Zm0,2c-1.1,0 -2,0.9 -2,2s0.9,2 2,2 2,-0.9 2,-2 -0.9,-2 -2,-2Zm0,6c-1.1,0 -2,0.9 -2,2s0.9,2 2,2 2,-0.9 2,-2 -0.9,-2 -2,-2Z"
+                  Fill="#7A7A8C" 
+                  HeightRequest="18"
+                  WidthRequest="18"
+                  HorizontalOptions="Center"
+                  VerticalOptions="Center" />
+                </Grid>
+            </ContentView>
+        </Grid>
+        <!-- Pinned messages strip -->
+        <Grid Grid.Row="2"
+      x:Name="PinnedStrip"
+      IsVisible="False"
+      ColumnDefinitions="Auto,*,Auto"
+      ColumnSpacing="2"
+      Padding="8,4,8,4"
+      VerticalOptions="Start"
+      HeightRequest="40">
+
+            <HorizontalStackLayout Grid.Column="0" 
+                           Spacing="4" 
+                           VerticalOptions="Center">
+                <ContentView WidthRequest="20" 
+                     HeightRequest="20" 
+                     HorizontalOptions="Start" 
+                     VerticalOptions="Center">
+                    <Grid>
+                        <Path Data="M6,2 L10,2 L10,6 L12,8 L10,10 L10,14 L6,14 L6,10 L4,8 L6,6 L6,2 Z"
+                      Stroke="#008080" 
+                      StrokeThickness="1.2" 
+                      Fill="Transparent"
+                      StrokeLineJoin="Round" 
+                      StrokeLineCap="Round" />
+                    </Grid>
+                </ContentView>
+                <Label x:Name="PinnedCountLabel" 
+               Text="0" 
+               TextColor="#008080" 
+               FontSize="12" 
+               VerticalOptions="Center" />
+            </HorizontalStackLayout>
+
+            <CollectionView x:Name="PinnedMessagesCollectionView"
+                    Grid.Column="1"
+                    SelectionMode="None"
+                    BackgroundColor="Transparent"
+                    HeightRequest="36">
+                <CollectionView.ItemsLayout>
+                    <LinearItemsLayout Orientation="Horizontal" ItemSpacing="2" />
+                </CollectionView.ItemsLayout>
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+                        <Border Padding="6"
+                        Margin="0,0,6,0"
+                        BackgroundColor="#2F3337"
+                        Stroke="Transparent" 
+                        StrokeThickness="0" 
+                        StrokeShape="RoundRectangle 8">
+                            <Border.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="PinnedPreview_Tapped" />
+                            </Border.GestureRecognizers>
+                            <HorizontalStackLayout Spacing="2">
+                                <ContentView WidthRequest="16" 
+                                     HeightRequest="16"
+                                     VerticalOptions="Center">
+                                    <Grid>
+                                        <Path Data="M6,2 L10,2 L10,6 L12,8 L10,10 L10,14 L6,14 L6,10 L4,8 L6,6 L6,2 Z"
+                                      Stroke="#008080" 
+                                      StrokeThickness="1.2" 
+                                      Fill="Transparent" />
+                                    </Grid>
+                                </ContentView>
+                                <Label Text="{Binding Content}"
+                               TextColor="White"
+                               LineBreakMode="TailTruncation"
+                               MaxLines="1"
+                               FontSize="12" 
+                               VerticalOptions="Center" />
+                            </HorizontalStackLayout>
+                        </Border>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+
+            <Label Grid.Column="2" Text="" />
+        </Grid>
+
+        <!-- UPDATED: Messages list - Fixed version -->
+      <CollectionView x:Name="MessagesCollectionView"
+                Grid.Row="3"
+                ItemsSource="{Binding Messages}"
+                Margin="0,0,0,0"
+                SelectionMode="None"
+                VerticalOptions="Fill"
+                VerticalScrollBarVisibility="Never"
+                BackgroundColor="Transparent">
+
+            <!-- UPDATED: Encryption Notice Header - More compact -->
+            <CollectionView.Header>
+                <Grid Padding="8,2,8,4">
+                    <Border BackgroundColor="#2F3337" 
+                    StrokeShape="RoundRectangle 8"
+                    Padding="8,4" 
+                    Margin="0,2,0,2"
+                    HorizontalOptions="Center">
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="EncryptionNotice_Tapped" />
+                        </Border.GestureRecognizers>
+                        <HorizontalStackLayout Spacing="6" 
+                                       VerticalOptions="Center"
+                                       HorizontalOptions="Center">
+                            <ContentView WidthRequest="18" HeightRequest="18" VerticalOptions="Center">
+                                <Path Data="M445-386h70l-22-122q17-5 28.5-19.5T533-560q0-22-15.5-37.5T480-613q-22 0-37.5 15.5T427-560q0 18 11.5 32.5T467-508l-22 122Zm35 252q-115-36-191.5-142T212-516v-208l268-100 268 100v208q0 134-76.5 240T480-134Zm0-30q104-33 172-132t68-220v-189l-240-89-240 89v189q0 121 68 220t172 132Zm0-315Z"
+                              Fill="#e3e3e3"
+                              Stroke="#e3e3e3"
+                              StrokeThickness="1.2"
+                              HeightRequest="18"
+                              WidthRequest="18"
+                              HorizontalOptions="Center"
+                              VerticalOptions="Center"
+                              Aspect="Uniform" />
+                            </ContentView>
+                            <Label Text="End-to-end encrypted" 
+                           TextColor="#A8A8A8" 
+                           FontSize="10" 
+                           VerticalOptions="Center" />
+                            <Label Text="ℹ️" 
+                           FontSize="9" 
+                           VerticalOptions="Center" />
+                        </HorizontalStackLayout>
+                    </Border>
+                </Grid>
+            </CollectionView.Header>
+
+            <!-- UPDATED: Empty view for when there are no messages -->
+            <CollectionView.EmptyView>
+                <Grid VerticalOptions="Center" 
+              HorizontalOptions="Center" 
+              HeightRequest="100">
+                    <Label Text="No messages yet" 
+                   TextColor="Gray" 
+                   FontSize="14"
+                   VerticalOptions="Center"
+                   HorizontalOptions="Center" />
+                </Grid>
+            </CollectionView.EmptyView>
+
+            <CollectionView.ItemsLayout>
+                <LinearItemsLayout Orientation="Vertical" ItemSpacing="1" />
+            </CollectionView.ItemsLayout>
+
+            <CollectionView.ItemTemplate>
+                <DataTemplate>
+                    <Grid Padding="0,2">
+                        <!-- ==================== INCOMING MESSAGE ==================== -->
+                        <Grid IsVisible="{Binding IsLocalOutgoing, Converter={StaticResource InverseBoolConverter}}"
+                  HorizontalOptions="Start" Margin="4,1,12,1">
+                            <Grid ColumnDefinitions="Auto,Auto" ColumnSpacing="2">
+                                <!-- Bubble -->
+                                <Border Grid.Column="0"
+                            BackgroundColor="#2F3337"
+                            StrokeShape="RoundRectangle 16"
+                            HorizontalOptions="Start"
+                            MaximumWidthRequest="{Binding Source={RelativeSource AncestorType={x:Type ContentPage}}, Path=Width, Converter={StaticResource MaxBubbleWidthConverter}}"
+                            Padding="0">
+                                    <VerticalStackLayout Spacing="0">
+
+                                        <!-- CONTACT CARD - INCOMING -->
+                                        <Grid IsVisible="{Binding MessageType, Converter={StaticResource IsEqualToConverter}, ConverterParameter='contact'}"
+                                  ColumnDefinitions="Auto,*" Padding="8"
+                                  BackgroundColor="#2F3337" Margin="0">
+                                            <Border Grid.Column="0"
+                                        HeightRequest="40" WidthRequest="40"
+                                        BackgroundColor="#3A3A3C" StrokeThickness="1" Stroke="#FF3B6F"
+                                        StrokeShape="RoundRectangle 20" Padding="1" Margin="0,0,8,0">
+                                                <Image Source="{Binding ContactProfileImage, FallbackValue='default_profile.png'}"
+                                           Aspect="AspectFill" HeightRequest="36" WidthRequest="36">
+                                                    <Image.Clip>
+                                                        <EllipseGeometry RadiusX="18" RadiusY="18" Center="18,18"/>
+                                                    </Image.Clip>
+                                                </Image>
+                                            </Border>
+                                            <VerticalStackLayout Grid.Column="1" Spacing="2" VerticalOptions="Center">
+                                                <Label Text="SHARED CONTACT" FontSize="8" TextColor="#FF3B6F" FontAttributes="Bold"/>
+                                                <Label Text="{Binding ContactName}" FontSize="14" FontAttributes="Bold" TextColor="#FFFFFF"/>
+                                                <Label Text="{Binding ContactPhone}" FontSize="12" TextColor="#8E8E93"/>
+                                                <Border BackgroundColor="#FF3B6F" Padding="8,4" StrokeThickness="0"
+                                            StrokeShape="RoundRectangle 6" Margin="0,4,0,0" HorizontalOptions="Start">
+                                                    <Border.GestureRecognizers>
+                                                        <TapGestureRecognizer Tapped="OnSaveContactTapped" CommandParameter="{Binding .}"/>
+                                                    </Border.GestureRecognizers>
+                                                    <Label Text="Save" TextColor="#FFFFFF" FontSize="10" FontAttributes="Bold"/>
+                                                </Border>
+                                            </VerticalStackLayout>
+                                        </Grid>
+
+                                        <!-- POST CARD - INCOMING (with author name) -->
+                                        <Grid IsVisible="{Binding MessageType, Converter={StaticResource IsEqualToConverter}, ConverterParameter='post'}"
+      ColumnDefinitions="Auto,*" Padding="8" BackgroundColor="#2F3337" Margin="0">
+                                            <Border Grid.Column="0" HeightRequest="40" WidthRequest="40"
+            BackgroundColor="#3A3A3C" StrokeThickness="1" Stroke="#FF3B6F"
+            StrokeShape="RoundRectangle 20" Padding="1" Margin="0,0,8,0">
+                                                <!-- Optional: Post icon -->
+                                                <Path Data="M480-480ZM233.76-176.5q-24.2 0-40.73-16.53-16.53-16.53-16.53-40.73v-492.48q0-24.2 16.53-40.73 16.53-16.53 40.73-16.53h267.5v25.5H234q-14 0-23 9t-9 23v492q0 14 9 23t23 9h492q14 0 23-9t9-23v-267.5h25.5V-234q0 24.44-16.53 40.97-16.53 16.53-40.73 16.53H233.76Zm50.24-137h392.5L556-474 437-326.5l-76-87-77 100ZM678.5-599v-79.5H599V-704h79.5v-79.5H704v79.5h79.5v25.5H704v79.5h-25.5Z"
+              Fill="#FF3B6F"
+              HeightRequest="24" WidthRequest="24"
+              HorizontalOptions="Center" VerticalOptions="Center"/>
+                                            </Border>
+                                            <VerticalStackLayout Grid.Column="1" Spacing="4" VerticalOptions="Center">
+                                                <!-- AUTHOR NAME - ADD THIS -->
+                                                <HorizontalStackLayout Spacing="6" VerticalOptions="Center">
+                                                    <Label Text="📱" FontSize="10" TextColor="#FF3B6F"/>
+                                                    <Label Text="{Binding PostAuthor}" 
+                   FontSize="12" 
+                   FontAttributes="Bold"
+                   TextColor="#FF3B6F"
+                   VerticalOptions="Center"/>
+                                                    <Label Text="shared a post" 
+                   FontSize="11" 
+                   TextColor="#8E8E93"
+                   VerticalOptions="Center"/>
+                                                </HorizontalStackLayout>
+
+                                                <!-- Post Preview -->
+                                                <Label Text="{Binding PostPreview}" 
+               FontSize="13" 
+               TextColor="#FFFFFF"
+               LineBreakMode="TailTruncation" 
+               MaxLines="2"/>
+
+                                                <!-- Image count if any -->
+                                                <Label IsVisible="{Binding MediaItems.Count, Converter={StaticResource IsGreaterThanOneConverter}}"
+               Text="{Binding MediaItems.Count, StringFormat='📷 {0} image(s)'}"
+               FontSize="10" TextColor="#AAAAAA" Margin="0,2,0,0"/>
+
+                                                <!-- Action Buttons -->
+                                                <HorizontalStackLayout Spacing="8" Margin="0,4,0,0">
+                                                    <Border BackgroundColor="#54738f" Padding="8,4" StrokeThickness="0"
+                    StrokeShape="RoundRectangle 6" HorizontalOptions="Start">
+                                                        <Border.GestureRecognizers>
+                                                            <TapGestureRecognizer Tapped="OnViewPostTapped" CommandParameter="{Binding .}"/>
+                                                        </Border.GestureRecognizers>
+                                                        <Label Text="View" TextColor="#FFFFFF" FontSize="10"/>
+                                                    </Border>
+                                                    <Border BackgroundColor="#FF3B6F" Padding="8,4" StrokeThickness="0"
+                    StrokeShape="RoundRectangle 6" HorizontalOptions="Start">
+                                                        <Border.GestureRecognizers>
+                                                            <TapGestureRecognizer Tapped="OnSharePostFromMessageTapped" CommandParameter="{Binding .}"/>
+                                                        </Border.GestureRecognizers>
+                                                        <HorizontalStackLayout Spacing="4">
+                                                            <Path Data="M657.35-153q-36.35 0-61.1-24.85Q571.5-202.71 571.5-239q0-10 7.5-32L302.5-424q-12 14-28.94 22t-36.3 8q-35.11 0-59.68-25.27Q153-444.54 153-479.77q0-35.23 24.65-60.73Q202.29-566 237.5-566q19.23 0 36 7.87 16.78 7.86 28.5 21.63l245-152.08q-3.5-7.42-5.5-15.73t-2-17.19q0-35.63 24.9-60.56 24.89-24.94 61-24.94 36.1 0 60.85 25.04T711-721.15q0 35.98-24.96 60.82-24.96 24.83-60.62 24.83-19.69 0-35.8-8.25-16.11-8.25-28.12-22.75L317-513.5q3 8 5.25 16.63 2.25 8.62 2.25 16.95 0 8.32-2 16.58-2 8.27-5 16.28L561.5-294q11.79-14 28.06-22.5t35.86-8.5q35.66 0 60.62 25.25T711-239q0 36.5-24.98 61.25T657.35-153Zm-.1-17.5q29.36 0 48.81-19.44 19.44-19.45 19.44-48.81 0-29.15-19.55-48.95-19.55-19.8-48.45-19.8-29.61 0-49.06 19.91Q557-267.69 557-239q0 29.4 19.44 48.95 19.45 19.55 48.81 19.55Zm-387.75-241q29.33 0 49.41-20 20.09-20 20.09-48.25t-19.98-48.5q-19.98-20.25-49.52-20.25-28.47 0-47.74 20.25Q170.5-508 170.5-480t19.26 48.25q19.27 20.25 47.74 20.25Zm436-261.05q20-19.55 20-48.7 0-29.15-19.55-48.7-19.55-19.55-48.45-19.55-29.61 0-49.06 19.55Q557-750.4 557-721.5q0 29.4 20 48.95Q597-653 625.25-653t48.25-19.55ZM625.5-239ZM239-480Zm386.5-241.5Z"
+                          Fill="#FFFFFF" 
+                          Stroke="#FFFFFF"
+                          StrokeThickness="1.2"
+                          HeightRequest="12" WidthRequest="12" Aspect="Uniform"/>
+                                                            <Label Text="Share" TextColor="#FFFFFF" FontSize="10"/>
+                                                        </HorizontalStackLayout>
+                                                    </Border>
+                                                </HorizontalStackLayout>
+                                            </VerticalStackLayout>
+                                        </Grid>
+
+                                        <!-- ENDORSEMENT REQUEST CARD - INCOMING -->
+                                        <Grid IsVisible="{Binding MessageType, Converter={StaticResource IsEqualToConverter}, ConverterParameter='endorsement_request'}"
+      ColumnDefinitions="*,Auto" Padding="8" BackgroundColor="#2F3337" Margin="0">
+                                            <Grid.GestureRecognizers>
+                                                <TapGestureRecognizer Tapped="OnEndorsementRequestTapped" CommandParameter="{Binding .}"/>
+                                            </Grid.GestureRecognizers>
+                                            <VerticalStackLayout Grid.Column="0" Spacing="4" VerticalOptions="Center">
+                                                <HorizontalStackLayout Spacing="6">
+                                                    <Label Text="📝" FontSize="14" TextColor="#FF3B6F"/>
+                                                    <Label Text="ENDORSEMENT REQUEST" 
+                   FontSize="10" 
+                   FontAttributes="Bold"
+                   TextColor="#FF3B6F"/>
+                                                    <!-- Status indicator -->
+                                                    <Label IsVisible="{Binding EndorsementStatus, Converter={StaticResource IsEqualToConverter}, ConverterParameter='accepted'}"
+                   Text="✓ Accepted" 
+                   FontSize="9" 
+                   FontAttributes="Bold"
+                   TextColor="#10B981"/>
+                                                    <Label IsVisible="{Binding EndorsementStatus, Converter={StaticResource IsEqualToConverter}, ConverterParameter='declined'}"
+                   Text="✗ Declined" 
+                   FontSize="9" 
+                   FontAttributes="Bold"
+                   TextColor="#FF4444"/>
+                                                </HorizontalStackLayout>
+                                                <Label Text="{Binding EndorsementRequestorName, StringFormat='{0} is asking for an endorsement'}"
+               FontSize="14" 
+               FontAttributes="Bold"
+               TextColor="#FFFFFF"/>
+                                                <Label Text="{Binding EndorsementTestimonial}"
+               FontSize="12" 
+               TextColor="#AAAAAA"
+               LineBreakMode="WordWrap"
+               MaxLines="2"/>
+                                                <Label Text="{Binding EndorsementRating}"
+               FontSize="11" 
+               TextColor="#FFD700"/>
+                                                <!-- Only show "Tap to respond" if still pending -->
+                                                <Label IsVisible="{Binding EndorsementStatus, Converter={StaticResource IsEqualToConverter}, ConverterParameter='pending'}" 
+               Text="Tap to respond" 
+               FontSize="10" 
+               TextColor="#008080"
+               Margin="0,4,0,0"/>
+                                                <Label IsVisible="{Binding EndorsementStatus, Converter={StaticResource IsEqualToConverter}, ConverterParameter='accepted'}" 
+               Text="You accepted this endorsement" 
+               FontSize="10" 
+               TextColor="#10B981"
+               Margin="0,4,0,0"/>
+                                                <Label IsVisible="{Binding EndorsementStatus, Converter={StaticResource IsEqualToConverter}, ConverterParameter='declined'}" 
+               Text="You declined this endorsement" 
+               FontSize="10" 
+               TextColor="#FF4444"
+               Margin="0,4,0,0"/>
+                                            </VerticalStackLayout>
+                                            <Border Grid.Column="1" HeightRequest="40" WidthRequest="40"
+            BackgroundColor="#FF3B6F20" StrokeThickness="1" Stroke="#FF3B6F"
+            StrokeShape="RoundRectangle 20" Padding="1" Margin="8,0,0,0">
+                                                <Label Text="📝" FontSize="20" TextColor="#FF3B6F"
+               HorizontalOptions="Center" VerticalOptions="Center"/>
+                                            </Border>
+                                        </Grid>
+                                        <!-- SOS ALERT - INCOMING -->
+                                        <VerticalStackLayout 
+                                IsVisible="{Binding MessageType, Converter={StaticResource IsEqualToConverter}, ConverterParameter='sos_alert'}"
+                                Spacing="4"
+                                Padding="10,8">
+                                            <HorizontalStackLayout Spacing="6">
+                                                <Label Text="🚨" FontSize="15" VerticalOptions="Center"/>
+                                                <Label Text="SOS ALERT" 
+                                           FontSize="12" 
+                                           FontAttributes="Bold"
+                                           TextColor="White"
+                                           VerticalOptions="Center"/>
+                                            </HorizontalStackLayout>
+                                            <Label Text="{Binding Content}"
+                                       FontSize="13"
+                                       TextColor="White"
+                                       LineBreakMode="WordWrap"/>
+                                        </VerticalStackLayout>
+
+                                        <!-- VOICE NOTE - INCOMING with Waveform -->
+                                        <VerticalStackLayout IsVisible="{Binding IsVoice}" Spacing="4" Padding="10,8">
+                                            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+                                                <!-- Play/Pause Button - Using the converter -->
+                                                <Button Grid.Column="0"
+                                            Text="{Binding IsVoicePlaying, Converter={StaticResource BoolToPlayPauseConverter}}"
+                                            WidthRequest="34" HeightRequest="34"
+                                            BackgroundColor="#3A3A3C"
+                                            TextColor="#00D66E"
+                                            FontSize="16"
+                                            CornerRadius="17"
+                                            Clicked="PlayVoiceMessage_Clicked"
+                                            CommandParameter="{Binding .}" />
+                                                <!-- Waveform Container -->
+                                                <Border Grid.Column="1"
+                                            BackgroundColor="#1E1E1E"
+                                            StrokeThickness="0"
+                                            Padding="4,8"
+                                            VerticalOptions="Center">
+                                                    <Grid HorizontalOptions="Fill"
+                                              VerticalOptions="Center"
+                                              HeightRequest="32">
+                                                        <Grid.GestureRecognizers>
+                                                            <TapGestureRecognizer Tapped="OnWaveformTapped_Incoming" />
+                                                            <PanGestureRecognizer PanUpdated="OnWaveformPanUpdated_Incoming" />
+                                                        </Grid.GestureRecognizers>
+                                                        <!-- Simple Waveform Bars -->
+                                                        <FlexLayout Direction="Row"
+            Wrap="NoWrap"
+            AlignItems="Center"
+            JustifyContent="SpaceBetween"
+            HorizontalOptions="Fill"
+            VerticalOptions="Center"
+            Padding="2,0">
+
+                                                            <!-- Bar 1 -->
+                                                            <Border StrokeThickness="0" StrokeShape="RoundRectangle 2"
+            BackgroundColor="#00B5B5" WidthRequest="3" HeightRequest="10"
+            Opacity="0.5" />
+                                                            <!-- Bar 2 -->
+                                                            <Border StrokeThickness="0" StrokeShape="RoundRectangle 2"
+            BackgroundColor="#00B5B5" WidthRequest="3" HeightRequest="16"
+            Opacity="0.6" />
+                                                            <!-- Bar 3 -->
+                                                            <Border StrokeThickness="0" StrokeShape="RoundRectangle 2"
+            BackgroundColor="#00B5B5" WidthRequest="3" HeightRequest="22"
+            Opacity="0.7" />
+                                                            <!-- Bar 4 -->
+                                                            <Border StrokeThickness="0" StrokeShape="RoundRectangle 2"
+            BackgroundColor="#00C5B5" WidthRequest="3" HeightRequest="28"
+            Opacity="0.8" />
+                                                            <!-- Bar 5 -->
+                                                            <Border StrokeThickness="0" StrokeShape="RoundRectangle 2"
+            BackgroundColor="#00B5B5" WidthRequest="3" HeightRequest="34"
+            Opacity="1.0" />
+                                                            <!-- Bar 6 -->
+                                                            <Border StrokeThickness="0" StrokeShape="RoundRectangle 2"
+            BackgroundColor="#FF3B6F" WidthRequest="3" HeightRequest="28"
+            Opacity="1.0" />
+                                                            <!-- Bar 7 -->
+                                                            <Border StrokeThickness="0" StrokeShape="RoundRectangle 2"
+            BackgroundColor="#FF3B6F" WidthRequest="3" HeightRequest="34"
+            Opacity="1.0" />
+                                                            <!-- Bar 8 -->
+                                                            <Border StrokeThickness="0" StrokeShape="RoundRectangle 2"
+            BackgroundColor="#FF3B6F" WidthRequest="3" HeightRequest="22"
+            Opacity="0.9" />
+                                                            <!-- Bar 9 -->
+                                                            <Border StrokeThickness="0" StrokeShape="RoundRectangle 2"
+            BackgroundColor="#FF3B6F" WidthRequest="3" HeightRequest="28"
+            Opacity="0.8" />
+                                                            <!-- Bar 10 -->
+                                                            <Border StrokeThickness="0" StrokeShape="RoundRectangle 2"
+            BackgroundColor="#00B5B5" WidthRequest="3" HeightRequest="16"
+            Opacity="0.5" />
+                                                            <!-- Bar 11 -->
+                                                            <Border StrokeThickness="0" StrokeShape="RoundRectangle 2"
+            BackgroundColor="#00B5B5" WidthRequest="3" HeightRequest="10"
+            Opacity="0.4" />
+                                                            <!-- Bar 12 -->
+                                                            <Border StrokeThickness="0" StrokeShape="RoundRectangle 2"
+            BackgroundColor="#00B5B5" WidthRequest="3" HeightRequest="22"
+            Opacity="0.6" />
+                                                            <!-- Bar 13 -->
+                                                            <Border StrokeThickness="0" StrokeShape="RoundRectangle 2"
+            BackgroundColor="#FF3B6F" WidthRequest="3" HeightRequest="34"
+            Opacity="1.0" />
+                                                            <!-- Bar 14 -->
+                                                            <Border StrokeThickness="0" StrokeShape="RoundRectangle 2"
+            BackgroundColor="#FF3B6F" WidthRequest="3" HeightRequest="28"
+            Opacity="0.9" />
+                                                            <!-- Bar 15 -->
+                                                            <Border StrokeThickness="0" StrokeShape="RoundRectangle 2"
+            BackgroundColor="#00B5B5" WidthRequest="3" HeightRequest="34"
+            Opacity="1.0" />
+                                                            <!-- Bar 16 -->
+                                                            <Border StrokeThickness="0" StrokeShape="RoundRectangle 2"
+            BackgroundColor="#00B5B5" WidthRequest="3" HeightRequest="22"
+            Opacity="0.7" />
+                                                            <!-- Bar 17 -->
+                                                            <Border StrokeThickness="0" StrokeShape="RoundRectangle 2"
+            BackgroundColor="#00B5B5" WidthRequest="3" HeightRequest="16"
+            Opacity="0.6" />
+                                                            <!-- Bar 18 -->
+                                                            <Border StrokeThickness="0" StrokeShape="RoundRectangle 2"
+            BackgroundColor="#00B5B5" WidthRequest="3" HeightRequest="10"
+            Opacity="0.5" />
+                                                            <!-- Bar 19 -->
+                                                            <Border StrokeThickness="0" StrokeShape="RoundRectangle 2"
+            BackgroundColor="#00B5B5" WidthRequest="3" HeightRequest="6"
+            Opacity="0.4" />
+
+                                                        </FlexLayout>
+                                                        <!-- Playback Progress Overlay -->
+                                                        <BoxView BackgroundColor="#4A4A4A"
+                                                     Opacity="0.5"
+                                                     HorizontalOptions="Start"
+                                                     WidthRequest="{Binding VoicePlaybackProgress, Converter={StaticResource ProgressToWidthConverter}}"
+                                                     VerticalOptions="Fill" />
+                                                    </Grid>
+                                                </Border>
+                                                <!-- Duration Label -->
+                                                <Label Grid.Column="2"
+                                           Text="{Binding VoiceDisplayDuration}"
+                                           TextColor="#C9C9C9"
+                                           VerticalOptions="Center"
+                                           FontSize="12"
+                                           HorizontalTextAlignment="End"
+                                           WidthRequest="40"/>
+                                            </Grid>
+                                        </VerticalStackLayout>
+                                        <!-- IMAGE with count badge -->
+                                        <VerticalStackLayout IsVisible="{Binding HasMedia}">
+                                            <Grid IsVisible="{Binding IsImage}" HorizontalOptions="Start" Margin="4,4,4,0">
+                                                <Border StrokeShape="RoundRectangle 14" Padding="0">
+                                                    <Border.GestureRecognizers>
+                                                        <TapGestureRecognizer Command="{Binding Source={RelativeSource AncestorType={x:Type local:ChatPage}}, Path=ImageTapCommand}"
+                                                                  CommandParameter="{Binding MediaItems[0]}"/>
+                                                    </Border.GestureRecognizers>
+                                                    <Image Source="{Binding MediaItems[0].Path}"
+                                               Aspect="AspectFill"
+                                               HeightRequest="200" WidthRequest="200"/>
+                                                </Border>
+                                                <!-- Image count badge -->
+                                                <Border IsVisible="{Binding MediaItems.Count, Converter={StaticResource IsGreaterThanOneConverter}}"
+                                            BackgroundColor="#CC000000"
+                                            StrokeThickness="0"
+                                            StrokeShape="RoundRectangle 10"
+                                            Padding="6,4"
+                                            HorizontalOptions="End"
+                                            VerticalOptions="End"
+                                            Margin="0,0,8,8">
+                                                    <HorizontalStackLayout Spacing="2">
+                                                        <Label Text="+" FontSize="11" TextColor="White"/>
+                                                        <Label Text="{Binding MediaItems.Count, Converter={StaticResource SubtractTwoConverter}}"
+                                                   FontSize="11" TextColor="White"/>
+                                                    </HorizontalStackLayout>
+                                                </Border>
+                                            </Grid>
+                                        </VerticalStackLayout>
+                                        <!-- TEXT -->
+                                        <Label IsVisible="{Binding HasText}"
+                                   Text="{Binding Content}"
+                                   TextColor="White"
+                                   FontSize="14.5"
+                                   Margin="12,8,12,8"
+                                   HorizontalTextAlignment="Start"
+                                   LineBreakMode="WordWrap"/>
+                                        <!-- FOOTER -->
+                                        <Grid IsVisible="{Binding MessageType, Converter={StaticResource IsNotEqualToConverter}, ConverterParameter='contact'}"
+                                  ColumnDefinitions="*,Auto" Margin="12,0,12,8">
+                                            <Label Text="{Binding SentAt, StringFormat='{0:t}'}" FontSize="10" TextColor="#C9C9C9"/>
+                                            <HorizontalStackLayout Grid.Column="1" HorizontalOptions="End" Spacing="4">
+                                                <Label Text="edited" FontSize="10" TextColor="#C9C9C9" IsVisible="{Binding IsEdited}"/>
+                                                <ContentView IsVisible="{Binding IsPinned}" WidthRequest="16" HeightRequest="16">
+                                                    <Path Data="M6,2 L10,2 L10,6 L12,8 L10,10 L10,14 L6,14 L6,10 L4,8 L6,6 L6,2 Z"
+                                              Stroke="#008080" StrokeThickness="1.2" Fill="Transparent"/>
+                                                </ContentView>
+                                            </HorizontalStackLayout>
+                                        </Grid>
+                                    </VerticalStackLayout>
+                                </Border>
+                                <!-- Menu (⋮) on RIGHT -->
+                                <Grid Grid.Column="1" ZIndex="15" VerticalOptions="Center">
+                                    <Button Text="⋮"
+                                WidthRequest="26" HeightRequest="26"
+                                BackgroundColor="Transparent"
+                                TextColor="#008080"
+                                FontSize="18"
+                                VerticalOptions="Center"
+                                HorizontalOptions="End"
+                                Padding="0"
+                                Clicked="MessageMenuButton_Clicked"
+                                CommandParameter="{Binding .}"/>
+                                </Grid>
+                            </Grid>
+                        </Grid>
+
+                        <!-- ==================== OUTGOING MESSAGE ==================== -->
+                        <Grid IsVisible="{Binding IsLocalOutgoing}"
+                  HorizontalOptions="End" Margin="12,1,4,1">
+                            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="2" HorizontalOptions="End">
+                                <!-- Menu on LEFT -->
+                                <Grid Grid.Column="0" ZIndex="15" VerticalOptions="Center">
+                                    <Button Text="⋮"
+                                WidthRequest="26" HeightRequest="26"
+                                BackgroundColor="Transparent"
+                                TextColor="#008080"
+                                FontSize="18"
+                                VerticalOptions="Center"
+                                HorizontalOptions="Start"
+                                Padding="0"
+                                Clicked="MessageMenuButton_Clicked"
+                                CommandParameter="{Binding .}"/>
+                                </Grid>
+                                <!-- Bubble -->
+                                <Border Grid.Column="1"
+                            BackgroundColor="Transparent"
+                            Stroke="#54738f"
+                            StrokeThickness="2"
+                            StrokeShape="RoundRectangle 16"
+                            HorizontalOptions="End"
+                            MaximumWidthRequest="{Binding Source={RelativeSource AncestorType={x:Type ContentPage}}, Path=Width, Converter={StaticResource MaxBubbleWidthConverter}}"
+                            Padding="0">
+                                    <VerticalStackLayout Spacing="0">
+
+                                        <!-- CONTACT CARD - OUTGOING -->
+                                        <Grid IsVisible="{Binding MessageType, Converter={StaticResource IsEqualToConverter}, ConverterParameter='contact'}"
+                                  ColumnDefinitions="*,Auto" Padding="8"
+                                  BackgroundColor="Transparent" Margin="0">
+                                            <VerticalStackLayout Grid.Column="0" Spacing="2"
+                                                     VerticalOptions="Center" HorizontalOptions="End">
+                                                <Label Text="SHARED CONTACT" FontSize="8" TextColor="#54738f"
+                                           FontAttributes="Bold" HorizontalTextAlignment="End"/>
+                                                <Label Text="{Binding ContactName}" FontSize="14" FontAttributes="Bold"
+                                           TextColor="#FFFFFF" HorizontalTextAlignment="End"/>
+                                                <Label Text="{Binding ContactPhone}" FontSize="12"
+                                           TextColor="#8E8E93" HorizontalTextAlignment="End"/>
+                                                <Border BackgroundColor="#54738f" Padding="8,4" StrokeThickness="0"
+                                            StrokeShape="RoundRectangle 6" Margin="0,4,0,0" HorizontalOptions="End">
+                                                    <Border.GestureRecognizers>
+                                                        <TapGestureRecognizer Tapped="OnSaveContactTapped" CommandParameter="{Binding .}"/>
+                                                    </Border.GestureRecognizers>
+                                                    <Label Text="Save" FontSize="10" FontAttributes="Bold"/>
+                                                </Border>
+                                            </VerticalStackLayout>
+                                            <Border Grid.Column="1" HeightRequest="40" WidthRequest="40"
+                                        BackgroundColor="#3A3A3C" StrokeThickness="1" Stroke="#54738f"
+                                        StrokeShape="RoundRectangle 20" Padding="1" Margin="8,0,0,0">
+                                                <Image Source="{Binding ContactProfileImage, FallbackValue='default_profile.png'}"
+                                           Aspect="AspectFill" HeightRequest="36" WidthRequest="36">
+                                                    <Image.Clip>
+                                                        <EllipseGeometry RadiusX="18" RadiusY="18" Center="18,18"/>
+                                                    </Image.Clip>
+                                                </Image>
+                                            </Border>
+                                        </Grid>
+
+                                        <!-- POST CARD - OUTGOING (with author name) -->
+                                        <Grid IsVisible="{Binding MessageType, Converter={StaticResource IsEqualToConverter}, ConverterParameter='post'}"
+      ColumnDefinitions="*,Auto" Padding="8" BackgroundColor="#2F3337" Margin="0">
+                                            <VerticalStackLayout Grid.Column="0" Spacing="4" VerticalOptions="Center" HorizontalOptions="End">
+                                                <!-- AUTHOR NAME - ADD THIS -->
+                                                <HorizontalStackLayout Spacing="6" VerticalOptions="Center" HorizontalOptions="End">
+                                                    <Label Text="You shared a post by" 
+                   FontSize="11" 
+                   TextColor="#8E8E93"
+                   VerticalOptions="Center"/>
+                                                    <Label Text="{Binding PostAuthor}" 
+                   FontSize="12" 
+                   FontAttributes="Bold"
+                   TextColor="#54738f"
+                   VerticalOptions="Center"/>
+                                                    <Label Text="📱" FontSize="10" TextColor="#54738f"/>
+                                                </HorizontalStackLayout>
+
+                                                <!-- Post Preview -->
+                                                <Label Text="{Binding PostPreview}" 
+               FontSize="13" 
+               TextColor="#FFFFFF"
+               LineBreakMode="TailTruncation" 
+               MaxLines="2"
+               HorizontalTextAlignment="End"/>
+
+                                                <!-- Image count if any -->
+                                                <Label IsVisible="{Binding MediaItems.Count, Converter={StaticResource IsGreaterThanOneConverter}}"
+               Text="{Binding MediaItems.Count, StringFormat='📷 {0} image(s)'}"
+               FontSize="10" TextColor="#AAAAAA" Margin="0,2,0,0"
+               HorizontalTextAlignment="End"/>
+
+                                                <!-- Action Buttons -->
+                                                <HorizontalStackLayout Spacing="8" Margin="0,4,0,0" HorizontalOptions="End">
+                                                    <Border BackgroundColor="#54738f" Padding="8,4" StrokeThickness="0"
+                    StrokeShape="RoundRectangle 6" HorizontalOptions="Start">
+                                                        <Border.GestureRecognizers>
+                                                            <TapGestureRecognizer Tapped="OnViewPostTapped" CommandParameter="{Binding .}"/>
+                                                        </Border.GestureRecognizers>
+                                                        <Label Text="View" TextColor="#FFFFFF" FontSize="10"/>
+                                                    </Border>
+                                                    <Border BackgroundColor="#FF3B6F" Padding="8,4" StrokeThickness="0"
+                    StrokeShape="RoundRectangle 6" HorizontalOptions="Start">
+                                                        <Border.GestureRecognizers>
+                                                            <TapGestureRecognizer Tapped="OnSharePostFromMessageTapped" CommandParameter="{Binding .}"/>
+                                                        </Border.GestureRecognizers>
+                                                        <HorizontalStackLayout Spacing="4">
+                                                            <Path Data="M657.35-153q-36.35 0-61.1-24.85Q571.5-202.71 571.5-239q0-10 7.5-32L302.5-424q-12 14-28.94 22t-36.3 8q-35.11 0-59.68-25.27Q153-444.54 153-479.77q0-35.23 24.65-60.73Q202.29-566 237.5-566q19.23 0 36 7.87 16.78 7.86 28.5 21.63l245-152.08q-3.5-7.42-5.5-15.73t-2-17.19q0-35.63 24.9-60.56 24.89-24.94 61-24.94 36.1 0 60.85 25.04T711-721.15q0 35.98-24.96 60.82-24.96 24.83-60.62 24.83-19.69 0-35.8-8.25-16.11-8.25-28.12-22.75L317-513.5q3 8 5.25 16.63 2.25 8.62 2.25 16.95 0 8.32-2 16.58-2 8.27-5 16.28L561.5-294q11.79-14 28.06-22.5t35.86-8.5q35.66 0 60.62 25.25T711-239q0 36.5-24.98 61.25T657.35-153Zm-.1-17.5q29.36 0 48.81-19.44 19.44-19.45 19.44-48.81 0-29.15-19.55-48.95-19.55-19.8-48.45-19.8-29.61 0-49.06 19.91Q557-267.69 557-239q0 29.4 19.44 48.95 19.45 19.55 48.81 19.55Zm-387.75-241q29.33 0 49.41-20 20.09-20 20.09-48.25t-19.98-48.5q-19.98-20.25-49.52-20.25-28.47 0-47.74 20.25Q170.5-508 170.5-480t19.26 48.25q19.27 20.25 47.74 20.25Zm436-261.05q20-19.55 20-48.7 0-29.15-19.55-48.7-19.55-19.55-48.45-19.55-29.61 0-49.06 19.55Q557-750.4 557-721.5q0 29.4 20 48.95Q597-653 625.25-653t48.25-19.55ZM625.5-239ZM239-480Zm386.5-241.5Z"
+                          Fill="#FFFFFF" 
+                          Stroke="#FFFFFF"
+                          StrokeThickness="1.2"
+                          HeightRequest="12" WidthRequest="12" Aspect="Uniform"/>
+                                                            <Label Text="Share" TextColor="#FFFFFF" FontSize="10"/>
+                                                        </HorizontalStackLayout>
+                                                    </Border>
+                                                </HorizontalStackLayout>
+                                            </VerticalStackLayout>
+                                            <Border Grid.Column="1" HeightRequest="40" WidthRequest="40"
+            BackgroundColor="#3A3A3C" StrokeThickness="1" Stroke="#54738f"
+            StrokeShape="RoundRectangle 20" Padding="1" Margin="8,0,0,0">
+                                                <Path Data="M480-480ZM233.76-176.5q-24.2 0-40.73-16.53-16.53-16.53-16.53-40.73v-492.48q0-24.2 16.53-40.73 16.53-16.53 40.73-16.53h267.5v25.5H234q-14 0-23 9t-9 23v492q0 14 9 23t23 9h492q14 0 23-9t9-23v-267.5h25.5V-234q0 24.44-16.53 40.97-16.53 16.53-40.73 16.53H233.76Zm50.24-137h392.5L556-474 437-326.5l-76-87-77 100ZM678.5-599v-79.5H599V-704h79.5v-79.5H704v79.5h79.5v25.5H704v79.5h-25.5Z"
+              Fill="#54738f"
+              HeightRequest="24" WidthRequest="24"
+              HorizontalOptions="Center" VerticalOptions="Center"/>
+                                            </Border>
+                                        </Grid>
+                                        <!-- SOS ALERT - OUTGOING -->
+                                        <VerticalStackLayout 
+                                IsVisible="{Binding MessageType, Converter={StaticResource IsEqualToConverter}, ConverterParameter='sos_alert'}"
+                                Spacing="4"
+                                Padding="10,8">
+                                            <HorizontalStackLayout Spacing="6" HorizontalOptions="End">
+                                                <Label Text="SOS ALERT" 
+                                           FontSize="12" 
+                                           FontAttributes="Bold"
+                                           TextColor="White"
+                                           VerticalOptions="Center"/>
+                                                <Label Text="🚨" FontSize="15" VerticalOptions="Center"/>
+                                            </HorizontalStackLayout>
+                                            <Label Text="{Binding Content}"
+                                       FontSize="13"
+                                       TextColor="White"
+                                       LineBreakMode="WordWrap"/>
+                                        </VerticalStackLayout>
+
+                                        <!-- VOICE NOTE - OUTGOING with Waveform -->
+                                        <VerticalStackLayout IsVisible="{Binding IsVoice}" Spacing="4" Padding="10,8">
+                                            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+                                                <!-- Play/Pause Button -->
+                                                <Button Grid.Column="0"
+                                            Text="{Binding IsVoicePlaying, Converter={StaticResource BoolToPlayPauseConverter}}"
+                                            WidthRequest="34" HeightRequest="34"
+                                            BackgroundColor="#3A3A3C"
+                                            TextColor="#00D66E"
+                                            FontSize="16"
+                                            CornerRadius="17"
+                                            Clicked="PlayVoiceMessage_Clicked"
+                                            CommandParameter="{Binding .}" />
+                                                <!-- Waveform Container -->
+                                                <Border Grid.Column="1"
+                                            BackgroundColor="#1E1E1E"
+                                            StrokeThickness="0"
+                                            Padding="4,8"
+                                            VerticalOptions="Center">
+                                                    <Grid HorizontalOptions="Fill"
+                                              VerticalOptions="Center"
+                                              HeightRequest="32">
+                                                        <Grid.GestureRecognizers>
+                                                            <TapGestureRecognizer Tapped="OnWaveformTapped_Outgoing" />
+                                                            <PanGestureRecognizer PanUpdated="OnWaveformPanUpdated_Outgoing" />
+                                                        </Grid.GestureRecognizers>
+                                                        <!-- Simple Waveform Bars -->
+                                                        <FlexLayout Direction="Row"
+            Wrap="NoWrap"
+            AlignItems="Center"
+            JustifyContent="SpaceBetween"
+            HorizontalOptions="Fill"
+            VerticalOptions="Center"
+            Padding="2,0">
+
+                                                            <!-- Bar 1 -->
+                                                            <Border StrokeThickness="0" StrokeShape="RoundRectangle 2"
+            BackgroundColor="#00B5B5" WidthRequest="3" HeightRequest="10"
+            Opacity="0.5" />
+                                                            <!-- Bar 2 -->
+                                                            <Border StrokeThickness="0" StrokeShape="RoundRectangle 2"
+            BackgroundColor="#00B5B5" WidthRequest="3" HeightRequest="16"
+            Opacity="0.6" />
+                                                            <!-- Bar 3 -->
+                                                            <Border StrokeThickness="0" StrokeShape="RoundRectangle 2"
+            BackgroundColor="#00B5B5" WidthRequest="3" HeightRequest="22"
+            Opacity="0.7" />
+                                                            <!-- Bar 4 -->
+                                                            <Border StrokeThickness="0" StrokeShape="RoundRectangle 2"
+            BackgroundColor="#00C5B5" WidthRequest="3" HeightRequest="28"
+            Opacity="0.8" />
+                                                            <!-- Bar 5 -->
+                                                            <Border StrokeThickness="0" StrokeShape="RoundRectangle 2"
+            BackgroundColor="#00B5B5" WidthRequest="3" HeightRequest="34"
+            Opacity="1.0" />
+                                                            <!-- Bar 6 -->
+                                                            <Border StrokeThickness="0" StrokeShape="RoundRectangle 2"
+            BackgroundColor="#FF3B6F" WidthRequest="3" HeightRequest="28"
+            Opacity="1.0" />
+                                                            <!-- Bar 7 -->
+                                                            <Border StrokeThickness="0" StrokeShape="RoundRectangle 2"
+            BackgroundColor="#FF3B6F" WidthRequest="3" HeightRequest="34"
+            Opacity="1.0" />
+                                                            <!-- Bar 8 -->
+                                                            <Border StrokeThickness="0" StrokeShape="RoundRectangle 2"
+            BackgroundColor="#FF3B6F" WidthRequest="3" HeightRequest="22"
+            Opacity="0.9" />
+                                                            <!-- Bar 9 -->
+                                                            <Border StrokeThickness="0" StrokeShape="RoundRectangle 2"
+            BackgroundColor="#FF3B6F" WidthRequest="3" HeightRequest="28"
+            Opacity="0.8" />
+                                                            <!-- Bar 10 -->
+                                                            <Border StrokeThickness="0" StrokeShape="RoundRectangle 2"
+            BackgroundColor="#00B5B5" WidthRequest="3" HeightRequest="16"
+            Opacity="0.5" />
+                                                            <!-- Bar 11 -->
+                                                            <Border StrokeThickness="0" StrokeShape="RoundRectangle 2"
+            BackgroundColor="#00B5B5" WidthRequest="3" HeightRequest="10"
+            Opacity="0.4" />
+                                                            <!-- Bar 12 -->
+                                                            <Border StrokeThickness="0" StrokeShape="RoundRectangle 2"
+            BackgroundColor="#00B5B5" WidthRequest="3" HeightRequest="22"
+            Opacity="0.6" />
+                                                            <!-- Bar 13 -->
+                                                            <Border StrokeThickness="0" StrokeShape="RoundRectangle 2"
+            BackgroundColor="#FF3B6F" WidthRequest="3" HeightRequest="34"
+            Opacity="1.0" />
+                                                            <!-- Bar 14 -->
+                                                            <Border StrokeThickness="0" StrokeShape="RoundRectangle 2"
+            BackgroundColor="#FF3B6F" WidthRequest="3" HeightRequest="28"
+            Opacity="0.9" />
+                                                            <!-- Bar 15 -->
+                                                            <Border StrokeThickness="0" StrokeShape="RoundRectangle 2"
+            BackgroundColor="#00B5B5" WidthRequest="3" HeightRequest="34"
+            Opacity="1.0" />
+                                                            <!-- Bar 16 -->
+                                                            <Border StrokeThickness="0" StrokeShape="RoundRectangle 2"
+            BackgroundColor="#00B5B5" WidthRequest="3" HeightRequest="22"
+            Opacity="0.7" />
+                                                            <!-- Bar 17 -->
+                                                            <Border StrokeThickness="0" StrokeShape="RoundRectangle 2"
+            BackgroundColor="#00B5B5" WidthRequest="3" HeightRequest="16"
+            Opacity="0.6" />
+                                                            <!-- Bar 18 -->
+                                                            <Border StrokeThickness="0" StrokeShape="RoundRectangle 2"
+            BackgroundColor="#00B5B5" WidthRequest="3" HeightRequest="10"
+            Opacity="0.5" />
+                                                            <!-- Bar 19 -->
+                                                            <Border StrokeThickness="0" StrokeShape="RoundRectangle 2"
+            BackgroundColor="#00B5B5" WidthRequest="3" HeightRequest="6"
+            Opacity="0.4" />
+
+                                                        </FlexLayout>
+                                                        <!-- Playback Progress Overlay -->
+                                                        <BoxView BackgroundColor="#4A4A4A"
+                                                     Opacity="0.5"
+                                                     HorizontalOptions="Start"
+                                                     WidthRequest="{Binding VoicePlaybackProgress, Converter={StaticResource ProgressToWidthConverter}}"
+                                                     VerticalOptions="Fill" />
+                                                    </Grid>
+                                                </Border>
+                                                <!-- Duration Label -->
+                                                <Label Grid.Column="2"
+                                           Text="{Binding VoiceDisplayDuration}"
+                                           TextColor="#A0E6A0"
+                                           VerticalOptions="Center"
+                                           FontSize="12"
+                                           HorizontalTextAlignment="End"
+                                           WidthRequest="40"/>
+                                            </Grid>
+                                        </VerticalStackLayout>
+                                        <!-- IMAGE with count badge -->
+                                        <VerticalStackLayout IsVisible="{Binding HasMedia}">
+                                            <Grid IsVisible="{Binding IsImage}" HorizontalOptions="End" Margin="4,4,4,0">
+                                                <Border StrokeShape="RoundRectangle 14" Padding="0">
+                                                    <Border.GestureRecognizers>
+                                                        <TapGestureRecognizer Command="{Binding Source={RelativeSource AncestorType={x:Type local:ChatPage}}, Path=ImageTapCommand}"
+                                                                  CommandParameter="{Binding MediaItems[0]}"/>
+                                                    </Border.GestureRecognizers>
+                                                    <Image Source="{Binding MediaItems[0].Path}"
+                                               Aspect="AspectFill"
+                                               HeightRequest="200" WidthRequest="200"/>
+                                                </Border>
+                                                <!-- Image count badge -->
+                                                <Border IsVisible="{Binding MediaItems.Count, Converter={StaticResource IsGreaterThanOneConverter}}"
+                                            BackgroundColor="#CC000000"
+                                            StrokeThickness="0"
+                                            StrokeShape="RoundRectangle 10"
+                                            Padding="6,4"
+                                            HorizontalOptions="End"
+                                            VerticalOptions="End"
+                                            Margin="0,0,8,8">
+                                                    <HorizontalStackLayout Spacing="2">
+                                                        <Label Text="+" FontSize="11" TextColor="White"/>
+                                                        <Label Text="{Binding MediaItems.Count, Converter={StaticResource SubtractTwoConverter}}"
+                                                   FontSize="11" TextColor="White"/>
+                                                    </HorizontalStackLayout>
+                                                </Border>
+                                            </Grid>
+                                        </VerticalStackLayout>
+                                        <!-- TEXT -->
+                                        <Label IsVisible="{Binding HasText}"
+                                   Text="{Binding Content}"
+                                   TextColor="White"
+                                   FontSize="14.5"
+                                   Margin="12,8,12,8"
+                                   HorizontalTextAlignment="Start"
+                                   LineBreakMode="WordWrap"/>
+                                        <!-- FOOTER -->
+                                        <Grid IsVisible="{Binding MessageType, Converter={StaticResource IsNotEqualToConverter}, ConverterParameter='contact'}"
+                                  ColumnDefinitions="Auto,*" Margin="12,0,12,8">
+                                            <HorizontalStackLayout Spacing="4">
+                                                <Label Text="edited" FontSize="10" TextColor="#E6E6EA" IsVisible="{Binding IsEdited}"/>
+                                                <ContentView IsVisible="{Binding IsPinned}" WidthRequest="16" HeightRequest="16">
+                                                    <Path Data="M6,2 L10,2 L10,6 L12,8 L10,10 L10,14 L6,14 L6,10 L4,8 L6,6 L6,2 Z"
+                                              Stroke="#008080" StrokeThickness="1.2" Fill="Transparent"/>
+                                                </ContentView>
+                                            </HorizontalStackLayout>
+                                            <Label Grid.Column="1" Text="{Binding SentAt, StringFormat='{0:t}'}"
+                                       FontSize="10" TextColor="#E6F6EA" HorizontalOptions="End"/>
+                                        </Grid>
+                                    </VerticalStackLayout>
+                                </Border>
+                                <!-- Ticks on RIGHT -->
+                                <VerticalStackLayout Grid.Column="2" ZIndex="15" Spacing="0"
+                                         VerticalOptions="Center" WidthRequest="22" Margin="2,0,0,0">
+                                    <ContentView IsVisible="{Binding TickSymbol, Converter={StaticResource IsEqualToConverter}, ConverterParameter='sent'}"
+                                     WidthRequest="18" HeightRequest="14" HorizontalOptions="End">
+                                        <Path Data="M400-307.5 243.5-464l52.5-52.5 104 104 264-264 52.5 52.5L400-307.5Z"
+                                  Fill="{Binding TickColor}" Stroke="{Binding TickColor}" StrokeThickness="1.2"
+                                  HeightRequest="12" WidthRequest="12" Aspect="Uniform"/>
+                                    </ContentView>
+                                    <ContentView IsVisible="{Binding TickSymbol, Converter={StaticResource IsEqualToConverter}, ConverterParameter='delivered'}"
+                                     WidthRequest="18" HeightRequest="14" HorizontalOptions="End">
+                                        <Path Data="M400-307.5 243.5-464l52.5-52.5 104 104 264-264 52.5 52.5L400-307.5Z"
+                                  Fill="{Binding TickColor}" Stroke="{Binding TickColor}" StrokeThickness="1.2"
+                                  HeightRequest="12" WidthRequest="12" Aspect="Uniform"/>
+                                    </ContentView>
+                                    <ContentView IsVisible="{Binding TickSymbol, Converter={StaticResource IsEqualToConverter}, ConverterParameter='read'}"
+                                     WidthRequest="18" HeightRequest="14" HorizontalOptions="End">
+                                        <Path Data="m425-301 275-275-53-53-222 222-112-112-53 53 165 165Zm55 211q-80.91 0-152.07-30.76-71.15-30.77-123.79-83.5Q151.5-257 120.75-328.09 90-399.17 90-480q0-80.91 30.76-152.07 30.77-71.15 83.5-123.79Q257-808.5 328.09-839.25 399.17-870 480-870q80.91 0 152.07 30.76 71.15 30.77 123.79 83.5Q808.8-703 839.25-631.91 870-560.83 870-480q0 80.91-30.76 152.07-30.77 71.15-83.5 123.79Q703-151.5 631.91-120.75 560.83-90 480-90Zm0-75q131.5 0 223.25-91.75T795-480q0-131.5-91.75-223.25T480-795q-131.5 0-223.25 91.75T165-480q0 131.5 91.75 223.25T480-165Zm0-315Z"
+                                  Fill="{Binding TickColor}" Stroke="{Binding TickColor}" StrokeThickness="1.2"
+                                  HeightRequest="12" WidthRequest="12" Aspect="Uniform"/>
+                                    </ContentView>
+                                </VerticalStackLayout>
+                            </Grid>
+                        </Grid>
+                    </Grid>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+        <!-- Modern Bottom Input Container -->
+        <Grid Grid.Row="4"
+      RowDefinitions="Auto,Auto"
+      Padding="12,8,12,12"
+      x:Name="BottomInputGrid"
+      BackgroundColor="#0E0E12">
+            <Border Grid.Row="0"
+            Stroke="#2A2A38"
+            StrokeThickness="1"
+            BackgroundColor="#1C1C25"
+            StrokeShape="RoundRectangle 24"
+            Padding="4,2">
+
+                <Grid ColumnDefinitions="44,*,44" ColumnSpacing="0">
+
+                    <Grid Grid.Column="0">
+                        <ContentView x:Name="AttachButton"
+                             WidthRequest="44"
+                             HeightRequest="44">
+                            <Grid.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="AttachImageButton_Clicked" />
+                            </Grid.GestureRecognizers>
+                            <Path Data="M480-480ZM233.76-176.5q-24.2 0-40.73-16.53-16.53-16.53-16.53-40.73v-492.48q0-24.2 16.53-40.73 16.53-16.53 40.73-16.53h267.5v25.5H234q-14 0-23 9t-9 23v492q0 14 9 23t23 9h492q14 0 23-9t9-23v-267.5h25.5V-234q0 24.44-16.53 40.97-16.53 16.53-40.73 16.53H233.76Zm50.24-137h392.5L556-474 437-326.5l-76-87-77 100ZM678.5-599v-79.5H599V-704h79.5v-79.5H704v79.5h79.5v25.5H704v79.5h-25.5Z"
+                          Fill="#00B5B5"
+                          HeightRequest="22"
+                          WidthRequest="22"
+                          HorizontalOptions="Center"
+                          VerticalOptions="Center"
+                          Aspect="Uniform" />
+                        </ContentView>
+
+                        <ContentView x:Name="CancelRecordingIcon"
+                             WidthRequest="44"
+                             HeightRequest="44"
+                             IsVisible="False">
+                            <Grid.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="CancelRecording_Clicked" />
+                            </Grid.GestureRecognizers>
+                            <Path Data="M6,6 L18,18 M18,6 L6,18"
+                          Stroke="#FF5252"
+                          StrokeThickness="2.5"
+                          StrokeLineCap="Round"
+                          HeightRequest="22"
+                          WidthRequest="22"
+                          HorizontalOptions="Center"
+                          VerticalOptions="Center" />
+                        </ContentView>
+
+                        <Grid x:Name="CancelActionGrid"
+                      IsVisible="False"
+                      WidthRequest="44"
+                      HeightRequest="44">
+                            <Grid.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="BottomAction_Tapped" CommandParameter="Cancel" />
+                            </Grid.GestureRecognizers>
+                            <Path Data="M19,6.41L17.59,5 12,10.59 6.41,5 5,6.41 10.59,12 5,17.59 6.41,19 12,13.41 17.59,19 19,17.59 13.41,12z"
+                          Fill="#7A7A8C"
+                          HeightRequest="18"
+                          WidthRequest="18"
+                          HorizontalOptions="Center"
+                          VerticalOptions="Center" />
+                        </Grid>
+                    </Grid>
+
+                    <Editor x:Name="MessageEntry"
+                    Placeholder="All Messages Encrypted..."
+                    PlaceholderColor="#555566"
+                    TextColor="#F0EDE8"
+                    Grid.Column="1"
+                    BackgroundColor="Transparent" 
+                    HorizontalOptions="Fill"
+                    VerticalOptions="Center"
+                    FontSize="15"
+                    AutoSize="TextChanges"
+                    MaximumHeightRequest="120"
+                    MinimumHeightRequest="44" />
+
+                    <Grid Grid.Column="2">
+                        <ContentView x:Name="MicIcon"
+                             WidthRequest="44"
+                             HeightRequest="44">
+                            <Grid.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="MicButton_Clicked" />
+                            </Grid.GestureRecognizers>
+                            <Path x:Name="MicPath"
+                          Data="M431.5-471.5Q412-491 412-520v-240q0-29 19.5-48.5T480-828q29 0 48.5 19.5T548-760v240q0 29-19.5 48.5T480-452q-29 0-48.5-19.5ZM480-640Zm-14 494v-146q-91-7-152.5-72T252-520h28q0 83 58.5 141.5T480-320q83 0 141.5-58.5T680-520h28q0 91-61.5 156T494-292v146h-28Zm42.5-345.5Q520-503 520-520v-240q0-17-11.5-28.5T480-800q-17 0-28.5 11.5T440-760v240q0 17 11.5 28.5T480-480q17 0 28.5-11.5Z"
+                          Fill="#00B5B5"
+                          HeightRequest="22"
+                          WidthRequest="22"
+                          HorizontalOptions="Center"
+                          VerticalOptions="Center"
+                          Aspect="Uniform" />
+                        </ContentView>
+
+                        <Grid x:Name="SendActionGrid"
+                      WidthRequest="44"
+                      HeightRequest="44"
+                      IsVisible="False">
+                            <Grid.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="BottomAction_Tapped" CommandParameter="Send" />
+                            </Grid.GestureRecognizers>
+                            <Path Data="M446.5-339h67v-153.5L573-433l47.5-47.5L480-621 339.5-480.5 387-433l59.5-59.5V-339ZM480-106q-76.91 0-145.07-29.26-68.15-29.27-119.29-80.5Q164.5-267 135.25-335.09 106-403.17 106-480q0-77.91 29.26-145.57 29.27-67.65 80.5-118.79Q267-795.5 335.09-824.75 403.17-854 480-854q77.91 0 145.57 29.26 67.65 29.27 118.79 80.5Q795.5-693 824.75-625.41 854-557.83 854-480q0 76.91-29.26 145.07-29.27 68.15-80.5 119.29Q693-164.5 625.41-135.25 557.83-106 480-106Zm0-67q127.5 0 217.25-89.75T787-480q0-127.5-89.75-217.25T480-787q-127.5 0-217.25 89.75T173-480q0 127.5 89.75 217.25T480-173Zm0-307Z"
+                          Fill="#4CAF50"
+                          HeightRequest="26"
+                          WidthRequest="26"
+                          HorizontalOptions="Center"
+                          VerticalOptions="Center"
+                          Aspect="Uniform" />
+                        </Grid>
+                    </Grid>
+                </Grid>
+            </Border>
+
+            <Grid x:Name="EditImagesPreviewGrid"
+          Grid.Row="1"
+          IsVisible="False"
+          BackgroundColor="#1E1E1E"
+          Padding="8"
+          Margin="0,8,0,0"
+          RowDefinitions="Auto,Auto"
+          ColumnDefinitions="*,Auto">
+            </Grid>
+        </Grid>
+        <!-- Image Preview Overlay -->
+        <Grid x:Name="ImagePreviewOverlay"
+IsVisible="False"
+BackgroundColor="#CC000000"
+Grid.RowSpan="5"
+ZIndex="200">
+            <BoxView Color="Transparent">
+                <BoxView.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="CancelPreview_Clicked" />
+                </BoxView.GestureRecognizers>
+            </BoxView>
+            <Frame BackgroundColor="#1E1E1E"
+     CornerRadius="20"
+     Padding="16"
+     VerticalOptions="Center"
+     HorizontalOptions="Center"
+     WidthRequest="360"
+     HeightRequest="480"
+     HasShadow="True">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="Selected Images"
+             TextColor="White"
+             FontSize="16"
+             FontAttributes="Bold"
+             HorizontalOptions="Center"
+             Margin="0,0,0,5"/>
+                    <ScrollView Orientation="Horizontal"
+                  HeightRequest="160">
+                        <HorizontalStackLayout Spacing="6">
+                            <CollectionView x:Name="PreviewImagesCollection"
+                              ItemsSource="{Binding SelectedImages}"
+                              SelectionMode="None"
+                              BackgroundColor="Transparent">
+                                <CollectionView.ItemsLayout>
+                                    <LinearItemsLayout Orientation="Horizontal" ItemSpacing="6" />
+                                </CollectionView.ItemsLayout>
+                                <CollectionView.ItemTemplate>
+                                    <DataTemplate>
+                                        <Frame CornerRadius="10"
+                                 Padding="0"
+                                 HasShadow="True"
+                                 BorderColor="#333333"
+                                 BackgroundColor="Transparent"
+                                 HeightRequest="140"
+                                 WidthRequest="140">
+                                            <Grid>
+                                                <Image Source="{Binding Path}"
+                                         Aspect="AspectFill"
+                                         HorizontalOptions="Fill"
+                                         VerticalOptions="Fill" />
+                                                <Button Text="×"
+                                          FontSize="14"
+                                          FontAttributes="Bold"
+                                          TextColor="White"
+                                          BackgroundColor="#80000000"
+                                          CornerRadius="10"
+                                          WidthRequest="20"
+                                          HeightRequest="20"
+                                          Padding="0"
+                                          Margin="3"
+                                          HorizontalOptions="End"
+                                          VerticalOptions="Start"
+                                          Clicked="RemovePreviewImage_Clicked"
+                                          CommandParameter="{Binding Path}"/>
+                                            </Grid>
+                                        </Frame>
+                                    </DataTemplate>
+                                </CollectionView.ItemTemplate>
+                            </CollectionView>
+                        </HorizontalStackLayout>
+                    </ScrollView>
+                    <Entry x:Name="PreviewCaptionEntry"
+             Placeholder="Add a caption..."
+             TextColor="White"
+             BackgroundColor="#333333"
+             PlaceholderColor="#999999"
+             FontSize="13"
+             HeightRequest="36"
+             Margin="0,5,0,5"/>
+                    <Grid ColumnDefinitions="*,*,*"
+            HeightRequest="44"
+            Margin="0,5,0,0">
+                        <Frame Grid.Column="0"
+                 CornerRadius="18"
+                 WidthRequest="36"
+                 HeightRequest="36"
+                 BackgroundColor="#333333"
+                 Padding="0"
+                 HasShadow="False"
+                 HorizontalOptions="Center"
+                 VerticalOptions="Center">
+                            <Frame.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="CancelPreview_Clicked" />
+                            </Frame.GestureRecognizers>
+                            <Grid>
+                                <Polyline Points="11,11 25,25"
+                            Stroke="#FF5252"
+                            StrokeThickness="2"
+                            StrokeLineCap="Round" />
+                                <Polyline Points="25,11 11,25"
+                            Stroke="#FF5252"
+                            StrokeThickness="2"
+                            StrokeLineCap="Round" />
+                            </Grid>
+                        </Frame>
+                        <Frame Grid.Column="1"
+                 CornerRadius="18"
+                 WidthRequest="36"
+                 HeightRequest="36"
+                 BackgroundColor="#333333"
+                 Padding="0"
+                 HasShadow="False"
+                 HorizontalOptions="Center"
+                 VerticalOptions="Center">
+                            <Frame.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="AddMoreImages_Clicked" />
+                            </Frame.GestureRecognizers>
+                            <Path Data="M480-480ZM233.76-176.5q-24.2 0-40.73-16.53-16.53-16.53-16.53-40.73v-492.48q0-24.2 16.53-40.73 16.53-16.53 40.73-16.53h267.5v25.5H234q-14 0-23 9t-9 23v492q0 14 9 23t23 9h492q14 0 23-9t9-23v-267.5h25.5V-234q0 24.44-16.53 40.97-16.53 16.53-40.73 16.53H233.76Zm50.24-137h392.5L556-474 437-326.5l-76-87-77 100ZM678.5-599v-79.5H599V-704h79.5v-79.5H704v79.5h79.5v25.5H704v79.5h-25.5Z"
+                    Fill="#2196F3"
+                    Stroke="#2196F3"
+                    StrokeThickness="1.2"
+                    HeightRequest="20"
+                    WidthRequest="20"
+                    HorizontalOptions="Center"
+                    VerticalOptions="Center"
+                    Aspect="Uniform" />
+                        </Frame>
+                        <Frame Grid.Column="2"
+                 CornerRadius="18"
+                 WidthRequest="36"
+                 HeightRequest="36"
+                 BackgroundColor="#333333"
+                 Padding="0"
+                 HasShadow="False"
+                 HorizontalOptions="Center"
+                 VerticalOptions="Center">
+                            <Frame.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="SendImages_Clicked" />
+                            </Frame.GestureRecognizers>
+                            <Path Data="M446.5-339h67v-153.5L573-433l47.5-47.5L480-621 339.5-480.5 387-433l59.5-59.5V-339ZM480-106q-76.91 0-145.07-29.26-68.15-29.27-119.29-80.5Q164.5-267 135.25-335.09 106-403.17 106-480q0-77.91 29.26-145.57 29.27-67.65 80.5-118.79Q267-795.5 335.09-824.75 403.17-854 480-854q77.91 0 145.57 29.26 67.65 29.27 118.79 80.5Q795.5-693 824.75-625.41 854-557.83 854-480q0 76.91-29.26 145.07-29.27 68.15-80.5 119.29Q693-164.5 625.41-135.25 557.83-106 480-106Zm0-67q127.5 0 217.25-89.75T787-480q0-127.5-89.75-217.25T480-787q-127.5 0-217.25 89.75T173-480q0 127.5 89.75 217.25T480-173Zm0-307Z"
+                    Fill="#4CAF50"
+                    Stroke="#4CAF50"
+                    StrokeThickness="1.2"
+                    HeightRequest="22"
+                    WidthRequest="22"
+                    HorizontalOptions="Center"
+                    VerticalOptions="Center"
+                    Aspect="Uniform" />
+                        </Frame>
+                    </Grid>
+                </VerticalStackLayout>
+            </Frame>
+        </Grid>
+
+        <!-- Message actions overlay -->
+        <Grid x:Name="ActionsOverlay"
+IsVisible="False"
+BackgroundColor="Transparent"
+Grid.RowSpan="5"
+HorizontalOptions="Fill"
+VerticalOptions="Fill"
+ZIndex="100">
+            <BoxView Color="#80000000" 
+       HorizontalOptions="Fill" 
+       VerticalOptions="Fill">
+                <BoxView.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OverlayBackground_Tapped" />
+                </BoxView.GestureRecognizers>
+            </BoxView>
+            <Border HorizontalOptions="Center"
+      VerticalOptions="Center"
+      Padding="14"
+      BackgroundColor="#2F3337"
+      StrokeThickness="0"
+      StrokeShape="RoundRectangle 12"
+      Margin="16">
+                <ContentPage.Resources>
+                    <Style x:Key="ActionLabelStyle" TargetType="Label">
+                        <Setter Property="TextColor" Value="White"/>
+                        <Setter Property="FontSize" Value="14"/>
+                        <Setter Property="VerticalOptions" Value="Center"/>
+                    </Style>
+                </ContentPage.Resources>
+
+                <ScrollView Orientation="Vertical" HeightRequest="360">
+                    <VerticalStackLayout Spacing="10">
+
+                        <Label x:Name="OverlayPreviewLabel"
+               FontAttributes="Bold"
+               LineBreakMode="TailTruncation"
+               MaxLines="3"
+               TextColor="White"
+               FontSize="16" />
+
+                        <Label Text="Actions"
+               FontSize="12"
+               TextColor="#A8A8A8" />
+
+                        <VerticalStackLayout Spacing="4">
+
+                            <!-- COPY -->
+                            <Grid Padding="10,8" ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                                <Grid.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OverlayAction_Clicked"
+                                          CommandParameter="Copy text" />
+                                </Grid.GestureRecognizers>
+
+                                <ContentView Grid.Column="0" WidthRequest="20" HeightRequest="20">
+                                    <Grid>
+                                        <Rectangle WidthRequest="14" HeightRequest="16"
+                                   Stroke="#008080" StrokeThickness="1.5"
+                                   Margin="4,3,0,0"/>
+                                        <Rectangle WidthRequest="14" HeightRequest="16"
+                                   Stroke="#008080" StrokeThickness="1.5"
+                                   Margin="2,1,0,0"/>
+                                        <Line X1="4" Y1="4" X2="14" Y2="4" Stroke="#008080"/>
+                                        <Line X1="4" Y1="7" X2="14" Y2="7" Stroke="#008080"/>
+                                        <Line X1="4" Y1="10" X2="10" Y2="10" Stroke="#008080"/>
+                                    </Grid>
+                                </ContentView>
+
+                                <Label Grid.Column="1" Text="Copy text"
+                       Style="{StaticResource ActionLabelStyle}" />
+                            </Grid>
+
+                            <BoxView HeightRequest="1" Color="#39393B" />
+
+                            <!-- FORWARD -->
+                            <Grid Padding="10,8" ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                                <Grid.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OverlayAction_Clicked"
+                                          CommandParameter="Forward" />
+                                </Grid.GestureRecognizers>
+
+                                <ContentView Grid.Column="0" WidthRequest="22" HeightRequest="20">
+                                    <Grid>
+                                        <Rectangle WidthRequest="12" HeightRequest="14"
+                                   Stroke="#008080" StrokeThickness="1.5"
+                                   Margin="2,3,0,0"/>
+                                        <Polyline Points="12,10 18,10 16,8 18,10 16,12"
+                                  Stroke="#008080" StrokeThickness="1.8"/>
+                                    </Grid>
+                                </ContentView>
+
+                                <Label Grid.Column="1" Text="Forward"
+                       Style="{StaticResource ActionLabelStyle}" />
+                            </Grid>
+
+                            <BoxView HeightRequest="1" Color="#39393B" />
+
+                            <!-- PIN -->
+                            <Grid Padding="10,8" ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                                <Grid.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OverlayAction_Clicked"
+                                          CommandParameter="Pin" />
+                                </Grid.GestureRecognizers>
+
+                                <ContentView Grid.Column="0" WidthRequest="20" HeightRequest="20">
+                                    <Grid>
+                                        <Path Data="M6,2 L10,2 L10,6 L12,8 L10,10 L10,14 L6,14 L6,10 L4,8 L6,6 Z"
+                              Stroke="#008080" StrokeThickness="1.2"/>
+                                    </Grid>
+                                </ContentView>
+
+                                <Label Grid.Column="1" Text="Pin / Unpin"
+                       Style="{StaticResource ActionLabelStyle}" />
+                            </Grid>
+
+                            <BoxView HeightRequest="1" Color="#39393B" />
+
+                            <!-- STAR -->
+                            <Grid Padding="10,8" ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                                <Grid.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OverlayAction_Clicked"
+                                          CommandParameter="Star" />
+                                </Grid.GestureRecognizers>
+
+                                <ContentView Grid.Column="0" WidthRequest="20" HeightRequest="20">
+                                    <Grid>
+                                        <Polyline Points="10,2 12.5,7 18,7 13.5,10.5 15.5,15 10,12 4.5,15 6.5,10.5 2,7 7.5,7 10,2"
+                                  Stroke="#008080"/>
+                                    </Grid>
+                                </ContentView>
+
+                                <Label Grid.Column="1" Text="Star / Unstar"
+                       Style="{StaticResource ActionLabelStyle}" />
+                            </Grid>
+
+                            <BoxView HeightRequest="1" Color="#39393B" />
+
+                            <!-- EDIT -->
+                            <Grid Padding="10,8" ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                                <Grid.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OverlayAction_Clicked"
+                                          CommandParameter="Edit" />
+                                </Grid.GestureRecognizers>
+
+                                <ContentView Grid.Column="0" WidthRequest="20" HeightRequest="20">
+                                    <Grid>
+                                        <Path Data="M2,14 L2,18 L6,18 L16,8 L12,4 Z M14,6 L16,8"
+                              Stroke="#008080" StrokeThickness="1.5"/>
+                                    </Grid>
+                                </ContentView>
+
+                                <Label Grid.Column="1" Text="Edit"
+                       Style="{StaticResource ActionLabelStyle}" />
+                            </Grid>
+
+                            <BoxView HeightRequest="1" Color="#39393B" />
+
+                            <!-- DELETE -->
+                            <Grid Padding="10,8" ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                                <Grid.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OverlayAction_Clicked"
+                              CommandParameter="Delete" />
+                                </Grid.GestureRecognizers>
+
+                                <ContentView Grid.Column="0" WidthRequest="20" HeightRequest="20">
+                                    <Grid>
+                                        <!-- Top line -->
+                                        <Polyline Points="4,5 16,5"
+                      Stroke="#FF3B6F"
+                      StrokeThickness="1.5"
+                      StrokeLineCap="Round"/>
+
+                                        <!-- Bin body -->
+                                        <Path Data="M15,7 L15,15 A1.5,1.5 0 0 1 13.5,16.5 L6.5,16.5 A1.5,1.5 0 0 1 5,15 L5,7
+                         M8,7 L8,5.5 A1.5,1.5 0 0 1 9.5,4 L10.5,4 A1.5,1.5 0 0 1 12,5.5 L12,7"
+                  Stroke="#FF3B6F"
+                  StrokeThickness="1.5"
+                  StrokeLineCap="Round"
+                  StrokeLineJoin="Round"
+                  Fill="Transparent"/>
+
+                                        <!-- Lines inside -->
+                                        <Line X1="7" Y1="10" X2="13" Y2="10"
+                  Stroke="#FF3B6F"
+                  StrokeThickness="1.2"
+                  StrokeLineCap="Round"/>
+
+                                        <Line X1="7" Y1="13" X2="13" Y2="13"
+                  Stroke="#FF3B6F"
+                  StrokeThickness="1.2"
+                  StrokeLineCap="Round"/>
+                                    </Grid>
+                                </ContentView>
+
+                                <Label Grid.Column="1"
+           Text="Delete"
+           Style="{StaticResource ActionLabelStyle}" />
+                            </Grid>
+                            <BoxView HeightRequest="1" Color="#39393B" />
+
+                            <!-- REPORT -->
+                            <Grid Padding="10,8" ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                                <Grid.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OverlayAction_Clicked"
+                                          CommandParameter="Report" />
+                                </Grid.GestureRecognizers>
+
+                                <ContentView Grid.Column="0" WidthRequest="18" HeightRequest="20">
+                                    <Grid>
+                                        <Line X1="4" Y1="4" X2="4" Y2="18" Stroke="#008080"/>
+                                        <Path Data="M4,5 L14,5 L11,9 L14,13 L4,13 Z"
+                              Stroke="#008080"/>
+                                    </Grid>
+                                </ContentView>
+
+                                <Label Grid.Column="1" Text="Report"
+                       Style="{StaticResource ActionLabelStyle}" />
+                            </Grid>
+
+                        </VerticalStackLayout>
+                    </VerticalStackLayout>
+                </ScrollView>
+            </Border>
+        </Grid>
+
+        <!-- ── Loading Overlay ── -->
+        <Grid x:Name="LoadingOverlay"
+Grid.Row="0"
+Grid.RowSpan="5"
+BackgroundColor="#0B0B10"
+ZIndex="9999"
+IsVisible="True">
+
+            <Ellipse WidthRequest="260" HeightRequest="260"
+       HorizontalOptions="Center" VerticalOptions="Center">
+                <Ellipse.Fill>
+                    <RadialGradientBrush Center="0.5,0.5" Radius="0.5">
+                        <GradientStop Color="#1AFF3B6F" Offset="0.0"/>
+                        <GradientStop Color="#00FF3B6F" Offset="1.0"/>
+                    </RadialGradientBrush>
+                </Ellipse.Fill>
+            </Ellipse>
+
+            <VerticalStackLayout HorizontalOptions="Center" VerticalOptions="Center" Spacing="0">
+
+                <Grid WidthRequest="80" HeightRequest="80"
+        HorizontalOptions="Center" Margin="0,0,0,24">
+
+                    <Ellipse x:Name="ChatSpinRing"
+               WidthRequest="80" HeightRequest="80"
+               Stroke="#33FF3B6F" StrokeThickness="1.5"
+               HorizontalOptions="Center" VerticalOptions="Center"/>
+
+                    <Ellipse x:Name="ChatRingDot"
+               WidthRequest="7" HeightRequest="7"
+               Fill="#FF3B6F"
+               HorizontalOptions="Center" VerticalOptions="Start"/>
+
+                    <Image x:Name="ChatHeartIcon"
+             Source="heart_solid.png"
+             WidthRequest="28" HeightRequest="28"
+             HorizontalOptions="Center" VerticalOptions="Center"/>
+                </Grid>
+
+                <Label Text="OS"
+         FontFamily="CormorantGaramond-Light"
+         FontSize="32" TextColor="#F5F0FF"
+         CharacterSpacing="2"
+         HorizontalOptions="Center"
+         Margin="0,0,0,4"/>
+
+                <Label Text="FIND YOUR PERSON"
+         FontFamily="DMSans-Regular"
+         FontSize="10" TextColor="#5A5A72"
+         CharacterSpacing="4"
+         HorizontalOptions="Center"
+         Margin="0,0,0,44"/>
+
+                <HorizontalStackLayout HorizontalOptions="Center" Spacing="8">
+                    <Ellipse x:Name="ChatDot1" WidthRequest="6" HeightRequest="6" Fill="#3A3A4C"/>
+                    <Ellipse x:Name="ChatDot2" WidthRequest="6" HeightRequest="6" Fill="#3A3A4C"/>
+                    <Ellipse x:Name="ChatDot3" WidthRequest="6" HeightRequest="6" Fill="#3A3A4C"/>
+                    <Ellipse x:Name="ChatDot4" WidthRequest="6" HeightRequest="6" Fill="#3A3A4C"/>
+                    <Ellipse x:Name="ChatDot5" WidthRequest="6" HeightRequest="6" Fill="#3A3A4C"/>
+                </HorizontalStackLayout>
+            </VerticalStackLayout>
+
+            <Label Text="Loading messages"
+     FontFamily="DMSans-Regular"
+     FontSize="10" TextColor="#3A3A4C"
+     CharacterSpacing="3"
+     HorizontalOptions="Center"
+     VerticalOptions="End"
+     Margin="0,0,0,52"/>
+        </Grid>
+
+        <!-- Full Screen Image Viewer Overlay -->
+        <Grid x:Name="FullScreenImageOverlay"
+IsVisible="False"
+BackgroundColor="#000000"
+Grid.RowSpan="5"
+ZIndex="1000">
+            <Grid.GestureRecognizers>
+                <TapGestureRecognizer Tapped="FullScreenOverlay_Tapped" />
+            </Grid.GestureRecognizers>
+
+            <!-- Top bar -->
+            <Grid HorizontalOptions="Fill"
+    VerticalOptions="Start"
+    HeightRequest="56"
+    Padding="12,0"
+    ZIndex="1001">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="36" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="36" />
+                </Grid.ColumnDefinitions>
+
+                <Button Grid.Column="0"
+          Text="✕"
+          FontSize="16"
+          TextColor="White"
+          BackgroundColor="#60000000"
+          WidthRequest="36"
+          HeightRequest="36"
+          CornerRadius="18"
+          HorizontalOptions="Start"
+          VerticalOptions="Center"
+          Clicked="CloseFullScreenImage_Clicked"
+          Padding="0" />
+
+                <Label x:Name="ImageCounterLabel"
+         Grid.Column="1"
+         Text="1 / 5"
+         FontSize="12"
+         TextColor="White"
+         HorizontalOptions="Center"
+         VerticalOptions="Center" />
+
+                <Button Grid.Column="2"
+          Text="⬇"
+          FontSize="16"
+          TextColor="White"
+          BackgroundColor="#60000000"
+          WidthRequest="36"
+          HeightRequest="36"
+          CornerRadius="18"
+          HorizontalOptions="End"
+          VerticalOptions="Center"
+          Clicked="DownloadImage_Clicked"
+          Padding="0" />
+            </Grid>
+
+            <!-- Main Image CollectionView -->
+            <CollectionView x:Name="FullScreenImageCollection"
+              ItemsSource="{Binding FullScreenImages}"
+              SelectedItem="{Binding SelectedFullScreenImage}"
+              SelectionMode="Single"
+              HorizontalOptions="Fill"
+              VerticalOptions="Fill"
+              BackgroundColor="Black"
+              Margin="0,56,0,72">
+                <CollectionView.ItemsLayout>
+                    <LinearItemsLayout Orientation="Horizontal" ItemSpacing="0"/>
+                </CollectionView.ItemsLayout>
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+                        <Grid BackgroundColor="Black"
+                WidthRequest="{Binding Source={RelativeSource AncestorType={x:Type ContentPage}}, Path=Width}">
+                            <Image Source="{Binding Path}"
+                     Aspect="AspectFit"
+                     HorizontalOptions="Fill"
+                     VerticalOptions="Fill"/>
+                        </Grid>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+
+            <!-- Navigation buttons -->
+            <HorizontalStackLayout HorizontalOptions="Center"
+                     VerticalOptions="End"
+                     Spacing="10"
+                     Margin="0,0,0,16"
+                     ZIndex="1001">
+                <Button Text="◀"
+          FontSize="14"
+          TextColor="White"
+          BackgroundColor="#50000000"
+          WidthRequest="38"
+          HeightRequest="38"
+          CornerRadius="19"
+          Clicked="PreviousImage_Clicked"
+          Padding="0" />
+                <Button Text="▶"
+          FontSize="14"
+          TextColor="White"
+          BackgroundColor="#50000000"
+          WidthRequest="38"
+          HeightRequest="38"
+          CornerRadius="19"
+          Clicked="NextImage_Clicked"
+          Padding="0" />
+            </HorizontalStackLayout>
+        </Grid>
+        <!-- Top pulse animation -->
+        <BoxView x:Name="ActionPulse"
+           Grid.Row="0"
+           HeightRequest="2"
+           Color="#FF3B6F"
+           HorizontalOptions="Fill"
+           VerticalOptions="Start"
+           IsVisible="False"
+           Opacity="0"
+           ZIndex="1000" />
+
+       
+    </Grid>
+</ContentPage>

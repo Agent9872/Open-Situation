@@ -1,0 +1,789 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:models="clr-namespace:Lock.Models"
+             xmlns:conv="clr-namespace:Lock.Converter.Post"
+             xmlns:local="clr-namespace:Lock.Pages.Post"
+             x:Class="Lock.Pages.Post.CommentsPage"
+             Title="Comments"
+             BackgroundColor="#0E0E12">
+
+    <ContentPage.Resources>
+        <conv:LoveIconColorConverter x:Key="LoveIconColorConverter" />
+        <conv:StringNotNullOrEmptyConverter x:Key="StringNotNullOrEmptyConverter" />
+        <conv:ListNotEmptyConverter x:Key="ListNotEmptyConverter" />
+        <conv:GreaterThanZeroConverter x:Key="GreaterThanZeroConverter" />
+        <conv:CommentCountConverter x:Key="CommentCountConverter" />
+        <conv:InverseBoolConverter x:Key="InverseBoolConverter" />
+        <local:ImagePathConverter x:Key="ImagePathConverter" />
+        <local:DefaultImageConverter x:Key="DefaultImageConverter" />
+
+        <!-- ===== COMMENT WITH ACTIONS TEMPLATE ===== -->
+        <DataTemplate x:Key="CommentWithActionsTemplate">
+            <VerticalStackLayout Spacing="0">
+                <Border BackgroundColor="#16161C"
+                        StrokeThickness="1" Stroke="#1C1C25"
+                        StrokeShape="RoundRectangle 16"
+                        Padding="14,12"
+                        Margin="0,6,0,0">
+                    <Grid ColumnSpacing="12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="40" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <!-- Avatar -->
+                        <Grid Grid.Column="0" Grid.Row="0"
+                              WidthRequest="40" HeightRequest="40"
+                              VerticalOptions="Start">
+                            <Ellipse WidthRequest="40" HeightRequest="40" StrokeThickness="2">
+                                <Ellipse.Stroke>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                        <GradientStop Color="#FF3B6F" Offset="0" />
+                                        <GradientStop Color="#00B5B5" Offset="1" />
+                                    </LinearGradientBrush>
+                                </Ellipse.Stroke>
+                            </Ellipse>
+                            <Frame WidthRequest="34" HeightRequest="34"
+                                   CornerRadius="17" Padding="0"
+                                   IsClippedToBounds="True" HasShadow="False"
+                                   BackgroundColor="#1C1C25" BorderColor="Transparent"
+                                   HorizontalOptions="Center" VerticalOptions="Center">
+                                <Image Source="{Binding AuthorProfileImagePath}"
+                                       Aspect="AspectFill"
+                                       HeightRequest="34" WidthRequest="34" />
+                            </Frame>
+                        </Grid>
+
+                        <!-- Name + time + content -->
+                        <VerticalStackLayout Grid.Column="1" Grid.Row="0"
+                                             Spacing="4" VerticalOptions="Start">
+                            <HorizontalStackLayout Spacing="6" VerticalOptions="Center">
+                                <HorizontalStackLayout.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OnAuthorNameTapped"
+                                                          CommandParameter="{Binding .}" />
+                                </HorizontalStackLayout.GestureRecognizers>
+                                <Label Text="{Binding AuthorDisplayName}"
+                                       FontAttributes="Bold"
+                                       TextColor="#F0EDE8"
+                                       FontSize="14" VerticalOptions="Center" />
+                                <Label Text="·" FontSize="12" TextColor="#3A3A4A"
+                                       VerticalOptions="Center" />
+                                <Label Text="{Binding CreatedAtRelative}"
+                                       TextColor="#00B5B5"
+                                       FontSize="11"
+                                       VerticalOptions="Center" />
+                            </HorizontalStackLayout>
+                            <Label Text="{Binding Content}"
+                                   TextColor="#D0CEC8"
+                                   FontSize="14"
+                                   LineHeight="1.5"
+                                   LineBreakMode="WordWrap" />
+                        </VerticalStackLayout>
+
+                        <!-- Three-dot menu -->
+                        <Button Grid.Column="2" Grid.Row="0"
+                                Text="⋮"
+                                FontSize="18"
+                                BackgroundColor="Transparent"
+                                TextColor="#5A5A6A"
+                                WidthRequest="32" HeightRequest="32"
+                                VerticalOptions="Start"
+                                HorizontalOptions="End"
+                                IsVisible="{Binding IsOwnedByCurrentUser}"
+                                Clicked="OnMenuButtonClicked"
+                                CommandParameter="{Binding .}" />
+
+                        <!-- Love + Reply actions -->
+                        <HorizontalStackLayout Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2"
+                                               Spacing="4"
+                                               Margin="0,8,0,0"
+                                               HorizontalOptions="Start">
+                            <!-- Love Button -->
+                            <Border BackgroundColor="#0E0E12" StrokeThickness="1" Stroke="#2A2A38"
+                                    StrokeShape="RoundRectangle 16" Padding="10,5">
+                                <Border.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OnLoveTapped"
+                                                          CommandParameter="{Binding .}" />
+                                </Border.GestureRecognizers>
+                                <HorizontalStackLayout Spacing="5">
+                                    <Label Text="❤️" 
+                                           FontSize="15"
+                                           TextColor="{Binding LoveIconColor}"
+                                           VerticalOptions="Center" 
+                                           HorizontalOptions="Center" />
+                                    <Label Text="{Binding LoveCountDisplay}"
+                                           FontSize="11" FontAttributes="Bold"
+                                           TextColor="{Binding LoveIconColor}"
+                                           VerticalOptions="Center" />
+                                </HorizontalStackLayout>
+                            </Border>
+
+                            <!-- Reply Button -->
+                            <Border BackgroundColor="#0E0E12" StrokeThickness="1" Stroke="#2A2A38"
+                                    StrokeShape="RoundRectangle 16" Padding="10,5">
+                                <Border.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OnReplyTapped"
+                                                          CommandParameter="{Binding .}" />
+                                </Border.GestureRecognizers>
+                                <HorizontalStackLayout Spacing="5">
+                                    <Path Data="M269-428.5h422V-454H269v25.5Zm0-119h422V-573H269v25.5Zm0-119h422V-692H269v25.5Zm554 479-109-109H194.28q-24.22 0-40.75-16.53T137-353.8v-412.4q0-24.24 16.53-40.77 16.53-16.53 40.75-16.53h571.44q24.22 0 40.75 16.53T823-766.06v578.56ZM194.5-322H725l72.5 73v-517q0-12-10-22t-22-10h-571q-12 0-22 10t-10 22v412q0 12 10 22t22 10Zm-32 0v-476 476Z"
+                                          Fill="#5A5A6A"
+                                          HeightRequest="14" WidthRequest="14"
+                                          HorizontalOptions="Center" VerticalOptions="Center"
+                                          Aspect="Uniform" />
+                                    <Label Text="Reply"
+                                           FontSize="11" FontAttributes="Bold"
+                                           TextColor="#5A5A6A"
+                                           VerticalOptions="Center" />
+                                </HorizontalStackLayout>
+                            </Border>
+                        </HorizontalStackLayout>
+                    </Grid>
+                </Border>
+            </VerticalStackLayout>
+        </DataTemplate>
+
+        <!-- ===== SIMPLE COMMENT TEMPLATE ===== -->
+        <DataTemplate x:Key="CommentTemplate">
+            <VerticalStackLayout Spacing="0">
+                <Border BackgroundColor="#16161C"
+                        StrokeThickness="1" Stroke="#1C1C25"
+                        StrokeShape="RoundRectangle 16"
+                        Padding="14,12"
+                        Margin="0,6,0,0">
+                    <Grid ColumnSpacing="12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="40" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Avatar -->
+                        <Grid Grid.Column="0"
+                              WidthRequest="40" HeightRequest="40"
+                              VerticalOptions="Start">
+                            <Ellipse WidthRequest="40" HeightRequest="40" StrokeThickness="2">
+                                <Ellipse.Stroke>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                        <GradientStop Color="#FF3B6F" Offset="0" />
+                                        <GradientStop Color="#00B5B5" Offset="1" />
+                                    </LinearGradientBrush>
+                                </Ellipse.Stroke>
+                            </Ellipse>
+                            <Frame WidthRequest="34" HeightRequest="34"
+                                   CornerRadius="17" Padding="0"
+                                   IsClippedToBounds="True" HasShadow="False"
+                                   BackgroundColor="#1C1C25" BorderColor="Transparent"
+                                   HorizontalOptions="Center" VerticalOptions="Center">
+                                <Image Source="{Binding AuthorProfileImagePath}"
+                                       Aspect="AspectFill"
+                                       HeightRequest="34" WidthRequest="34" />
+                            </Frame>
+                        </Grid>
+
+                        <!-- Name + time + content -->
+                        <VerticalStackLayout Grid.Column="1"
+                                             Spacing="4" VerticalOptions="Start">
+                            <HorizontalStackLayout Spacing="6" VerticalOptions="Center">
+                                <HorizontalStackLayout.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OnAuthorNameTapped"
+                                                          CommandParameter="{Binding .}" />
+                                </HorizontalStackLayout.GestureRecognizers>
+                                <Label Text="{Binding AuthorDisplayName}"
+                                       FontAttributes="Bold"
+                                       TextColor="#F0EDE8"
+                                       FontSize="14" VerticalOptions="Center" />
+                                <Label Text="·" FontSize="12" TextColor="#3A3A4A"
+                                       VerticalOptions="Center" />
+                                <Label Text="{Binding CreatedAtRelative}"
+                                       TextColor="#00B5B5"
+                                       FontSize="11"
+                                       VerticalOptions="Center" />
+                            </HorizontalStackLayout>
+                            <Label Text="{Binding Content}"
+                                   TextColor="#D0CEC8"
+                                   FontSize="14"
+                                   LineHeight="1.5"
+                                   LineBreakMode="WordWrap" />
+                        </VerticalStackLayout>
+                    </Grid>
+                </Border>
+            </VerticalStackLayout>
+        </DataTemplate>
+
+        <!-- ===== POST HEADER TEMPLATE ===== -->
+        <DataTemplate x:Key="PostHeaderTemplate">
+            <Grid>
+                <BoxView WidthRequest="3" BackgroundColor="#00B5B5" Opacity="0.25"
+                         HorizontalOptions="Start" VerticalOptions="Fill" />
+
+                <VerticalStackLayout Spacing="0" Padding="14,12,14,0">
+                    <VerticalStackLayout.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnCommentButtonTapped" CommandParameter="{Binding .}" />
+                    </VerticalStackLayout.GestureRecognizers>
+
+                    <Grid ColumnDefinitions="46,*" ColumnSpacing="10">
+                        <!-- Avatar -->
+                        <Grid Grid.Column="0" WidthRequest="42" HeightRequest="42">
+                            <Ellipse WidthRequest="42" HeightRequest="42" StrokeThickness="2">
+                                <Ellipse.Stroke>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                        <GradientStop Color="#FF3B6F" Offset="0" />
+                                        <GradientStop Color="#00B5B5" Offset="1" />
+                                    </LinearGradientBrush>
+                                </Ellipse.Stroke>
+                            </Ellipse>
+                            <Frame WidthRequest="36" HeightRequest="36"
+                                   CornerRadius="18" Padding="0"
+                                   IsClippedToBounds="True" HasShadow="False"
+                                   BackgroundColor="#1C1C25" BorderColor="Transparent"
+                                   VerticalOptions="Center" HorizontalOptions="Center">
+                                <Frame.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OnAuthorNameTapped" CommandParameter="{Binding .}" />
+                                </Frame.GestureRecognizers>
+                                <Image Source="{Binding AuthorProfileImagePath}" Aspect="AspectFill"
+                                       HeightRequest="36" WidthRequest="36" />
+                            </Frame>
+                            <Ellipse WidthRequest="10" HeightRequest="10" Fill="#22C55E"
+                                     HorizontalOptions="End" VerticalOptions="End" Margin="0,0,1,1" />
+                        </Grid>
+
+                        <!-- Name and info -->
+                        <VerticalStackLayout Grid.Column="1" Spacing="2" VerticalOptions="Center">
+                            <HorizontalStackLayout Spacing="5" VerticalOptions="Center">
+                                <Label Text="{Binding AuthorDisplayName}"
+                                       FontAttributes="Bold" FontSize="14" TextColor="#F0EDE8" />
+                                <Border BackgroundColor="#2A1520" StrokeThickness="1" Stroke="#FF3B6F"
+                                        StrokeShape="RoundRectangle 8" Padding="7,2"
+                                        IsVisible="{Binding AuthorMood, Converter={StaticResource StringNotNullOrEmptyConverter}}">
+                                    <Label Text="{Binding AuthorMood}" FontSize="10"
+                                           FontAttributes="Bold" TextColor="#FF3B6F" />
+                                </Border>
+                                <Label Text="·" FontSize="12" TextColor="#3A3A4A" />
+                                <Label Text="{Binding CreatedAtRelative}" FontSize="11" TextColor="#00B5B5" />
+                            </HorizontalStackLayout>
+                            <HorizontalStackLayout Spacing="5" VerticalOptions="Center">
+                                <Label Text="{Binding AuthorPhone}" FontSize="11" TextColor="#008080" />
+                                <Label Text="·" FontSize="11" TextColor="#3A3A4A"
+                                       IsVisible="{Binding MatchPercent, Converter={StaticResource GreaterThanZeroConverter}}" />
+                                <Label FontSize="11" FontAttributes="Bold" TextColor="#22C55E"
+                                       IsVisible="{Binding MatchPercent, Converter={StaticResource GreaterThanZeroConverter}}">
+                                    <Label.Text>
+                                        <Binding Path="MatchPercent" StringFormat="{}{0}% match" />
+                                    </Label.Text>
+                                </Label>
+                            </HorizontalStackLayout>
+                        </VerticalStackLayout>
+
+                        <!-- Menu -->
+                        <Grid Grid.Column="2"
+                              WidthRequest="32" HeightRequest="32"
+                              HorizontalOptions="End" VerticalOptions="Center">
+                            <Grid.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="OnPostMenuButtonClicked"
+                                                      CommandParameter="{Binding .}" />
+                            </Grid.GestureRecognizers>
+                            <Path Data="M264-452q-11.55 0-19.77-8.23Q236-468.45 236-480q0-11.55 8.23-19.77Q252.45-508 264-508q11.55 0 19.77 8.23Q292-491.55 292-480q0 11.55-8.23 19.77Q275.55-452 264-452Zm216 0q-11.55 0-19.77-8.23Q452-468.45 452-480q0-11.55 8.23-19.77Q468.45-508 480-508q11.55 0 19.77 8.23Q508-491.55 508-480q0 11.55-8.23 19.77Q491.55-452 480-452Zm216 0q-11.55 0-19.78-8.23Q668-468.45 668-480q0-11.55 8.22-19.77Q684.45-508 696-508t19.78 8.23Q724-491.55 724-480q0 11.55-8.22 19.77Q707.55-452 696-452Z"
+                                  Fill="#7A7A8C"
+                                  HeightRequest="20" WidthRequest="20"
+                                  HorizontalOptions="Center" VerticalOptions="Center"
+                                  Aspect="Uniform" />
+                        </Grid>
+                    </Grid>
+
+                    <!-- Post Content Area -->
+                    <VerticalStackLayout Spacing="8" Margin="0,10,0,0">
+                        <!-- Category -->
+                        <Border BackgroundColor="#1A0D20" StrokeThickness="1" Stroke="#FF3B6F"
+                                StrokeShape="RoundRectangle 10" Padding="9,4"
+                                HorizontalOptions="Start"
+                                IsVisible="{Binding Category, Converter={StaticResource StringNotNullOrEmptyConverter}}">
+                            <HorizontalStackLayout Spacing="4">
+                                <Label Text="💝" FontSize="11" />
+                                <Label Text="{Binding Category}" FontSize="11"
+                                       FontAttributes="Bold" TextColor="#FF3B6F" />
+                            </HorizontalStackLayout>
+                        </Border>
+
+                        <!-- Post Text + Images + Link Preview -->
+                        <Border StrokeThickness="0" Stroke="#2A2A38"
+                                StrokeShape="RoundRectangle 12"
+                                BackgroundColor="Transparent"
+                                Padding="16,10,12,10"
+                                Margin="0,8,0,8">
+                            <VerticalStackLayout Spacing="6">
+                                <!-- Post text -->
+                                <Label FontSize="14" LineBreakMode="WordWrap"
+       TextColor="#F0EDE8" LineHeight="1.5"
+       FormattedText="{Binding ToggleFormatted}"
+       IsVisible="{Binding NeedsToggle}" />
+
+                                <Label FontSize="14" LineBreakMode="WordWrap"
+       TextColor="#F0EDE8" LineHeight="1.5"
+       FormattedText="{Binding DisplayFormatted}"
+       IsVisible="{Binding NeedsToggle, Converter={StaticResource InverseBoolConverter}}" />
+
+                                <!-- Read more toggle -->
+                                <Label Text="{Binding DisplayToggleText}"
+                                       FontSize="12" FontAttributes="Bold"
+                                       TextColor="#60A5FA"
+                                       IsVisible="{Binding NeedsToggle}"
+                                       HorizontalOptions="Start">
+                                    <Label.GestureRecognizers>
+                                        <TapGestureRecognizer Tapped="OnToggleExpandClicked"
+                                                              CommandParameter="{Binding .}" />
+                                    </Label.GestureRecognizers>
+                                </Label>
+
+                                <!-- Images ScrollView -->
+                                <ScrollView Orientation="Horizontal" HeightRequest="260"
+                                            HorizontalScrollBarVisibility="Never"
+                                            Margin="0,4,0,0"
+                                            IsVisible="{Binding ImagePathsList, Converter={StaticResource ListNotEmptyConverter}}">
+                                    <HorizontalStackLayout Spacing="6" Padding="0,0,4,0">
+                                        <BindableLayout.ItemsSource>
+                                            <Binding Path="ImagePathsList" />
+                                        </BindableLayout.ItemsSource>
+                                        <BindableLayout.ItemTemplate>
+                                            <DataTemplate x:DataType="x:String">
+                                                <Frame WidthRequest="175" HeightRequest="250"
+                                                       CornerRadius="14" Padding="0"
+                                                       IsClippedToBounds="True" HasShadow="False"
+                                                       BackgroundColor="#1C1C25" BorderColor="#2A2A38">
+                                                    <Frame.GestureRecognizers>
+                                                        <TapGestureRecognizer Tapped="OnPostImageTapped"
+                                                                              CommandParameter="{Binding .}" />
+                                                    </Frame.GestureRecognizers>
+                                                    <Image Source="{Binding .}" Aspect="AspectFill"
+                                                           HeightRequest="250" WidthRequest="175" />
+                                                </Frame>
+                                            </DataTemplate>
+                                        </BindableLayout.ItemTemplate>
+                                    </HorizontalStackLayout>
+                                </ScrollView>
+
+                                <!-- Link Preview -->
+                                <Border BackgroundColor="#13131A"
+                                        StrokeThickness="1" Stroke="#2A2A38"
+                                        StrokeShape="RoundRectangle 14"
+                                        Padding="0"
+                                        IsVisible="{Binding HasLinkPreview}"
+                                        Margin="0,8,0,4">
+                                    <Border.GestureRecognizers>
+                                        <TapGestureRecognizer Tapped="OnLinkPreviewTapped"
+                                                              CommandParameter="{Binding FirstUrl}" />
+                                    </Border.GestureRecognizers>
+                                    <VerticalStackLayout Spacing="0">
+                                        <Image Source="{Binding PreviewImageUrl}"
+                                               Aspect="AspectFill" HeightRequest="160"
+                                               HorizontalOptions="Fill"
+                                               IsVisible="{Binding PreviewHasImage}"
+                                               BackgroundColor="#1C1C25" />
+                                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10"
+                                              Padding="12,10" BackgroundColor="#13131A">
+                                            <Image Grid.Column="0" Source="{Binding PreviewFaviconUrl}"
+                                                   WidthRequest="16" HeightRequest="16"
+                                                   Aspect="AspectFit" VerticalOptions="Start" />
+                                            <VerticalStackLayout Grid.Column="1" Spacing="2">
+                                                <Label Text="{Binding PreviewSiteName}"
+                                                       FontSize="10" FontAttributes="Bold"
+                                                       TextColor="#00B5B5"
+                                                       LineBreakMode="TailTruncation" />
+                                                <Label Text="{Binding PreviewTitle}"
+                                                       FontSize="13" FontAttributes="Bold"
+                                                       TextColor="#F0EDE8"
+                                                       LineBreakMode="TailTruncation" MaxLines="2" />
+                                                <Label Text="{Binding PreviewDescription}"
+                                                       FontSize="11" TextColor="#8A8A9A"
+                                                       LineBreakMode="TailTruncation" MaxLines="2"
+                                                       IsVisible="{Binding PreviewDescription,
+                                                           Converter={StaticResource StringNotNullOrEmptyConverter}}" />
+                                            </VerticalStackLayout>
+                                        </Grid>
+                                    </VerticalStackLayout>
+                                </Border>
+                            </VerticalStackLayout>
+                        </Border>
+
+                        <BoxView HeightRequest="1" BackgroundColor="#1C1C25" Margin="0,2,0,0" />
+                    </VerticalStackLayout>
+
+                    <!-- INTERACTION BAR WITH LOVE BUTTON -->
+                    <ScrollView Orientation="Horizontal" HorizontalScrollBarVisibility="Never" Margin="0,6,0,10">
+                        <HorizontalStackLayout Spacing="6">
+
+                            <!-- Comment Button -->
+                            <Border BackgroundColor="#16161C" StrokeThickness="1" Stroke="#2A2A38"
+                        StrokeShape="RoundRectangle 20" Padding="12,7">
+                                <Border.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OnCommentButtonTapped" CommandParameter="{Binding .}" />
+                                </Border.GestureRecognizers>
+                                <HorizontalStackLayout Spacing="5">
+                                    <Path Data="M269-428.5h422V-454H269v25.5Zm0-119h422V-573H269v25.5Zm0-119h422V-692H269v25.5Zm554 479-109-109H194.28q-24.22 0-40.75-16.53T137-353.8v-412.4q0-24.24 16.53-40.77 16.53-16.53 40.75-16.53h571.44q24.22 0 40.75 16.53T823-766.06v578.56ZM194.5-322H725l72.5 73v-517q0-12-10-22t-22-10h-571q-12 0-22 10t-10 22v412q0 12 10 22t22 10Zm-32 0v-476 476Z"
+                              Fill="#7A7A8C" Stroke="#7A7A8C" StrokeThickness="1"
+                              HeightRequest="14" WidthRequest="14" Aspect="Uniform" />
+                                    <Label TextColor="#7A7A8C" FontSize="12" FontAttributes="Bold" VerticalOptions="Center">
+                                        <Label.Text>
+                                            <Binding Path="CommentCount" StringFormat="{}{0}" FallbackValue="0" />
+                                        </Label.Text>
+                                    </Label>
+                                </HorizontalStackLayout>
+                            </Border>
+
+                            <!-- Love Button for Post -->
+                            <Border BackgroundColor="#16161C" StrokeThickness="1" Stroke="#2A2A38"
+StrokeShape="RoundRectangle 20" Padding="12,7">
+                                <Border.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OnLovePostTapped" CommandParameter="{Binding .}" />
+                                </Border.GestureRecognizers>
+                                <HorizontalStackLayout Spacing="5">
+                                    <Path Data="M480-195.5 460-214q-96.13-88.18-159.07-150.59Q238-427 201.72-473.9q-36.29-46.9-50.5-84.48Q137-595.95 137-633.5q0-69.5 47.5-117t117-47.5q52.47 0 97.98 28.5Q445-741 480-685.5q35.5-55.5 80.75-84T658.5-798q69.5 0 117 47.44Q823-703.11 823-633.69q0 37.73-14.22 75.31-14.21 37.58-50.46 84.42-36.25 46.85-98.9 109.37Q596.77-302.07 500-214l-20 18.5Z"
+      Fill="{Binding LoveIconColor}" Stroke="{Binding LoveIconColor}"
+      StrokeThickness="1" HeightRequest="14" WidthRequest="14" Aspect="Uniform" />
+                                    <Label Text="{Binding LoveCountDisplay}"
+       TextColor="{Binding LoveIconColor}"
+       FontSize="12" FontAttributes="Bold" VerticalOptions="Center"
+       IsVisible="{Binding LoveCount, Converter={StaticResource GreaterThanZeroConverter}}" />
+                                </HorizontalStackLayout>
+                            </Border>
+                            <!-- Spark Button -->
+                            <Border BackgroundColor="#16161C" StrokeThickness="1" Stroke="#2A2A38"
+                        StrokeShape="RoundRectangle 20" Padding="12,7">
+                                <Border.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OnSparkPostTapped" CommandParameter="{Binding .}" />
+                                </Border.GestureRecognizers>
+                                <HorizontalStackLayout Spacing="5">
+                                    <Label Text="⚡" FontSize="14" TextColor="{Binding SparkIconColor}" VerticalOptions="Center" />
+                                    <Label Text="{Binding SparkCountDisplay}"
+                               TextColor="{Binding SparkIconColor}"
+                               FontSize="12" FontAttributes="Bold"
+                               VerticalOptions="Center"
+                               IsVisible="{Binding SparkCount, Converter={StaticResource GreaterThanZeroConverter}}" />
+                                </HorizontalStackLayout>
+                            </Border>
+
+                            <!-- Share Button -->
+                            <Border BackgroundColor="#16161C" StrokeThickness="1" Stroke="#2A2A38"
+                        StrokeShape="RoundRectangle 20" Padding="12,7">
+                                <Border.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OnSharePostTapped" CommandParameter="{Binding .}" />
+                                </Border.GestureRecognizers>
+                                <Path Data="M657.35-153q-36.35 0-61.1-24.85Q571.5-202.71 571.5-239q0-10 7.5-32L302.5-424q-12 14-28.94 22t-36.3 8q-35.11 0-59.68-25.27Q153-444.54 153-479.77q0-35.23 24.65-60.73Q202.29-566 237.5-566q19.23 0 36 7.87 16.78 7.86 28.5 21.63l245-152.08q-3.5-7.42-5.5-15.73t-2-17.19q0-35.63 24.9-60.56 24.89-24.94 61-24.94 36.1 0 60.85 25.04T711-721.15q0 35.98-24.96 60.82-24.96 24.83-60.62 24.83-19.69 0-35.8-8.25-16.11-8.25-28.12-22.75L317-513.5q3 8 5.25 16.63 2.25 8.62 2.25 16.95 0 8.32-2 16.58-2 8.27-5 16.28L561.5-294q11.79-14 28.06-22.5t35.86-8.5q35.66 0 60.62 25.25T711-239q0 36.5-24.98 61.25T657.35-153Z"
+                          Fill="#7A7A8C" Stroke="#7A7A8C" StrokeThickness="1"
+                          HeightRequest="14" WidthRequest="14" Aspect="Uniform" />
+                            </Border>
+
+                            <!-- Add to List Button -->
+                            <Border BackgroundColor="#16161C" StrokeThickness="1" Stroke="#2A2A38"
+                        StrokeShape="RoundRectangle 20" Padding="12,7">
+                                <Border.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OnAddToListTapped" CommandParameter="{Binding .}" />
+                                </Border.GestureRecognizers>
+                                <Path Data="M480-296.33 252-198v-590h268v28H280v518l200-86 200 86v-278h28v322l-228-98.33ZM280-760h240-240Zm400 160v-80h-80v-28h80v-80h28v80h80v28h-80v80h-28Z"
+                          Fill="#7A7A8C" Stroke="#7A7A8C" StrokeThickness="1"
+                          HeightRequest="14" WidthRequest="14" Aspect="Uniform" />
+                            </Border>
+
+                        </HorizontalStackLayout>
+                    </ScrollView>
+
+                </VerticalStackLayout>
+            </Grid>
+        </DataTemplate>
+    </ContentPage.Resources>
+
+    <Grid x:Name="MainGrid" RowDefinitions="*,Auto" BackgroundColor="#0E0E12">
+
+        <!-- Scrollable content -->
+        <ScrollView Grid.Row="0" BackgroundColor="#0E0E12">
+            <VerticalStackLayout Spacing="0" Padding="16,8,16,16">
+
+                <ContentView x:Name="PostHeaderContainer" />
+
+                <!-- Comments header -->
+                <Grid ColumnDefinitions="*,Auto" Margin="0,20,0,10">
+                    <HorizontalStackLayout Spacing="8" VerticalOptions="Center">
+                        <Path Data="M269-428.5h422V-454H269v25.5Zm0-119h422V-573H269v25.5Zm0-119h422V-692H269v25.5Zm554 479-109-109H194.28q-24.22 0-40.75-16.53T137-353.8v-412.4q0-24.24 16.53-40.77 16.53-16.53 40.75-16.53h571.44q24.22 0 40.75 16.53T823-766.06v578.56ZM194.5-322H725l72.5 73v-517q0-12-10-22t-22-10h-571q-12 0-22 10t-10 22v412q0 12 10 22t22 10Zm-32 0v-476 476Z"
+                              Fill="#F0EDE8"
+                              HeightRequest="16" WidthRequest="16"
+                              VerticalOptions="Center" Aspect="Uniform" />
+                        <Label Text="Comments"
+                               FontAttributes="Bold" FontSize="16"
+                               TextColor="#F0EDE8"
+                               VerticalOptions="Center" />
+                    </HorizontalStackLayout>
+                    <Label Grid.Column="1"
+                           Text="{Binding Comments.Count, StringFormat='{0} total'}"
+                           FontSize="11" TextColor="#5A5A6A"
+                           VerticalOptions="Center" />
+                </Grid>
+
+                <!-- Divider -->
+                <BoxView HeightRequest="1" BackgroundColor="#1C1C25" Margin="0,0,0,4" />
+
+                <!-- Comments CollectionView -->
+                <CollectionView x:Name="CommentsCollectionView"
+                                ItemsSource="{Binding Comments}">
+                    <CollectionView.EmptyView>
+                        <VerticalStackLayout HorizontalOptions="Center"
+                                             VerticalOptions="Center"
+                                             Spacing="10"
+                                             Padding="0,40,0,40">
+                            <Path Data="M269-428.5h422V-454H269v25.5Zm0-119h422V-573H269v25.5Zm0-119h422V-692H269v25.5Zm554 479-109-109H194.28q-24.22 0-40.75-16.53T137-353.8v-412.4q0-24.24 16.53-40.77 16.53-16.53 40.75-16.53h571.44q24.22 0 40.75 16.53T823-766.06v578.56ZM194.5-322H725l72.5 73v-517q0-12-10-22t-22-10h-571q-12 0-22 10t-10 22v412q0 12 10 22t22 10Zm-32 0v-476 476Z"
+                                  Fill="#2A2A38"
+                                  HeightRequest="36" WidthRequest="36"
+                                  HorizontalOptions="Center" Aspect="Uniform" />
+                            <Label Text="No comments yet"
+                                   FontAttributes="Bold" FontSize="15"
+                                   TextColor="#F0EDE8"
+                                   HorizontalOptions="Center" />
+                            <Label Text="Be the first to start the conversation"
+                                   FontSize="12" TextColor="#5A5A6A"
+                                   HorizontalOptions="Center"
+                                   HorizontalTextAlignment="Center" />
+                        </VerticalStackLayout>
+                    </CollectionView.EmptyView>
+                </CollectionView>
+
+                <!-- Discover People -->
+                <VerticalStackLayout x:Name="DiscoverSection" Spacing="0" Margin="0,28,0,0">
+                    <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,12">
+                        <HorizontalStackLayout Spacing="8" VerticalOptions="Center">
+                            <Path Data="M480-480q-66 0-113-47t-47-113q0-66 47-113t113-47q66 0 113 47t47 113q0 66-47 113t-113 47ZM160-160v-112q0-34 17.5-62.5T224-378q62-31 126-46.5T480-440q66 0 130 15.5T736-378q29 15 46.5 43.5T800-272v112H160Z"
+                                  Fill="#F0EDE8"
+                                  HeightRequest="14" WidthRequest="14"
+                                  VerticalOptions="Center" Aspect="Uniform" />
+                            <Label Text="Discover People"
+                                   FontSize="16" FontAttributes="Bold"
+                                   TextColor="#F0EDE8" VerticalOptions="Center" />
+                        </HorizontalStackLayout>
+                        <Label Grid.Column="1" Text="See all →"
+                               FontSize="12" TextColor="#00B5B5"
+                               VerticalOptions="Center">
+                            <Label.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="OnSeeAllTapped" />
+                            </Label.GestureRecognizers>
+                        </Label>
+                    </Grid>
+
+                    <BoxView HeightRequest="1" BackgroundColor="#1C1C25" Margin="0,0,0,12" />
+
+                    <ScrollView Orientation="Horizontal"
+                                HorizontalScrollBarVisibility="Never"
+                                VerticalScrollBarVisibility="Never">
+                        <HorizontalStackLayout x:Name="SuggestedUsersLayout"
+                                               Spacing="12"
+                                               Padding="2,4,2,16"
+                                               VerticalOptions="Start" />
+                    </ScrollView>
+                </VerticalStackLayout>
+
+                <BoxView HeightRequest="20" BackgroundColor="Transparent" />
+
+            </VerticalStackLayout>
+        </ScrollView>
+
+        <!--
+  ╔══════════════════════════════════════════════════════╗
+  ║   LOADING OVERLAY — AMORE DATING APP                ║
+  ║   Brand: #FF3B6F  |  Dark: #0B0B10  |  Surface: #12121A
+  ╚══════════════════════════════════════════════════════╝
+
+  DROP THIS INSIDE YOUR PAGE'S ROOT GRID (last child = top layer)
+  Grid must have: RowDefinitions with at least the rows your page uses.
+  Set Grid.RowSpan to cover the full page.
+-->
+
+        <!-- ── Loading Overlay ── -->
+        <Grid x:Name="LoadingOverlay"
+      Grid.Row="0"
+      Grid.RowSpan="2"
+      BackgroundColor="#0B0B10"
+      ZIndex="9999"
+      IsVisible="True">
+
+            <!-- Ambient glow — soft radial behind the logo -->
+            <Ellipse
+        WidthRequest="260"
+        HeightRequest="260"
+        HorizontalOptions="Center"
+        VerticalOptions="Center">
+                <Ellipse.Fill>
+                    <RadialGradientBrush Center="0.5,0.5" Radius="0.5">
+                        <GradientStop Color="#1AFF3B6F" Offset="0.0"/>
+                        <GradientStop Color="#00FF3B6F" Offset="1.0"/>
+                    </RadialGradientBrush>
+                </Ellipse.Fill>
+            </Ellipse>
+
+            <!-- Content stack -->
+            <VerticalStackLayout
+        HorizontalOptions="Center"
+        VerticalOptions="Center"
+        Spacing="0">
+
+                <!-- ── Logo mark ── -->
+                <Grid
+            WidthRequest="80"
+            HeightRequest="80"
+            HorizontalOptions="Center"
+            Margin="0,0,0,24">
+
+                    <!-- Outer spinning ring -->
+                    <Ellipse
+                x:Name="SpinRing"
+                WidthRequest="80"
+                HeightRequest="80"
+                Stroke="#33FF3B6F"
+                StrokeThickness="1.5"
+                HorizontalOptions="Center"
+                VerticalOptions="Center"/>
+
+                    <!-- Rotating accent dot on the ring -->
+                    <Ellipse
+                x:Name="RingDot"
+                WidthRequest="7"
+                HeightRequest="7"
+                Fill="#FF3B6F"
+                HorizontalOptions="Center"
+                VerticalOptions="Start"
+                Margin="0,0,0,0">
+                        <!-- Shadow approximated via overlapping ellipses in code-behind -->
+                    </Ellipse>
+
+                    <!-- Heart icon centred -->
+                    <Image
+                Source="heart_solid.png"
+                WidthRequest="28"
+                HeightRequest="28"
+                HorizontalOptions="Center"
+                VerticalOptions="Center"
+                x:Name="HeartIcon">
+                        <!-- Tint applied via code-behind:
+                     HeartIcon.SetAppThemeColor(TintColorProperty, Color.FromArgb("#FF3B6F"), …) -->
+                    </Image>
+                </Grid>
+
+                <!-- App name -->
+                <Label
+            Text="OS"
+            FontFamily="CormorantGaramond-Light"
+            FontSize="32"
+            TextColor="#F5F0FF"
+            CharacterSpacing="2"
+            HorizontalOptions="Center"
+            Margin="0,0,0,4"/>
+
+                <!-- Tagline -->
+                <Label
+            Text="FIND YOUR PERSON"
+            FontFamily="DMSans-Regular"
+            FontSize="10"
+            TextColor="#5A5A72"
+            CharacterSpacing="4"
+            HorizontalOptions="Center"
+            Margin="0,0,0,44"/>
+
+                <!-- ── Dot-bar indicator ── -->
+                <HorizontalStackLayout
+            x:Name="DotBar"
+            HorizontalOptions="Center"
+            Spacing="8">
+                    <Ellipse x:Name="Dot1" WidthRequest="6" HeightRequest="6" Fill="#3A3A4C"/>
+                    <Ellipse x:Name="Dot2" WidthRequest="6" HeightRequest="6" Fill="#3A3A4C"/>
+                    <Ellipse x:Name="Dot3" WidthRequest="6" HeightRequest="6" Fill="#3A3A4C"/>
+                    <Ellipse x:Name="Dot4" WidthRequest="6" HeightRequest="6" Fill="#3A3A4C"/>
+                    <Ellipse x:Name="Dot5" WidthRequest="6" HeightRequest="6" Fill="#3A3A4C"/>
+                </HorizontalStackLayout>
+            </VerticalStackLayout>
+
+            <!-- Hint at bottom -->
+            <Label
+        Text="Loading your matches"
+        FontFamily="DMSans-Regular"
+        FontSize="10"
+        TextColor="#3A3A4C"
+        CharacterSpacing="3"
+        HorizontalOptions="Center"
+        VerticalOptions="End"
+        Margin="0,0,0,52"/>
+
+        </Grid>
+
+
+        <!-- Bottom Input Area -->
+        <Grid Grid.Row="1"
+      BackgroundColor="#0E0E12"
+      Padding="12,8,12,12">
+
+            <!-- Top Divider -->
+            <BoxView HeightRequest="1"
+             BackgroundColor="#1C1C25"
+             VerticalOptions="Start"
+             HorizontalOptions="Fill" />
+
+            <!-- Input Container -->
+            <Border StrokeThickness="1"
+            Stroke="#2A2A38"
+            StrokeShape="RoundRectangle 24"
+            BackgroundColor="#16161C"
+            Padding="14,0"
+            Margin="0,6,0,0">
+
+                <Grid ColumnDefinitions="*,Auto"
+              ColumnSpacing="8">
+
+                    <!-- Editor -->
+                    <Editor x:Name="CommentEditor"
+                    Grid.Column="0"
+                    Placeholder="Add a comment..."
+                    AutoSize="TextChanges"
+                    MinimumHeightRequest="44"
+                    BackgroundColor="Transparent"
+                    TextColor="#F0EDE8"
+                    PlaceholderColor="#3A3A4A"
+                    FontSize="14"
+                    VerticalOptions="Center" />
+
+                    <!-- Send Button INSIDE the input -->
+                    <Border Grid.Column="1"
+                    WidthRequest="38"
+                    HeightRequest="38"
+                    StrokeThickness="0"
+                    StrokeShape="RoundRectangle 19"
+                    VerticalOptions="Center"
+                    HorizontalOptions="End"
+                    Margin="6,0,0,0">
+
+                        <Border.Background>
+                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                <GradientStop Color="#00B5B5" Offset="0" />
+                                <GradientStop Color="#008080" Offset="1" />
+                            </LinearGradientBrush>
+                        </Border.Background>
+
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnSendButtonClicked" />
+                        </Border.GestureRecognizers>
+
+                        <!-- Paper Plane Send Icon -->
+                        <Path Data="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"
+                      Fill="White"
+                      HeightRequest="16"
+                      WidthRequest="16"
+                      HorizontalOptions="Center"
+                      VerticalOptions="Center"
+                      Aspect="Uniform" />
+                    </Border>
+
+                </Grid>
+            </Border>
+
+        </Grid>
+    </Grid>
+</ContentPage>

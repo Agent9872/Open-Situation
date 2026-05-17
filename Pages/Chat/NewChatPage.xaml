@@ -1,0 +1,630 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:models="clr-namespace:Lock.Models"
+             xmlns:conv="clr-namespace:Lock.Converter.Chat;assembly=Lock"
+             xmlns:local="clr-namespace:Lock.Pages.Chat"
+             x:Class="Lock.Pages.Chat.NewChatPage"
+             BackgroundColor="Transparent"
+             Title="New Chat">
+
+    <ContentPage.Resources>
+        <ResourceDictionary>
+            <conv:IsNotEmptyConverter x:Key="IsNotEmptyConverter" />
+            <conv:InverseBoolConverter x:Key="InverseBoolConverter" />
+            <conv:BoolToColorConverter x:Key="BoolToColorConverter" />
+            <conv:TabColorConverter x:Key="TabColorConverter" />
+            <Color x:Key="OrcBloodRed">#C05050</Color>
+            <Color x:Key="UnregisteredOrange">#FFA500</Color>
+            <Color x:Key="RegisteredRed">#FF3B30</Color>
+            <Color x:Key="IconGray">#e3e3e3</Color>
+            <Color x:Key="LockGreen">#4CAF50</Color>
+        </ResourceDictionary>
+    </ContentPage.Resources>
+
+    <Grid>
+
+        <!-- ── Dimmed backdrop ── -->
+        <BoxView Color="#88000000">
+            <BoxView.GestureRecognizers>
+                <TapGestureRecognizer Tapped="OnBackgroundTapped" NumberOfTapsRequired="1" />
+            </BoxView.GestureRecognizers>
+        </BoxView>
+
+        <!-- ══════════════════════════════════════════════
+             MODAL SHEET
+        ══════════════════════════════════════════════ -->
+        <Border HorizontalOptions="Center"
+                VerticalOptions="Center"
+                Padding="0"
+                BackgroundColor="#0E0E12"
+                StrokeThickness="1"
+                Stroke="#2A2A38"
+                StrokeShape="RoundRectangle 20"
+                WidthRequest="390"
+                MaximumHeightRequest="740">
+
+            <Grid RowDefinitions="Auto,Auto,Auto,*">
+
+                <!-- ══════════════════════════
+                     ROW 0 · HEADER
+                ══════════════════════════ -->
+                <Grid Grid.Row="0"
+                      ColumnDefinitions="36,*,36"
+                      Padding="14,16,14,12">
+
+                 
+
+                    <!-- Title -->
+                    <VerticalStackLayout Grid.Column="1"
+                                         HorizontalOptions="Center"
+                                         VerticalOptions="Center"
+                                         Spacing="2">
+                        <Label Text="New Chat"
+                               FontSize="17"
+                               FontAttributes="Bold"
+                               TextColor="#F0EDE8"
+                               HorizontalOptions="Center" />
+                        <Label Text="Find Someone on OS."
+                               FontSize="11"
+                               TextColor="#00B5B5"
+                               HorizontalOptions="Center" />
+                    </VerticalStackLayout>
+
+                    <!-- Contacts button -->
+                    <Grid Grid.Column="2"
+      WidthRequest="34" HeightRequest="34"
+      VerticalOptions="Center">
+                        <Grid.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="ContactsButton_Clicked" />
+                        </Grid.GestureRecognizers>
+                        <Path Data="M480.29-426.5q21.71 0 36.46-15.04 14.75-15.05 14.75-36.75 0-21.71-14.78-36.46t-36.76-14.75q-21.46 0-36.46 14.78t-15 36.76q0 21.46 15.04 36.46 15.05 15 36.75 15ZM348.5-301h263v1.5q0-16.29-8.45-26.7-8.46-10.41-23.05-17.3-24-9.5-49.12-15-25.12-5.5-51-5.5T429-358.5q-25 5.5-49 15-14.59 6.89-23.05 17.3-8.45 10.41-8.45 26.7v-1.5Zm395 164h-527v-686h320l207 207v479ZM718-162.5v-442.52L525.62-797.5H242v635h476Zm-476 0v-635 635Z"
+          Fill="#e3e3e3"
+          WidthRequest="22"
+          HeightRequest="22"
+          HorizontalOptions="Center"
+          VerticalOptions="Center"
+          Aspect="Uniform" />
+                    </Grid>
+                </Grid>
+
+                <!-- Header divider -->
+                <BoxView Grid.Row="0"
+                         HeightRequest="1"
+                         BackgroundColor="#1C1C25"
+                         VerticalOptions="End" />
+
+                <!-- ══════════════════════════
+                     ROW 1 · SEARCH + FILTERS
+                ══════════════════════════ -->
+                <VerticalStackLayout Grid.Row="1"
+                                     Spacing="10"
+                                     Padding="14,14,14,10">
+
+                    <!-- Search bar -->
+                    <Border BackgroundColor="#16161C"
+                            StrokeThickness="1"
+                            Stroke="#2A2A38"
+                            StrokeShape="RoundRectangle 14"
+                            Padding="12,0">
+                        <Grid ColumnDefinitions="20,*" ColumnSpacing="8">
+                            <!-- Search icon -->
+                            <Label Grid.Column="0"
+                                   Text="🔍"
+                                   FontSize="14"
+                                   VerticalOptions="Center" />
+                            <Entry Grid.Column="1"
+                                   x:Name="PhoneEntry"
+                                   Placeholder="Phone, name, or keyword..."
+                                   PlaceholderColor="#3A3A4A"
+                                   TextColor="#F0EDE8"
+                                   FontSize="14"
+                                   BackgroundColor="Transparent"
+                                   HeightRequest="46"
+                                   TextChanged="PhoneEntry_TextChanged" />
+                        </Grid>
+                    </Border>
+
+                    <!-- Mood + Location pickers row -->
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+
+                        <!-- Mood picker -->
+                        <Border Grid.Column="0"
+            BackgroundColor="#16161C"
+            StrokeThickness="1"
+            Stroke="#2A2A38"
+            StrokeShape="RoundRectangle 12"
+            Padding="0"
+            HeightRequest="100">
+                            <!-- Increased container height -->
+                            <VerticalStackLayout Spacing="0">
+                                <Label Text="MOOD"
+                   FontSize="9"
+                   FontAttributes="Bold"
+                   TextColor="#FF3B6F"
+                   Margin="12,8,12,0" />
+                                <Picker x:Name="MoodPicker"
+                    Title="Any mood"
+                    TextColor="#F0EDE8"
+                    BackgroundColor="Transparent"
+                    TitleColor="#3A3A4A"
+                    HorizontalOptions="FillAndExpand"
+                    VerticalOptions="CenterAndExpand"  
+                                    FontSize="13"
+                    Margin="12,4,12,12"
+                                  
+                                    SelectedIndexChanged="MoodPicker_SelectedIndexChanged">
+                                    <Picker.Items>
+                                        <x:String>All moods</x:String>
+                                        <x:String>Serious relationship</x:String>
+                                        <x:String>Long-term potential</x:String>
+                                        <x:String>Just vibes / casual fun</x:String>
+                                        <x:String>Something casual</x:String>
+                                        <x:String>Hook-up / FWB</x:String>
+                                        <x:String>ENM / Open to non-monogamy</x:String>
+                                        <x:String>Deep talks and connection</x:String>
+                                        <x:String>Let's see where it goes</x:String>
+                                        <x:String>Networking / collabs / friends first</x:String>
+                                        <x:String>OS (open situationship)</x:String>
+                                        <x:String>Chalance (all-in effort)</x:String>
+                                    </Picker.Items>
+                                </Picker>
+                            </VerticalStackLayout>
+                        </Border>
+
+                        <!-- Location picker -->
+                        <Border Grid.Column="1"
+            BackgroundColor="#16161C"
+            StrokeThickness="1"
+            Stroke="#2A2A38"
+            StrokeShape="RoundRectangle 12"
+            Padding="0"
+            HeightRequest="100">
+                            <!-- Increased container height -->
+                            <VerticalStackLayout Spacing="0">
+                                <Label Text="LOCATION"
+                   FontSize="9"
+                   FontAttributes="Bold"
+                   TextColor="#00B5B5"
+                   Margin="12,8,12,0" />
+                                <Picker x:Name="LocationPicker"
+                    Title="Any location"
+                    TextColor="#F0EDE8"
+                    BackgroundColor="Transparent"
+                    TitleColor="#3A3A4A"
+                    HorizontalOptions="FillAndExpand"
+                    VerticalOptions="CenterAndExpand"  
+                                    FontSize="13"
+                    Margin="12,4,12,12"
+                                    SelectedIndexChanged="LocationPicker_SelectedIndexChanged" />
+                            </VerticalStackLayout>
+                        </Border>
+
+                    </Grid>
+                </VerticalStackLayout>
+
+                <!-- ══════════════════════════
+                     ROW 2 · TAB BAR
+                ══════════════════════════ -->
+                <Grid Grid.Row="2"
+                      ColumnDefinitions="*,*"
+                      Padding="14,0,14,0"
+                      BackgroundColor="#0E0E12">
+
+                    <!-- Recent Chats tab -->
+                    <Grid Grid.Column="0">
+                        <Grid.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="RecentTab_Clicked" />
+                        </Grid.GestureRecognizers>
+                        <VerticalStackLayout Spacing="0" HorizontalOptions="Center" Padding="0,10,0,0">
+                            <Label x:Name="RecentTabButton"
+                                   Text="Recent Chats"
+                                   FontSize="14"
+                                   FontAttributes="Bold"
+                                   TextColor="{Binding IsRecentTabActive, Converter={StaticResource TabColorConverter}}"
+                                   HorizontalOptions="Center"
+                                   Margin="0,0,0,10" />
+                            <!-- Active indicator bar -->
+                            <BoxView HeightRequest="2"
+                                     WidthRequest="80"
+                                     CornerRadius="1"
+                                     HorizontalOptions="Center">
+                                <BoxView.Background>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                        <GradientStop Color="#FF3B6F" Offset="0" />
+                                        <GradientStop Color="#00B5B5" Offset="1" />
+                                    </LinearGradientBrush>
+                                </BoxView.Background>
+                            </BoxView>
+                        </VerticalStackLayout>
+                    </Grid>
+
+                    <!-- Search tab -->
+                    <Grid Grid.Column="1">
+                        <Grid.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="SearchTab_Clicked" />
+                        </Grid.GestureRecognizers>
+                        <VerticalStackLayout Spacing="0" HorizontalOptions="Center" Padding="0,10,0,0">
+                            <Label x:Name="SearchTabButton"
+                                   Text="Search"
+                                   FontSize="14"
+                                   FontAttributes="Bold"
+                                   TextColor="{Binding IsSearchTabActive, Converter={StaticResource TabColorConverter}}"
+                                   HorizontalOptions="Center"
+                                   Margin="0,0,0,10" />
+                            <BoxView HeightRequest="2"
+                                     WidthRequest="50"
+                                     CornerRadius="1"
+                                     BackgroundColor="#2A2A38"
+                                     HorizontalOptions="Center" />
+                        </VerticalStackLayout>
+                    </Grid>
+
+                </Grid>
+
+                <!-- Tab divider -->
+                <BoxView Grid.Row="2"
+                         HeightRequest="1"
+                         BackgroundColor="#1C1C25"
+                         VerticalOptions="End" />
+
+                <!-- ══════════════════════════
+                     ROW 3 · TAB CONTENT
+                ══════════════════════════ -->
+                <Grid Grid.Row="3" x:Name="TabContent">
+
+                    <!-- ── RECENT CHATS TAB ── -->
+                    <ScrollView x:Name="RecentTabContent"
+                                IsVisible="True"
+                                VerticalScrollBarVisibility="Never"
+                                BackgroundColor="#0E0E12">
+                        <VerticalStackLayout Spacing="0" Padding="14,10,14,20">
+
+                            <!-- Section label -->
+                            <Label Text="Recent Chats"
+                                   FontSize="12"
+                                   FontAttributes="Bold"
+                                   TextColor="#4A4A5A"
+                                   Margin="4,0,0,10"
+                                   IsVisible="{Binding HasRecentChats}" />
+
+                            <CollectionView x:Name="RecentChatsCollectionView"
+                                            ItemsSource="{Binding FilteredRecentChats}"
+                                            VerticalScrollBarVisibility="Never"
+                                            BackgroundColor="Transparent"
+                                            SelectionMode="Single"
+                                            SelectionChanged="RecentChat_SelectionChanged"
+                                            IsVisible="{Binding HasRecentChats}">
+                                <CollectionView.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Padding="0,0,0,1">
+                                            <!-- Inside RecentChatsCollectionView > DataTemplate -->
+                                            <Border Padding="12,10"
+        BackgroundColor="#16161C"
+        StrokeThickness="1"
+        Stroke="#2A2A38"
+        StrokeShape="RoundRectangle 14"
+        Margin="0,0,0,8">
+                                                <Grid ColumnDefinitions="48,*,34" ColumnSpacing="12">
+                                                    <!-- Avatar with gradient ring (unchanged) -->
+                                                    <Grid Grid.Column="0" WidthRequest="46" HeightRequest="46">
+                                                        <Ellipse WidthRequest="46" HeightRequest="46" StrokeThickness="2">
+                                                            <Ellipse.Stroke>
+                                                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                                                    <GradientStop Color="#FF3B6F" Offset="0" />
+                                                                    <GradientStop Color="#00B5B5" Offset="1" />
+                                                                </LinearGradientBrush>
+                                                            </Ellipse.Stroke>
+                                                        </Ellipse>
+                                                        <Frame WidthRequest="40" HeightRequest="40"
+                   CornerRadius="20" Padding="0"
+                   IsClippedToBounds="True"
+                   HasShadow="False"
+                   BackgroundColor="#1C1C25"
+                   HorizontalOptions="Center" VerticalOptions="Center">
+                                                            <Image Aspect="AspectFill"
+                       Source="{Binding ProfileImagePath, FallbackValue='https://ui-avatars.com/api/?name=User&amp;background=333&amp;color=fff'}"
+                       HeightRequest="40" WidthRequest="40" />
+                                                        </Frame>
+                                                    </Grid>
+
+                                                    <!-- Name + info (unchanged) -->
+                                                    <VerticalStackLayout Grid.Column="1" Spacing="3" VerticalOptions="Center">
+
+                                                        <Label Text="{Binding Name}"
+           FontSize="15" FontAttributes="Bold"
+           TextColor="#F0EDE8" LineBreakMode="TailTruncation"/>
+
+                                                        <Label Text="{Binding PhoneNumber}"
+           FontSize="12" TextColor="#4A4A5A"
+           LineBreakMode="TailTruncation"
+           IsVisible="{Binding IsRegistered}"/>
+
+                                                        <!-- Badges row -->
+                                                        <HorizontalStackLayout Spacing="6">
+
+                                                            <!-- ON OS badge -->
+                                                            <Border IsVisible="{Binding IsRegistered}"
+                BackgroundColor="#0D2010"
+                StrokeThickness="1" Stroke="#1A4A20"
+                StrokeShape="RoundRectangle 6" Padding="6,2">
+                                                                <Label Text="ON OS" TextColor="#4CAF50"
+                   FontSize="9" FontAttributes="Bold"/>
+                                                            </Border>
+
+                                                            <!-- Interested In pill -->
+                                                            <Border IsVisible="{Binding HasInterestedIn}"
+                BackgroundColor="#1A0D20"
+                StrokeThickness="1" Stroke="#8B5CF6"
+                StrokeShape="RoundRectangle 6" Padding="6,2">
+                                                                <Label Text="{Binding InterestedIn}"
+                   TextColor="#A78BFA"
+                   FontSize="9" FontAttributes="Bold"
+                   LineBreakMode="TailTruncation" MaxLines="1"/>
+                                                            </Border>
+
+                                                            <!-- Match % pill -->
+                                                            <Border IsVisible="{Binding HasMatch}"
+                BackgroundColor="#0D1A1A"
+                StrokeThickness="1"
+                Stroke="{Binding MatchColor}"
+                StrokeShape="RoundRectangle 6" Padding="6,2">
+                                                                <Label Text="{Binding MatchDisplay}"
+                   TextColor="{Binding MatchColor}"
+                   FontSize="9" FontAttributes="Bold"/>
+                                                            </Border>
+
+                                                        </HorizontalStackLayout>
+
+                                                    </VerticalStackLayout>
+
+                                                    <!-- Clean Recent Chat Icon - Just the icon (no round border) -->
+                                                    <Grid Grid.Column="2"
+      WidthRequest="52"
+      HeightRequest="52"
+      HorizontalOptions="Center"
+      VerticalOptions="Center">
+
+                                                        <Grid.GestureRecognizers>
+                                                            <TapGestureRecognizer Tapped="RecentChat_Tapped"
+                              CommandParameter="{Binding .}" />
+                                                        </Grid.GestureRecognizers>
+
+                                                        <Path Data="M132-180v-588q0-26 17-43t43-17h576q26 0 43 17t17 43v416q0 26-17 43t-43 17H244L132-180ZM192-320h536q12 0 22-10t10-22v-416q0-12-10-22t-22-10H192q-12 0-22 10t-10 22v520l72-72Z"
+          Fill="#00B5B5"
+          WidthRequest="22"
+          HeightRequest="22"
+          HorizontalOptions="Center"
+          VerticalOptions="Center"
+          Aspect="Uniform" />
+                                                    </Grid>
+                                                </Grid>
+                                            </Border>
+                                        </Grid>
+                                    </DataTemplate>
+                                </CollectionView.ItemTemplate>
+                            </CollectionView>
+
+                            <!-- Empty state -->
+                            <VerticalStackLayout Spacing="12"
+                                                 HorizontalOptions="Center"
+                                                 Margin="0,40,0,0"
+                                                 IsVisible="{Binding HasRecentChats, Converter={StaticResource InverseBoolConverter}}">
+                                <Border BackgroundColor="#16161C"
+                                        StrokeThickness="1"
+                                        Stroke="#2A2A38"
+                                        StrokeShape="RoundRectangle 40"
+                                        WidthRequest="72" HeightRequest="72"
+                                        HorizontalOptions="Center">
+                                    <Label Text="💬"
+                                           FontSize="30"
+                                           HorizontalOptions="Center"
+                                           VerticalOptions="Center" />
+                                </Border>
+                                <Label Text="No recent chats yet"
+                                       FontSize="16"
+                                       FontAttributes="Bold"
+                                       TextColor="#F0EDE8"
+                                       HorizontalOptions="Center" />
+                                <Label Text="Start a conversation below"
+                                       FontSize="13"
+                                       TextColor="#4A4A5A"
+                                       HorizontalOptions="Center" />
+                            </VerticalStackLayout>
+
+                        </VerticalStackLayout>
+                    </ScrollView>
+
+                    <!-- ── SEARCH TAB ── -->
+                    <ScrollView x:Name="SearchTabContent"
+            IsVisible="False"
+            VerticalScrollBarVisibility="Never"
+            BackgroundColor="#0E0E12">
+                        <VerticalStackLayout Spacing="0" Padding="14,10,14,20">
+
+                            <!-- Result count label -->
+                            <Label x:Name="ResultCountLabel"
+               FontSize="12"
+               FontAttributes="Bold"
+               TextColor="#4A4A5A"
+               Margin="4,0,0,10"
+               IsVisible="False" />
+
+                            <!-- Search results list -->
+                            <CollectionView x:Name="SuggestionsCollectionView"
+                        IsVisible="False"
+                        VerticalScrollBarVisibility="Never"
+                        BackgroundColor="Transparent"
+                        SelectionMode="Single"
+                        SelectionChanged="SuggestionsCollectionView_SelectionChanged">
+                                <CollectionView.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Padding="12,10"
+                            BackgroundColor="#16161C"
+                            StrokeThickness="1"
+                            Stroke="#2A2A38"
+                            StrokeShape="RoundRectangle 14"
+                            Margin="0,0,0,8">
+                                            <Grid ColumnDefinitions="48,*,44" ColumnSpacing="12">
+
+                                                <!-- Avatar with gradient ring -->
+                                                <Grid Grid.Column="0" WidthRequest="46" HeightRequest="46">
+                                                    <Ellipse WidthRequest="46" HeightRequest="46" StrokeThickness="2">
+                                                        <Ellipse.Stroke>
+                                                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                                                <GradientStop Color="#FF3B6F" Offset="0" />
+                                                                <GradientStop Color="#00B5B5" Offset="1" />
+                                                            </LinearGradientBrush>
+                                                        </Ellipse.Stroke>
+                                                    </Ellipse>
+                                                    <Frame WidthRequest="40" HeightRequest="40"
+                                       CornerRadius="20" Padding="0"
+                                       IsClippedToBounds="True"
+                                       HasShadow="False"
+                                       BackgroundColor="#1C1C25"
+                                       HorizontalOptions="Center" VerticalOptions="Center">
+                                                        <Image Aspect="AspectFill"
+                                           Source="{Binding ProfileImagePath, FallbackValue='https://ui-avatars.com/api/?name=User&amp;background=333&amp;color=fff'}"
+                                           HeightRequest="40" WidthRequest="40" />
+                                                    </Frame>
+                                                    <!-- Tap to view profile -->
+                                                    <Grid.GestureRecognizers>
+                                                        <TapGestureRecognizer Tapped="SuggestionProfile_Tapped"
+                                                          CommandParameter="{Binding .}" />
+                                                    </Grid.GestureRecognizers>
+                                                </Grid>
+
+                                                <!-- Name + badges -->
+                                                <VerticalStackLayout Grid.Column="1" Spacing="3" VerticalOptions="Center">
+
+                                                    <Label Text="{Binding Name}"
+                                       FontSize="15" FontAttributes="Bold"
+                                       TextColor="#F0EDE8"
+                                       LineBreakMode="TailTruncation"/>
+
+                                                    <!-- Phone + registration status -->
+                                                    <HorizontalStackLayout Spacing="6">
+                                                        <Label Text="{Binding PhoneNumber}"
+                                           FontSize="12" TextColor="#4A4A5A"
+                                           IsVisible="{Binding IsRegistered}"/>
+
+                                                        <Border IsVisible="{Binding IsRegistered, Converter={StaticResource InverseBoolConverter}}"
+                                            BackgroundColor="#1A1000"
+                                            StrokeThickness="1" Stroke="#3A2800"
+                                            StrokeShape="RoundRectangle 6" Padding="6,2">
+                                                            <Label Text="NOT ON OS" TextColor="#FFA500"
+                                               FontSize="9" FontAttributes="Bold"/>
+                                                        </Border>
+
+                                                        <Border IsVisible="{Binding IsRegistered}"
+                                            BackgroundColor="#0D2010"
+                                            StrokeThickness="1" Stroke="#1A4A20"
+                                            StrokeShape="RoundRectangle 6" Padding="6,2">
+                                                            <Label Text="ON OS" TextColor="#4CAF50"
+                                               FontSize="9" FontAttributes="Bold"/>
+                                                        </Border>
+                                                    </HorizontalStackLayout>
+
+                                                    <!-- Mood + Interested In + Match % pills -->
+                                                    <HorizontalStackLayout Spacing="6">
+
+                                                        <Border IsVisible="{Binding Mood, Converter={StaticResource IsNotEmptyConverter}}"
+                                            BackgroundColor="#2A1520"
+                                            StrokeThickness="1" Stroke="#FF3B6F"
+                                            StrokeShape="RoundRectangle 8" Padding="8,3"
+                                            HorizontalOptions="Start">
+                                                            <HorizontalStackLayout Spacing="5">
+                                                                <Label Text="💞" FontSize="10" VerticalOptions="Center"/>
+                                                                <Label Text="{Binding Mood}"
+                                                   FontSize="11" FontAttributes="Bold"
+                                                   TextColor="#FF3B6F"/>
+                                                            </HorizontalStackLayout>
+                                                        </Border>
+
+                                                        <Border IsVisible="{Binding HasInterestedIn}"
+                                            BackgroundColor="#1A0D20"
+                                            StrokeThickness="1" Stroke="#8B5CF6"
+                                            StrokeShape="RoundRectangle 8" Padding="8,3">
+                                                            <Label Text="{Binding InterestedIn}"
+                                               TextColor="#A78BFA"
+                                               FontSize="11" FontAttributes="Bold"
+                                               LineBreakMode="TailTruncation" MaxLines="1"/>
+                                                        </Border>
+
+                                                        <Border IsVisible="{Binding HasMatch}"
+                                            BackgroundColor="#0D1A1A"
+                                            StrokeThickness="1"
+                                            Stroke="{Binding MatchColor}"
+                                            StrokeShape="RoundRectangle 8" Padding="8,3">
+                                                            <Label Text="{Binding MatchDisplay}"
+                                               TextColor="{Binding MatchColor}"
+                                               FontSize="11" FontAttributes="Bold"/>
+                                                        </Border>
+
+                                                    </HorizontalStackLayout>
+
+                                                </VerticalStackLayout>
+
+                                                <!-- Message button -->
+                                                <Grid Grid.Column="2"
+      WidthRequest="52"
+      HeightRequest="52"
+      HorizontalOptions="Center"
+      VerticalOptions="Center">
+                                                    <Grid.GestureRecognizers>
+                                                        <TapGestureRecognizer Tapped="SuggestionMessageButton_Clicked"
+                              CommandParameter="{Binding .}" />
+                                                    </Grid.GestureRecognizers>
+                                                    <Path Data="M132-180v-588q0-26 17-43t43-17h576q26 0 43 17t17 43v416q0 26-17 43t-43 17H244L132-180ZM192-320h536q12 0 22-10t10-22v-416q0-12-10-22t-22-10H192q-12 0-22 10t-10 22v520l72-72Z"
+          Fill="#00B5B5"
+          WidthRequest="22"
+          HeightRequest="22"
+          HorizontalOptions="Center"
+          VerticalOptions="Center"
+          Aspect="Uniform" />
+                                                </Grid>
+
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </CollectionView.ItemTemplate>
+                            </CollectionView>
+
+                            <!-- Empty state for search -->
+                            <VerticalStackLayout Spacing="12"
+                             HorizontalOptions="Center"
+                             Margin="0,40,0,0"
+                             IsVisible="True"
+                             x:Name="SearchEmptyState">
+                                <Border BackgroundColor="#16161C"
+                    StrokeThickness="1"
+                    Stroke="#2A2A38"
+                    StrokeShape="RoundRectangle 40"
+                    WidthRequest="72" HeightRequest="72"
+                    HorizontalOptions="Center">
+                                    <Label Text="🔍"
+                       FontSize="30"
+                       HorizontalOptions="Center"
+                       VerticalOptions="Center" />
+                                </Border>
+                                <Label Text="Search for someone"
+                   FontSize="16"
+                   FontAttributes="Bold"
+                   TextColor="#F0EDE8"
+                   HorizontalOptions="Center" />
+                                <Label Text="Type a name, number, or keyword"
+                   FontSize="13"
+                   TextColor="#4A4A5A"
+                   HorizontalOptions="Center" />
+                            </VerticalStackLayout>
+
+                        </VerticalStackLayout>
+                    </ScrollView>
+
+                </Grid>
+
+            </Grid>
+        </Border>
+
+    </Grid>
+</ContentPage>

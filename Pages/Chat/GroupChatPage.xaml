@@ -1,0 +1,817 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:conv="clr-namespace:Lock.Converter.Chat"
+             x:Class="Lock.Pages.Chat.GroupChatPage"
+             BackgroundColor="#0A0A0C"
+             Shell.NavBarIsVisible="False"
+             NavigationPage.HasNavigationBar="False">
+
+    <ContentPage.Resources>
+        <ResourceDictionary>
+            <conv:InverseBoolConverter x:Key="InverseBoolConverter" />
+            <conv:IsNotEmptyConverter x:Key="IsNotEmptyConverter" />
+            <conv:IsGreaterThanOneConverter x:Key="IsGreaterThanOneConverter" />
+            <conv:SubtractTwoConverter x:Key="SubtractTwoConverter" />
+            <conv:NullOrEmptyToVisibilityConverter x:Key="NullOrEmptyToVisibilityConverter" />
+            <conv:MaxBubbleWidthConverter x:Key="MaxBubbleWidthConverter" />
+            <conv:BothFalseConverter x:Key="BothFalse" />
+        </ResourceDictionary>
+    </ContentPage.Resources>
+
+    <Grid RowDefinitions="Auto,*,Auto,Auto" RowSpacing="0">
+
+        <!-- ══════════════════════════════════════════════════════════════ -->
+        <!-- ROW 0 · HEADER                                                -->
+        <!-- ══════════════════════════════════════════════════════════════ -->
+        <Grid Grid.Row="0"
+          Padding="12,10,12,10"
+          BackgroundColor="#0F0F0F"
+          ColumnDefinitions="Auto,*,Auto,Auto">
+
+
+            <!-- Group info (tappable) -->
+            <Grid Grid.Column="1" ColumnDefinitions="Auto,*" Margin="6,0,0,0">
+                <Grid.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnGroupInfoTapped"/>
+                </Grid.GestureRecognizers>
+
+                <!-- Avatar -->
+                <Grid Grid.Column="0" WidthRequest="42" HeightRequest="42">
+                    <Image x:Name="GroupAvatarImage"
+                       WidthRequest="42" HeightRequest="42"
+                       Aspect="AspectFill">
+                        <Image.Clip>
+                            <EllipseGeometry Center="21,21" RadiusX="21" RadiusY="21"/>
+                        </Image.Clip>
+                    </Image>
+                    <!-- Fallback initials circle -->
+                    <Frame x:Name="GroupAvatarFallback"
+                       WidthRequest="42" HeightRequest="42"
+                       CornerRadius="21"
+                       BackgroundColor="#0D2626"
+                       HasShadow="False" Padding="0"
+                       IsVisible="False">
+                        <Label x:Name="GroupAvatarInitial"
+                           FontSize="16" FontAttributes="Bold"
+                           TextColor="#008080"
+                           HorizontalOptions="Center"
+                           VerticalOptions="Center"/>
+                    </Frame>
+                    <!-- Type badge -->
+                    <Border x:Name="GroupTypeBadge"
+                        WidthRequest="18" HeightRequest="18"
+                        BackgroundColor="#008080"
+                        StrokeThickness="1.5" Stroke="#0F0F0F"
+                        HorizontalOptions="End" VerticalOptions="End"
+                        StrokeShape="RoundRectangle 9" Padding="0">
+                        <Label x:Name="GroupTypeIconLabel"
+                           FontSize="9" TextColor="White"
+                           HorizontalOptions="Center" VerticalOptions="Center"/>
+                    </Border>
+                </Grid>
+
+                <!-- Name + subtitle -->
+                <VerticalStackLayout Grid.Column="1"
+                                 Spacing="1" Margin="10,0,0,0"
+                                 VerticalOptions="Center">
+                    <Label x:Name="GroupNameLabel"
+                       FontSize="15" FontAttributes="Bold"
+                       TextColor="#FFFFFF"
+                       LineBreakMode="TailTruncation"/>
+                    <HorizontalStackLayout Spacing="5">
+                        <Label x:Name="GroupSubtitleLabel"
+                           FontSize="11" TextColor="#008080"
+                           LineBreakMode="TailTruncation"/>
+                    </HorizontalStackLayout>
+                </VerticalStackLayout>
+            </Grid>
+
+            <!-- Search -->
+            <Grid Grid.Column="2" WidthRequest="40" HeightRequest="40" VerticalOptions="Center">
+                <Grid.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnSearchTapped"/>
+                </Grid.GestureRecognizers>
+                <Path Data="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z"
+                  Stroke="#666666" StrokeThickness="1.8"
+                  WidthRequest="18" HeightRequest="18"
+                  HorizontalOptions="Center" VerticalOptions="Center"
+                  Aspect="Uniform"/>
+            </Grid>
+
+            <!-- Menu -->
+            <Grid Grid.Column="3" WidthRequest="40" HeightRequest="40" VerticalOptions="Center">
+                <Grid.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnMenuTapped"/>
+                </Grid.GestureRecognizers>
+                <Label Text="⋮" FontSize="22" TextColor="#008080"
+                   HorizontalOptions="Center" VerticalOptions="Center"/>
+            </Grid>
+        </Grid>
+
+        <!-- Add this somewhere in your page -->
+        <Grid x:Name="LoadingOverlay" 
+      IsVisible="False" 
+      BackgroundColor="#80000000" 
+      InputTransparent="False">
+            <ActivityIndicator IsRunning="{Binding IsVisible, Source={x:Reference LoadingOverlay}}" 
+                       Color="White" 
+                       HorizontalOptions="Center" 
+                       VerticalOptions="Center" />
+        </Grid>
+
+        <!-- Subtle divider below header -->
+        <BoxView Grid.Row="0" HeightRequest="1" Color="#FF3B6F"
+             VerticalOptions="End"/>
+
+        <!-- ══════════════════════════════════════════════════════════════ -->
+        <!-- ROW 1 · MESSAGES LIST                                         -->
+        <!-- ══════════════════════════════════════════════════════════════ -->
+        <CollectionView x:Name="MessagesCollectionView"
+                    Grid.Row="1"
+                    SelectionMode="None"
+                    BackgroundColor="Transparent">
+
+            <CollectionView.Header>
+                <!-- E2E notice -->
+                <Grid Padding="0,12,0,8">
+                    <Border BackgroundColor="#141417"
+                        StrokeShape="RoundRectangle 20"
+                        StrokeThickness="1" Stroke="#FF3B6F"
+                        Padding="12,5"
+                        HorizontalOptions="Center">
+                        <HorizontalStackLayout Spacing="6" VerticalOptions="Center">
+                            <Label Text="🔒" FontSize="10"/>
+                            <Label Text="End-to-end encrypted"
+                               TextColor="#555555" FontSize="10"
+                               VerticalOptions="Center"/>
+                        </HorizontalStackLayout>
+                    </Border>
+                </Grid>
+            </CollectionView.Header>
+
+            <CollectionView.EmptyView>
+                <VerticalStackLayout VerticalOptions="Center" HorizontalOptions="Center"
+                                 Spacing="8" Margin="0,60">
+                    <Label Text="💬" FontSize="40" HorizontalOptions="Center" Opacity="0.4"/>
+                    <Label Text="No messages yet"
+                       TextColor="#444444" FontSize="14"
+                       HorizontalOptions="Center"/>
+                    <Label Text="Start the conversation 🌟"
+                       TextColor="#333333" FontSize="12"
+                       HorizontalOptions="Center"/>
+                </VerticalStackLayout>
+            </CollectionView.EmptyView>
+
+            <CollectionView.ItemsLayout>
+                <LinearItemsLayout Orientation="Vertical" ItemSpacing="2"/>
+            </CollectionView.ItemsLayout>
+
+            <CollectionView.ItemTemplate>
+                <DataTemplate>
+                    <Grid Padding="12,2">
+
+                        <!-- ── SYSTEM MESSAGE ── -->
+                        <Border BackgroundColor="#141417"
+                            StrokeThickness="0"
+                            StrokeShape="RoundRectangle 14"
+                            Padding="12,5"
+                            HorizontalOptions="Center"
+                            IsVisible="{Binding IsSystemMessage}">
+                            <Label Text="{Binding DisplayContent}"
+                               FontSize="11" TextColor="#555555"
+                               HorizontalOptions="Center"/>
+                        </Border>
+
+                        <!-- ── INCOMING MESSAGE ── -->
+                        <Grid IsVisible="{Binding IsOutgoing, Converter={StaticResource InverseBoolConverter}}"
+                          HorizontalOptions="Start"
+                          Margin="0,2,60,2">
+                            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="6">
+
+                                <!-- Sender avatar -->
+                                <Grid Grid.Column="0"
+                                  WidthRequest="32" HeightRequest="32"
+                                  VerticalOptions="End" Margin="0,0,0,4">
+                                    <Frame WidthRequest="32" HeightRequest="32"
+                                       CornerRadius="16"
+                                       BackgroundColor="#1E1E1E"
+                                       HasShadow="False" Padding="0"
+                                       IsClippedToBounds="True">
+                                        <Label Text="{Binding SenderInitial}"
+                                           FontSize="13" FontAttributes="Bold"
+                                           TextColor="#008080"
+                                           HorizontalOptions="Center"
+                                           VerticalOptions="Center"/>
+                                    </Frame>
+                                </Grid>
+
+                                <!-- Bubble -->
+                                <VerticalStackLayout Grid.Column="1" Spacing="3"
+                                                  HorizontalOptions="Fill">
+
+                                    <!-- Sender name -->
+                                    <Label Text="{Binding DisplaySenderName}"
+                                       FontSize="11" FontAttributes="Bold"
+                                       TextColor="#008080"
+                                       Margin="4,0,0,0"
+                                       IsVisible="{Binding ShowSenderName}"/>
+
+                                    <Border BackgroundColor="#1C1C22"
+                                        StrokeThickness="1" Stroke="#2A2A35"
+                                        StrokeShape="RoundRectangle 18"
+                                        Padding="0"
+                                        HorizontalOptions="Start">
+
+                                        <VerticalStackLayout Spacing="0">
+
+                                            <!-- Reply strip -->
+                                            <Grid IsVisible="{Binding HasReply}"
+                                              ColumnDefinitions="4,*">
+                                                <BoxView Grid.Column="0"
+                                                     BackgroundColor="#008080"
+                                                     WidthRequest="4"
+                                                     CornerRadius="0"
+                                                     VerticalOptions="Fill"/>
+                                                <VerticalStackLayout Grid.Column="1"
+                                                                  Padding="10,8,12,8"
+                                                                  Spacing="2">
+                                                    <Label Text="{Binding ReplyToSenderName}"
+                                                       FontSize="11" FontAttributes="Bold"
+                                                       TextColor="#008080"/>
+                                                    <Label Text="{Binding ReplyToPreview}"
+                                                       FontSize="11" TextColor="#666666"
+                                                       MaxLines="2"
+                                                       LineBreakMode="TailTruncation"/>
+                                                </VerticalStackLayout>
+                                            </Grid>
+
+                                            <!-- Poll card (incoming) -->
+                                            <VerticalStackLayout IsVisible="{Binding IsPoll}"
+                                                              Spacing="10" Padding="14,12">
+                                                <HorizontalStackLayout Spacing="6">
+                                                    <Border BackgroundColor="#0D2626"
+                                                        StrokeThickness="0"
+                                                        StrokeShape="RoundRectangle 6"
+                                                        Padding="6,2">
+                                                        <Label Text="📊 POLL" FontSize="9"
+                                                           FontAttributes="Bold"
+                                                           TextColor="#008080"
+                                                           CharacterSpacing="1"/>
+                                                    </Border>
+                                                </HorizontalStackLayout>
+                                                <Label Text="{Binding PollQuestion}"
+                                                   FontSize="14" FontAttributes="Bold"
+                                                   TextColor="#FFFFFF"
+                                                   LineBreakMode="WordWrap"/>
+                                                <CollectionView ItemsSource="{Binding PollOptions}"
+                                                            SelectionMode="None"
+                                                            VerticalScrollBarVisibility="Never">
+                                                    <CollectionView.ItemTemplate>
+                                                        <DataTemplate>
+                                                            <Grid Padding="0,0,0,6">
+                                                                <Frame CornerRadius="10"
+                                                                   HasShadow="False"
+                                                                   BorderColor="#2A2A3A"
+                                                                   BackgroundColor="#1A1A28"
+                                                                   Padding="0"
+                                                                   HeightRequest="38"
+                                                                   IsClippedToBounds="True">
+                                                                    <Grid>
+                                                                        <BoxView HeightRequest="38"
+                                                                             CornerRadius="10"
+                                                                             BackgroundColor="#0D2626"
+                                                                             HorizontalOptions="Start"
+                                                                             WidthRequest="{Binding FillWidthRequest}"
+                                                                             VerticalOptions="Fill"/>
+                                                                        <Grid ColumnDefinitions="*,Auto"
+                                                                          Padding="12,0">
+                                                                            <Label Text="{Binding Text}"
+                                                                               FontSize="12"
+                                                                               TextColor="#DDDDDD"
+                                                                               VerticalOptions="Center"
+                                                                               LineBreakMode="TailTruncation"/>
+                                                                            <Label Grid.Column="1"
+                                                                               Text="{Binding VotePercentage}"
+                                                                               FontSize="11"
+                                                                               FontAttributes="Bold"
+                                                                               TextColor="#008080"
+                                                                               VerticalOptions="Center"/>
+                                                                        </Grid>
+                                                                    </Grid>
+                                                                </Frame>
+                                                            </Grid>
+                                                        </DataTemplate>
+                                                    </CollectionView.ItemTemplate>
+                                                </CollectionView>
+                                                <Grid ColumnDefinitions="*,Auto">
+                                                    <Label Text="{Binding TotalVotesDisplay}"
+                                                       FontSize="10" TextColor="#555555"
+                                                       VerticalOptions="Center"/>
+                                                    <Frame Grid.Column="1" Padding="0"
+                                                       CornerRadius="16" HasShadow="False"
+                                                       BackgroundColor="{Binding VoteButtonColor}"
+                                                       BorderColor="Transparent"
+                                                       IsVisible="{Binding ShowVoteButton}">
+                                                        <Button Text="{Binding VoteButtonText}"
+                                                            BackgroundColor="Transparent"
+                                                            TextColor="White"
+                                                            FontSize="11"
+                                                            FontAttributes="Bold"
+                                                            Padding="12,4"
+                                                            Clicked="OnPollVoteClicked"
+                                                            CommandParameter="{Binding .}"/>
+                                                    </Frame>
+                                                    <Border Grid.Column="1"
+                                                        IsVisible="{Binding IsPollExpired}"
+                                                        BackgroundColor="#2A1010"
+                                                        StrokeThickness="0"
+                                                        StrokeShape="RoundRectangle 10"
+                                                        Padding="8,3">
+                                                        <Label Text="Closed"
+                                                           FontSize="10"
+                                                           FontAttributes="Bold"
+                                                           TextColor="#FF3B6F"/>
+                                                    </Border>
+                                                </Grid>
+                                            </VerticalStackLayout>
+
+                                            <!-- Image -->
+                                            <Grid IsVisible="{Binding HasMedia}"
+                                              Margin="4,4,4,0">
+                                                <Grid IsVisible="{Binding IsImage}">
+                                                    <Border StrokeShape="RoundRectangle 14"
+                                                        StrokeThickness="0" Padding="0">
+                                                        <Border.GestureRecognizers>
+                                                            <TapGestureRecognizer
+                                                            Tapped="OnImageTapped"
+                                                            CommandParameter="{Binding MediaPaths[0]}"/>
+                                                        </Border.GestureRecognizers>
+                                                        <Image Source="{Binding MediaPaths[0]}"
+                                                           Aspect="AspectFill"
+                                                           HeightRequest="200"
+                                                           WidthRequest="220"/>
+                                                    </Border>
+                                                    <!-- Extra count badge -->
+                                                    <Border IsVisible="{Binding MediaPaths.Count,
+                                                            Converter={StaticResource IsGreaterThanOneConverter}}"
+                                                        BackgroundColor="#CC000000"
+                                                        StrokeThickness="0"
+                                                        StrokeShape="RoundRectangle 10"
+                                                        Padding="6,3"
+                                                        HorizontalOptions="End"
+                                                        VerticalOptions="End"
+                                                        Margin="0,0,8,8">
+                                                        <Label FontSize="11" TextColor="White"
+                                                           FontAttributes="Bold">
+                                                            <Label.Text>
+                                                                <MultiBinding StringFormat="+{0}">
+                                                                    <Binding Path="MediaPaths.Count"
+                                                                         Converter="{StaticResource SubtractTwoConverter}"/>
+                                                                </MultiBinding>
+                                                            </Label.Text>
+                                                        </Label>
+                                                    </Border>
+                                                </Grid>
+                                            </Grid>
+
+                                            <!-- Text -->
+                                            <Label IsVisible="{Binding HasText}"
+                                               Text="{Binding DisplayContent}"
+                                               TextColor="#F0F0F5"
+                                               FontSize="14.5"
+                                               Margin="14,10,14,4"
+                                               LineBreakMode="WordWrap"/>
+
+                                            <!-- Timestamp -->
+                                            <Label Text="{Binding TimeDisplay}"
+                                               FontSize="9" TextColor="#444455"
+                                               Margin="14,0,14,8"
+                                               HorizontalOptions="Start"/>
+                                        </VerticalStackLayout>
+                                    </Border>
+                                </VerticalStackLayout>
+
+                                <!-- Message menu -->
+                                <Grid Grid.Column="2" WidthRequest="28" VerticalOptions="Center">
+                                    <Button Text="⋮"
+                                        WidthRequest="28" HeightRequest="36"
+                                        BackgroundColor="Transparent"
+                                        TextColor="#333344"
+                                        FontSize="16"
+                                        Padding="0"
+                                        Clicked="OnMessageMenuTapped"
+                                        CommandParameter="{Binding .}"/>
+                                </Grid>
+                            </Grid>
+                        </Grid>
+
+                        <!-- ── OUTGOING MESSAGE ── -->
+                        <Grid IsVisible="{Binding IsOutgoing}"
+                          HorizontalOptions="End"
+                          Margin="60,2,0,2">
+                            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="6">
+
+                                <!-- Message menu (left of bubble) -->
+                                <Grid Grid.Column="0" WidthRequest="28" VerticalOptions="Center">
+                                    <Button Text="⋮"
+                                        WidthRequest="28" HeightRequest="36"
+                                        BackgroundColor="Transparent"
+                                        TextColor="#333344"
+                                        FontSize="16"
+                                        Padding="0"
+                                        Clicked="OnMessageMenuTapped"
+                                        CommandParameter="{Binding .}"/>
+                                </Grid>
+
+                                <!-- Bubble -->
+                                <Border Grid.Column="1"
+                                    BackgroundColor="#004040"
+                                    StrokeThickness="0"
+                                    StrokeShape="RoundRectangle 18"
+                                    HorizontalOptions="End"
+                                    Padding="0">
+
+                                    <VerticalStackLayout Spacing="0">
+
+                                        <!-- Reply strip (outgoing) -->
+                                        <Grid IsVisible="{Binding HasReply}"
+                                          ColumnDefinitions="4,*">
+                                            <BoxView Grid.Column="0"
+                                                 BackgroundColor="#FF3B6F"
+                                                 WidthRequest="4"
+                                                 CornerRadius="0"
+                                                 VerticalOptions="Fill"/>
+                                            <VerticalStackLayout Grid.Column="1"
+                                                              Padding="10,8,12,8"
+                                                              Spacing="2">
+                                                <Label Text="{Binding ReplyToSenderName}"
+                                                   FontSize="11" FontAttributes="Bold"
+                                                   TextColor="#FF3B6F"/>
+                                                <Label Text="{Binding ReplyToPreview}"
+                                                   FontSize="11" TextColor="#99CCCC"
+                                                   MaxLines="2"
+                                                   LineBreakMode="TailTruncation"/>
+                                            </VerticalStackLayout>
+                                        </Grid>
+
+                                        <!-- Poll (outgoing) -->
+                                        <VerticalStackLayout IsVisible="{Binding IsPoll}"
+                                                          Spacing="10" Padding="14,12">
+                                            <HorizontalStackLayout Spacing="6">
+                                                <Border BackgroundColor="#003030"
+                                                    StrokeThickness="0"
+                                                    StrokeShape="RoundRectangle 6"
+                                                    Padding="6,2">
+                                                    <Label Text="📊 POLL" FontSize="9"
+                                                       FontAttributes="Bold"
+                                                       TextColor="#AAFFFF"
+                                                       CharacterSpacing="1"/>
+                                                </Border>
+                                            </HorizontalStackLayout>
+                                            <Label Text="{Binding PollQuestion}"
+                                               FontSize="14" FontAttributes="Bold"
+                                               TextColor="#FFFFFF"
+                                               LineBreakMode="WordWrap"/>
+                                            <CollectionView ItemsSource="{Binding PollOptions}"
+                                                        SelectionMode="None"
+                                                        VerticalScrollBarVisibility="Never">
+                                                <CollectionView.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Grid Padding="0,0,0,6">
+                                                            <Frame CornerRadius="10"
+                                                               HasShadow="False"
+                                                               BorderColor="#006060"
+                                                               BackgroundColor="#003535"
+                                                               Padding="0"
+                                                               HeightRequest="38"
+                                                               IsClippedToBounds="True">
+                                                                <Grid>
+                                                                    <BoxView HeightRequest="38"
+                                                                         CornerRadius="10"
+                                                                         BackgroundColor="#005050"
+                                                                         HorizontalOptions="Start"
+                                                                         WidthRequest="{Binding FillWidthRequest}"
+                                                                         VerticalOptions="Fill"/>
+                                                                    <Grid ColumnDefinitions="*,Auto"
+                                                                      Padding="12,0">
+                                                                        <Label Text="{Binding Text}"
+                                                                           FontSize="12"
+                                                                           TextColor="#CCFFFF"
+                                                                           VerticalOptions="Center"
+                                                                           LineBreakMode="TailTruncation"/>
+                                                                        <Label Grid.Column="1"
+                                                                           Text="{Binding VotePercentage}"
+                                                                           FontSize="11"
+                                                                           FontAttributes="Bold"
+                                                                           TextColor="#AAFFFF"
+                                                                           VerticalOptions="Center"/>
+                                                                    </Grid>
+                                                                </Grid>
+                                                            </Frame>
+                                                        </Grid>
+                                                    </DataTemplate>
+                                                </CollectionView.ItemTemplate>
+                                            </CollectionView>
+                                            <Grid ColumnDefinitions="*,Auto">
+                                                <Label Text="{Binding TotalVotesDisplay}"
+                                                   FontSize="10" TextColor="#AAFFFF"
+                                                   VerticalOptions="Center"/>
+                                                <Frame Grid.Column="1" Padding="0"
+                                                   CornerRadius="16" HasShadow="False"
+                                                   BackgroundColor="{Binding VoteButtonColor}"
+                                                   BorderColor="Transparent"
+                                                   IsVisible="{Binding ShowVoteButton}">
+                                                    <Button Text="{Binding VoteButtonText}"
+                                                        BackgroundColor="Transparent"
+                                                        TextColor="White"
+                                                        FontSize="11" FontAttributes="Bold"
+                                                        Padding="12,4"
+                                                        Clicked="OnPollVoteClicked"
+                                                        CommandParameter="{Binding .}"/>
+                                                </Frame>
+                                            </Grid>
+                                        </VerticalStackLayout>
+
+                                        <!-- Image (outgoing) -->
+                                        <Grid IsVisible="{Binding HasMedia}"
+                                          Margin="4,4,4,0">
+                                            <Grid IsVisible="{Binding IsImage}">
+                                                <Border StrokeShape="RoundRectangle 14"
+                                                    StrokeThickness="0" Padding="0">
+                                                    <Border.GestureRecognizers>
+                                                        <TapGestureRecognizer
+                                                        Tapped="OnImageTapped"
+                                                        CommandParameter="{Binding MediaPaths[0]}"/>
+                                                    </Border.GestureRecognizers>
+                                                    <Image Source="{Binding MediaPaths[0]}"
+                                                       Aspect="AspectFill"
+                                                       HeightRequest="200"
+                                                       WidthRequest="220"/>
+                                                </Border>
+                                                <Border IsVisible="{Binding MediaPaths.Count,
+                                                        Converter={StaticResource IsGreaterThanOneConverter}}"
+                                                    BackgroundColor="#CC000000"
+                                                    StrokeThickness="0"
+                                                    StrokeShape="RoundRectangle 10"
+                                                    Padding="6,3"
+                                                    HorizontalOptions="End"
+                                                    VerticalOptions="End"
+                                                    Margin="0,0,8,8">
+                                                    <Label FontSize="11" TextColor="White"
+                                                       FontAttributes="Bold">
+                                                        <Label.Text>
+                                                            <MultiBinding StringFormat="+{0}">
+                                                                <Binding Path="MediaPaths.Count"
+                                                                     Converter="{StaticResource SubtractTwoConverter}"/>
+                                                            </MultiBinding>
+                                                        </Label.Text>
+                                                    </Label>
+                                                </Border>
+                                            </Grid>
+                                        </Grid>
+
+                                        <!-- Text -->
+                                        <Label IsVisible="{Binding HasText}"
+                                           Text="{Binding DisplayContent}"
+                                           TextColor="White"
+                                           FontSize="14.5"
+                                           Margin="14,10,14,4"
+                                           LineBreakMode="WordWrap"/>
+
+                                        <!-- Footer: edited + pin + time + read tick -->
+                                        <Grid ColumnDefinitions="*,Auto"
+                                          Margin="14,0,14,8">
+                                            <HorizontalStackLayout Grid.Column="0"
+                                                                Spacing="4"
+                                                                VerticalOptions="Center">
+                                                <Label Text="edited"
+                                                   FontSize="9" TextColor="#66AAAA"
+                                                   IsVisible="{Binding IsEdited}"/>
+                                            </HorizontalStackLayout>
+                                            <HorizontalStackLayout Grid.Column="1"
+                                                                Spacing="4"
+                                                                HorizontalOptions="End">
+                                                <Label Text="{Binding TimeDisplay}"
+                                                   FontSize="9" TextColor="#66AAAA"/>
+                                                <!-- Read tick -->
+                                                <Path IsVisible="{Binding IsRead}"
+                                                  Data="M2 12l5 5L20 4"
+                                                  Stroke="#AAFFFF"
+                                                  StrokeThickness="1.8"
+                                                  WidthRequest="14" HeightRequest="10"
+                                                  Aspect="Uniform"
+                                                  VerticalOptions="Center"/>
+                                            </HorizontalStackLayout>
+                                        </Grid>
+                                    </VerticalStackLayout>
+                                </Border>
+
+                                <!-- Space for alignment -->
+                                <Grid Grid.Column="2" WidthRequest="6"/>
+                            </Grid>
+                        </Grid>
+
+                    </Grid>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+
+        <!-- ══════════════════════════════════════════════════════════════ -->
+        <!-- ROW 2 · REPLY PREVIEW STRIP                                   -->
+        <!-- ══════════════════════════════════════════════════════════════ -->
+        <Grid Grid.Row="2"
+          x:Name="ReplyPreviewBanner"
+          IsVisible="False"
+          BackgroundColor="#141417"
+          Padding="16,8">
+            <Grid ColumnDefinitions="4,*,Auto" ColumnSpacing="10">
+                <BoxView Grid.Column="0"
+                     WidthRequest="3" BackgroundColor="#008080"
+                     VerticalOptions="Fill" CornerRadius="2"/>
+                <VerticalStackLayout Grid.Column="1" Spacing="2" VerticalOptions="Center">
+                    <Label x:Name="ReplyToNameLabel"
+                       FontSize="11" FontAttributes="Bold" TextColor="#008080"/>
+                    <Label x:Name="ReplyToPreviewLabel"
+                       FontSize="11" TextColor="#666666"
+                       LineBreakMode="TailTruncation"/>
+                </VerticalStackLayout>
+                <Grid Grid.Column="2" WidthRequest="32" HeightRequest="32"
+                  VerticalOptions="Center">
+                    <Grid.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnCancelReplyTapped"/>
+                    </Grid.GestureRecognizers>
+                    <Label Text="✕" FontSize="14" TextColor="#555555"
+                       HorizontalOptions="Center" VerticalOptions="Center"/>
+                </Grid>
+            </Grid>
+        </Grid>
+
+        <!-- ══════════════════════════════════════════════════════════════ -->
+        <!-- ROW 3 · INPUT BAR                                             -->
+        <!-- ══════════════════════════════════════════════════════════════ -->
+        <Grid Grid.Row="3"
+      BackgroundColor="#0F0F0F"
+      Padding="12,10,12,32"
+      ColumnDefinitions="Auto,*,Auto"
+      ColumnSpacing="8">
+
+            <!-- Attachment button -->
+            <Border Grid.Column="0"
+            BackgroundColor="#1A1A22"
+            WidthRequest="42" HeightRequest="42"
+            StrokeThickness="1" Stroke="#2A2A35"
+            StrokeShape="RoundRectangle 21"
+            Padding="11">
+                <Border.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnAttachmentTapped"/>
+                </Border.GestureRecognizers>
+                <Path Data="M12 5v14M5 12h14"
+              Stroke="#888888" StrokeThickness="2"
+              WidthRequest="20" HeightRequest="20"
+              HorizontalOptions="Center" VerticalOptions="Center"
+              Aspect="Uniform" StrokeLineCap="Round"/>
+            </Border>
+
+            <!-- Message input -->
+            <Border Grid.Column="1"
+            BackgroundColor="#1A1A22"
+            StrokeThickness="1" Stroke="#2A2A35"
+            StrokeShape="RoundRectangle 22"
+            Padding="14,0">
+                <Editor x:Name="MessageEditor"
+                Placeholder="Message the group…"
+                PlaceholderColor="#444455"
+                FontSize="14" TextColor="White"
+                BackgroundColor="Transparent"
+                AutoSize="TextChanges"
+                MaximumHeightRequest="120"
+                MinimumHeightRequest="42"
+                VerticalOptions="Center"/>
+            </Border>
+
+            <!-- Send button - FIXED -->
+            <Border Grid.Column="2"
+            BackgroundColor="#008080"
+            WidthRequest="42" HeightRequest="42"
+            StrokeThickness="0"
+            StrokeShape="RoundRectangle 21"
+            Padding="11">
+                <Border.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnSendMessageTapped"/>
+                </Border.GestureRecognizers>
+                <Path Data="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"
+              Fill="#FFFFFF"
+              WidthRequest="20" HeightRequest="20"
+              HorizontalOptions="Center" VerticalOptions="Center"
+              Aspect="Uniform"/>
+            </Border>
+        </Grid>
+        <!-- ══ ATTACHMENT PANEL (slides up over input) ══ -->
+        <Grid Grid.Row="3"
+          x:Name="AttachmentPanel"
+          IsVisible="False"
+          BackgroundColor="#0F0F0F"
+          Padding="16,16,16,36"
+          VerticalOptions="End">
+
+            <VerticalStackLayout Spacing="10">
+                <!-- Panel handle -->
+                <BoxView WidthRequest="36" HeightRequest="4"
+                     BackgroundColor="#333344" CornerRadius="2"
+                     HorizontalOptions="Center" Margin="0,0,0,6"/>
+
+                <Grid ColumnDefinitions="*,*,*" ColumnSpacing="12">
+
+                    <!-- Photos -->
+                    <Frame Grid.Column="0" CornerRadius="18"
+                       HasShadow="False" BorderColor="#1E1E2A"
+                       BackgroundColor="#141420" Padding="0"
+                       HeightRequest="86">
+                        <Frame.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnSendPhotosTapped"/>
+                        </Frame.GestureRecognizers>
+                        <VerticalStackLayout HorizontalOptions="Center"
+                                         VerticalOptions="Center" Spacing="6">
+                            <Border BackgroundColor="#1A2A3A" StrokeThickness="0"
+                                StrokeShape="RoundRectangle 14"
+                                WidthRequest="44" HeightRequest="44"
+                                HorizontalOptions="Center"
+                                Padding="0">
+                                <Path Data="M318-306h332L548-442 448-318l-64-74-66 86ZM172-172v-616h616v616H172Zm28-28h560v-560H200v560Zm0 0v-560 560Z"
+                                  Fill="#4A9EFF"
+                                  WidthRequest="24" HeightRequest="24"
+                                  HorizontalOptions="Center" VerticalOptions="Center"
+                                  Aspect="Uniform"/>
+                            </Border>
+                            <Label Text="Photos" FontSize="11"
+                               TextColor="#AAAAAA" HorizontalOptions="Center"/>
+                        </VerticalStackLayout>
+                    </Frame>
+
+                    <!-- Poll -->
+                    <Frame Grid.Column="1" CornerRadius="18"
+                       HasShadow="False" BorderColor="#1E1E2A"
+                       BackgroundColor="#141420" Padding="0"
+                       HeightRequest="86"
+                       x:Name="PollAttachFrame">
+                        <Frame.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnCreatePollFromPanelTapped"/>
+                        </Frame.GestureRecognizers>
+                        <VerticalStackLayout HorizontalOptions="Center"
+                                         VerticalOptions="Center" Spacing="6">
+                            <Border BackgroundColor="#1A2A2A" StrokeThickness="0"
+                                StrokeShape="RoundRectangle 14"
+                                WidthRequest="44" HeightRequest="44"
+                                HorizontalOptions="Center"
+                                Padding="0">
+                                <Path Data="M480-560h180v-28H480v28Zm0 188h180v-28H480v28ZM320-534h80v-80h-80v80Zm0 188h80v-80h-80v80ZM172-172v-616h616v616H172Zm28-28h560v-560H200v560Zm0 0v-560 560Z"
+                                  Fill="#008080"
+                                  WidthRequest="24" HeightRequest="24"
+                                  HorizontalOptions="Center" VerticalOptions="Center"
+                                  Aspect="Uniform"/>
+                            </Border>
+                            <Label Text="Poll" FontSize="11"
+                               TextColor="#AAAAAA" HorizontalOptions="Center"/>
+                        </VerticalStackLayout>
+                    </Frame>
+
+                    <!-- Event -->
+                    <Frame Grid.Column="2" CornerRadius="18"
+                       HasShadow="False" BorderColor="#1E1E2A"
+                       BackgroundColor="#141420" Padding="0"
+                       HeightRequest="86">
+                        <Frame.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnCreateEventFromPanelTapped"/>
+                        </Frame.GestureRecognizers>
+                        <VerticalStackLayout HorizontalOptions="Center"
+                                         VerticalOptions="Center" Spacing="6">
+                            <Border BackgroundColor="#2A1A2A" StrokeThickness="0"
+                                StrokeShape="RoundRectangle 14"
+                                WidthRequest="44" HeightRequest="44"
+                                HorizontalOptions="Center"
+                                Padding="0">
+                                <Path Data="M543.5-263.5Q520-287 520-320t23.5-56.5Q567-400 600-400t56.5 23.5Q680-353 680-320t-23.5 56.5Q633-240 600-240t-56.5-23.5ZM172-132v-616h140v-92h32v92h276v-92h28v92h140v616H172Zm28-28h560v-368H200v368Zm0-396h560v-164H200v164Zm0 0v-164 164Z"
+                                  Fill="#C084FC"
+                                  WidthRequest="24" HeightRequest="24"
+                                  HorizontalOptions="Center" VerticalOptions="Center"
+                                  Aspect="Uniform"/>
+                            </Border>
+                            <Label Text="Event" FontSize="11"
+                               TextColor="#AAAAAA" HorizontalOptions="Center"/>
+                        </VerticalStackLayout>
+                    </Frame>
+                </Grid>
+
+                <!-- Cancel -->
+                <Label Text="Cancel" FontSize="13" TextColor="#555555"
+                   HorizontalOptions="Center" Margin="0,4,0,0">
+                    <Label.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnCloseAttachmentPanel"/>
+                    </Label.GestureRecognizers>
+                </Label>
+            </VerticalStackLayout>
+        </Grid>
+
+    </Grid>
+</ContentPage>

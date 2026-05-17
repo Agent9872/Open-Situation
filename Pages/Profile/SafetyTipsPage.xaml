@@ -1,0 +1,733 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Lock.Pages.Profile.SafetyTipsPage"
+             Title="Safety Center"
+             BackgroundColor="{AppThemeBinding Light=#F5F6FA, Dark=#0F0F11}"
+             NavigationPage.HasNavigationBar="True"
+             Shell.NavBarIsVisible="True">
+
+    <ContentPage.Resources>
+        <ResourceDictionary>
+            <Color x:Key="PrimaryRed">#C05050</Color>
+            <Color x:Key="PrimaryRedDark">#9A4040</Color>
+            <Color x:Key="PrimaryRedLight">#FFE5E5</Color>
+            <Color x:Key="TextDark">#1A1A1A</Color>
+            <Color x:Key="TextLight">#666666</Color>
+            <Color x:Key="TextMuted">#9AA0A6</Color>
+            <Color x:Key="CardBg">#FFFFFF</Color>
+            <Color x:Key="DarkCardBg">#1F1F21</Color>
+            <Color x:Key="DarkText">#F0EDE8</Color>
+            <Color x:Key="Success">#10B981</Color>
+            <Color x:Key="Warning">#F59E0B</Color>
+            <Color x:Key="IconColor">#E6E6E6</Color>
+        </ResourceDictionary>
+    </ContentPage.Resources>
+
+    <ScrollView>
+        <VerticalStackLayout Spacing="0" Padding="0">
+
+            <!-- Hero Section with Gradient Background -->
+            <Grid Padding="24,32,24,28" 
+                  BackgroundColor="{AppThemeBinding Light={StaticResource PrimaryRed}, Dark={StaticResource PrimaryRedDark}}">
+                <VerticalStackLayout Spacing="12">
+                    <!-- Shield icon using Material Symbol style -->
+                    <ContentView WidthRequest="56" HeightRequest="56" HorizontalOptions="Center">
+                        <Path Data="M12,2 L3,6 L3,12 C3,18.5 7.2,24.5 12,26 C16.8,24.5 21,18.5 21,12 L21,6 L12,2 Z"
+                              Fill="White"
+                              Stroke="White"
+                              StrokeThickness="1.5"
+                              HorizontalOptions="Center"
+                              VerticalOptions="Center"
+                              Aspect="Uniform" />
+                    </ContentView>
+                    <Label Text="Safety Center"
+                           FontSize="28"
+                           FontAttributes="Bold"
+                           HorizontalOptions="Center"
+                           TextColor="White"/>
+                    <Label Text="Your well-being is our priority. Here's how to stay safe while finding meaningful connections."
+                           FontSize="14"
+                           HorizontalOptions="Center"
+                           TextColor="#FFE5E5"
+                           LineBreakMode="WordWrap"
+                           HorizontalTextAlignment="Center"/>
+                </VerticalStackLayout>
+            </Grid>
+
+            <!-- Quick Actions Row -->
+            <Grid Margin="20,16,20,8" ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Emergency Contacts Button -->
+                <Border Grid.Column="0"
+                        Padding="16,12"
+                        BackgroundColor="{AppThemeBinding Light={StaticResource CardBg}, Dark={StaticResource DarkCardBg}}"
+                        Stroke="{AppThemeBinding Light=#E6E9EE, Dark=#333330}"
+                        StrokeThickness="1"
+                        StrokeShape="RoundRectangle 16">
+                    <Border.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnEmergencyContactsTapped"/>
+                    </Border.GestureRecognizers>
+                    <VerticalStackLayout Spacing="8" HorizontalOptions="Center">
+                        <ContentView WidthRequest="28" HeightRequest="28" HorizontalOptions="Center">
+                            <Path Data="M12,2 L12,6 M12,10 L12,14 M8,4 L16,4 M4,8 L8,8 M16,8 L20,8 M8,12 L16,12 M4,16 L8,16 M16,16 L20,16 M8,20 L16,20"
+                                  Stroke="{StaticResource IconColor}"
+                                  StrokeThickness="1.5"
+                                  StrokeLineCap="Round"
+                                  HorizontalOptions="Center"
+                                  VerticalOptions="Center"
+                                  Aspect="Uniform" />
+                        </ContentView>
+                        <Label Text="Emergency Contacts"
+                               FontSize="12"
+                               FontAttributes="Bold"
+                               TextColor="{AppThemeBinding Light={StaticResource TextDark}, Dark={StaticResource DarkText}}"
+                               HorizontalOptions="Center"/>
+                        <Label Text="Add trusted friends"
+                               FontSize="10"
+                               TextColor="{AppThemeBinding Light={StaticResource TextLight}, Dark=#AAAAAA}"
+                               HorizontalOptions="Center"/>
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- Share Date Details Button -->
+                <Border Grid.Column="1"
+                        Padding="16,12"
+                        BackgroundColor="{AppThemeBinding Light={StaticResource CardBg}, Dark={StaticResource DarkCardBg}}"
+                        Stroke="{AppThemeBinding Light=#E6E9EE, Dark=#333330}"
+                        StrokeThickness="1"
+                        StrokeShape="RoundRectangle 16">
+                    <Border.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnShareDateDetailsTapped"/>
+                    </Border.GestureRecognizers>
+                    <VerticalStackLayout Spacing="8" HorizontalOptions="Center">
+                        <ContentView WidthRequest="28" HeightRequest="28" HorizontalOptions="Center">
+                            <Path Data="M12,4 L12,12 M12,12 L16,8 M12,12 L8,8 M4,16 L20,16 L20,20 L4,20 L4,16 Z"
+                                  Stroke="{StaticResource IconColor}"
+                                  StrokeThickness="1.5"
+                                  StrokeLineCap="Round"
+                                  StrokeLineJoin="Round"
+                                  Fill="Transparent"
+                                  HorizontalOptions="Center"
+                                  VerticalOptions="Center"
+                                  Aspect="Uniform" />
+                        </ContentView>
+                        <Label Text="Share Date"
+                               FontSize="12"
+                               FontAttributes="Bold"
+                               TextColor="{AppThemeBinding Light={StaticResource TextDark}, Dark={StaticResource DarkText}}"
+                               HorizontalOptions="Center"/>
+                        <Label Text="Let friends know"
+                               FontSize="10"
+                               TextColor="{AppThemeBinding Light={StaticResource TextLight}, Dark=#AAAAAA}"
+                               HorizontalOptions="Center"/>
+                    </VerticalStackLayout>
+                </Border>
+            </Grid>
+
+            <!-- Trust Your Gut Section -->
+            <Border Margin="20,12,20,8"
+                    Padding="20,16"
+                    BackgroundColor="{AppThemeBinding Light={StaticResource CardBg}, Dark={StaticResource DarkCardBg}}"
+                    Stroke="{AppThemeBinding Light=#E6E9EE, Dark=#333330}"
+                    StrokeThickness="1"
+                    StrokeShape="RoundRectangle 20">
+                <VerticalStackLayout Spacing="12">
+                    <HorizontalStackLayout Spacing="12">
+                        <BoxView WidthRequest="4" HeightRequest="36" Color="{StaticResource PrimaryRed}" CornerRadius="2"/>
+                        <Label Text="Trust Your Intuition"
+                               FontSize="18"
+                               FontAttributes="Bold"
+                               TextColor="{AppThemeBinding Light={StaticResource TextDark}, Dark={StaticResource DarkText}}"
+                               VerticalOptions="Center"/>
+                    </HorizontalStackLayout>
+                    <Label Text="Your gut feeling is your most powerful safety tool. If something feels wrong, it probably is. Don't let politeness override your instincts."
+                           FontSize="14"
+                           TextColor="{AppThemeBinding Light={StaticResource TextLight}, Dark=#AAAAAA}"
+                           LineBreakMode="WordWrap"/>
+                    <BoxView HeightRequest="1" BackgroundColor="{AppThemeBinding Light=#E6E9EE, Dark=#333330}" Margin="0,4,0,0"/>
+                    <Label Text="⚠️ Common warning signs:"
+                           FontSize="12"
+                           FontAttributes="Bold"
+                           TextColor="{StaticResource Warning}"/>
+
+                    <VerticalStackLayout Spacing="8" Margin="0,4,0,0">
+                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                            <ContentView WidthRequest="20" HeightRequest="20">
+                                <Path Data="M12,2 L12,6 M12,10 L12,14"
+                                      Stroke="#C05050"
+                                      StrokeThickness="1.5"
+                                      StrokeLineCap="Round"
+                                      HorizontalOptions="Center"
+                                      VerticalOptions="Center"
+                                      Aspect="Uniform" />
+                            </ContentView>
+                            <Label Grid.Column="1" Text="Asking for money or financial help"
+                                   FontSize="13"
+                                   TextColor="{AppThemeBinding Light={StaticResource TextLight}, Dark=#AAAAAA}"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                            <ContentView WidthRequest="20" HeightRequest="20">
+                                <Path Data="M12,2 L12,6 M12,10 L12,14"
+                                      Stroke="#C05050"
+                                      StrokeThickness="1.5"
+                                      StrokeLineCap="Round"
+                                      HorizontalOptions="Center"
+                                      VerticalOptions="Center"
+                                      Aspect="Uniform" />
+                            </ContentView>
+                            <Label Grid.Column="1" Text="Moving too fast emotionally (love bombing)"
+                                   FontSize="13"
+                                   TextColor="{AppThemeBinding Light={StaticResource TextLight}, Dark=#AAAAAA}"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                            <ContentView WidthRequest="20" HeightRequest="20">
+                                <Path Data="M12,2 L12,6 M12,10 L12,14"
+                                      Stroke="#C05050"
+                                      StrokeThickness="1.5"
+                                      StrokeLineCap="Round"
+                                      HorizontalOptions="Center"
+                                      VerticalOptions="Center"
+                                      Aspect="Uniform" />
+                            </ContentView>
+                            <Label Grid.Column="1" Text="Refusing to video chat or meet in public"
+                                   FontSize="13"
+                                   TextColor="{AppThemeBinding Light={StaticResource TextLight}, Dark=#AAAAAA}"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                            <ContentView WidthRequest="20" HeightRequest="20">
+                                <Path Data="M12,2 L12,6 M12,10 L12,14"
+                                      Stroke="#C05050"
+                                      StrokeThickness="1.5"
+                                      StrokeLineCap="Round"
+                                      HorizontalOptions="Center"
+                                      VerticalOptions="Center"
+                                      Aspect="Uniform" />
+                            </ContentView>
+                            <Label Grid.Column="1" Text="Inconsistent personal details or photos"
+                                   FontSize="13"
+                                   TextColor="{AppThemeBinding Light={StaticResource TextLight}, Dark=#AAAAAA}"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                            <ContentView WidthRequest="20" HeightRequest="20">
+                                <Path Data="M12,2 L12,6 M12,10 L12,14"
+                                      Stroke="#C05050"
+                                      StrokeThickness="1.5"
+                                      StrokeLineCap="Round"
+                                      HorizontalOptions="Center"
+                                      VerticalOptions="Center"
+                                      Aspect="Uniform" />
+                            </ContentView>
+                            <Label Grid.Column="1" Text="Pressuring you for explicit content"
+                                   FontSize="13"
+                                   TextColor="{AppThemeBinding Light={StaticResource TextLight}, Dark=#AAAAAA}"/>
+                        </Grid>
+                    </VerticalStackLayout>
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- First Date Safety Section -->
+            <Border Margin="20,8,20,8"
+                    Padding="20,16"
+                    BackgroundColor="{AppThemeBinding Light={StaticResource CardBg}, Dark={StaticResource DarkCardBg}}"
+                    Stroke="{AppThemeBinding Light=#E6E9EE, Dark=#333330}"
+                    StrokeThickness="1"
+                    StrokeShape="RoundRectangle 20">
+                <VerticalStackLayout Spacing="12">
+                    <HorizontalStackLayout Spacing="12">
+                        <BoxView WidthRequest="4" HeightRequest="36" Color="{StaticResource PrimaryRed}" CornerRadius="2"/>
+                        <Label Text="First Date Essentials"
+                               FontSize="18"
+                               FontAttributes="Bold"
+                               TextColor="{AppThemeBinding Light={StaticResource TextDark}, Dark={StaticResource DarkText}}"
+                               VerticalOptions="Center"/>
+                    </HorizontalStackLayout>
+
+                    <VerticalStackLayout Spacing="14">
+                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="14">
+                            <ContentView WidthRequest="24" HeightRequest="24" VerticalOptions="Start">
+                                <Path Data="M12,2 L12,4 M12,6 L12,8 M4,12 L20,12 M8,20 L16,20 M2,12 L4,12 M20,12 L22,12 M12,20 L12,22"
+                                      Stroke="{StaticResource IconColor}"
+                                      StrokeThickness="1.5"
+                                      StrokeLineCap="Round"
+                                      Fill="Transparent"
+                                      HorizontalOptions="Center"
+                                      VerticalOptions="Center"
+                                      Aspect="Uniform" />
+                            </ContentView>
+                            <Label Grid.Column="1" Text="Choose a public place - coffee shops, busy restaurants, parks with people around"
+                                   FontSize="14"
+                                   TextColor="{AppThemeBinding Light={StaticResource TextLight}, Dark=#AAAAAA}"
+                                   LineBreakMode="WordWrap"/>
+                        </Grid>
+
+                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="14">
+                            <ContentView WidthRequest="24" HeightRequest="24" VerticalOptions="Start">
+                                <Path Data="M8,4 L16,4 L20,8 L20,18 L4,18 L4,8 L8,4 Z M8,4 L8,8 L4,8 M16,4 L16,8 L20,8"
+                                      Stroke="{StaticResource IconColor}"
+                                      StrokeThickness="1.5"
+                                      StrokeLineCap="Round"
+                                      StrokeLineJoin="Round"
+                                      Fill="Transparent"
+                                      HorizontalOptions="Center"
+                                      VerticalOptions="Center"
+                                      Aspect="Uniform" />
+                            </ContentView>
+                            <Label Grid.Column="1" Text="Arrange your own transportation - don't rely on your date for pickup or drop-off"
+                                   FontSize="14"
+                                   TextColor="{AppThemeBinding Light={StaticResource TextLight}, Dark=#AAAAAA}"
+                                   LineBreakMode="WordWrap"/>
+                        </Grid>
+
+                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="14">
+                            <ContentView WidthRequest="24" HeightRequest="24" VerticalOptions="Start">
+                                <Path Data="M12,4 L12,12 M12,12 L16,8 M12,12 L8,8 M4,16 L20,16 L20,20 L4,20 L4,16 Z"
+                                      Stroke="{StaticResource IconColor}"
+                                      StrokeThickness="1.5"
+                                      StrokeLineCap="Round"
+                                      StrokeLineJoin="Round"
+                                      Fill="Transparent"
+                                      HorizontalOptions="Center"
+                                      VerticalOptions="Center"
+                                      Aspect="Uniform" />
+                            </ContentView>
+                            <Label Grid.Column="1" Text="Share your date details with a trusted friend - location, time, and who you're meeting"
+                                   FontSize="14"
+                                   TextColor="{AppThemeBinding Light={StaticResource TextLight}, Dark=#AAAAAA}"
+                                   LineBreakMode="WordWrap"/>
+                        </Grid>
+
+                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="14">
+                            <ContentView WidthRequest="24" HeightRequest="24" VerticalOptions="Start">
+                                <Path Data="M12,2 L12,22 M2,12 L22,12 M6,6 L18,18 M18,6 L6,18"
+                                      Stroke="{StaticResource IconColor}"
+                                      StrokeThickness="1.5"
+                                      StrokeLineCap="Round"
+                                      Fill="Transparent"
+                                      HorizontalOptions="Center"
+                                      VerticalOptions="Center"
+                                      Aspect="Uniform" />
+                            </ContentView>
+                            <Label Grid.Column="1" Text="Keep your phone fully charged and share your live location with someone you trust"
+                                   FontSize="14"
+                                   TextColor="{AppThemeBinding Light={StaticResource TextLight}, Dark=#AAAAAA}"
+                                   LineBreakMode="WordWrap"/>
+                        </Grid>
+
+                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="14">
+                            <ContentView WidthRequest="24" HeightRequest="24" VerticalOptions="Start">
+                                <Path Data="M4,12 L8,12 L8,16 L16,16 L16,12 L20,12 M12,4 L12,12 M12,12 L15,9 M12,12 L9,9"
+                                      Stroke="{StaticResource IconColor}"
+                                      StrokeThickness="1.5"
+                                      StrokeLineCap="Round"
+                                      StrokeLineJoin="Round"
+                                      Fill="Transparent"
+                                      HorizontalOptions="Center"
+                                      VerticalOptions="Center"
+                                      Aspect="Uniform" />
+                            </ContentView>
+                            <Label Grid.Column="1" Text="Watch your drink - never leave it unattended. Stick to beverages you've seen prepared"
+                                   FontSize="14"
+                                   TextColor="{AppThemeBinding Light={StaticResource TextLight}, Dark=#AAAAAA}"
+                                   LineBreakMode="WordWrap"/>
+                        </Grid>
+                    </VerticalStackLayout>
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- Online Safety & Verification Section -->
+            <Border Margin="20,8,20,8"
+                    Padding="20,16"
+                    BackgroundColor="{AppThemeBinding Light={StaticResource CardBg}, Dark={StaticResource DarkCardBg}}"
+                    Stroke="{AppThemeBinding Light=#E6E9EE, Dark=#333330}"
+                    StrokeThickness="1"
+                    StrokeShape="RoundRectangle 20">
+                <VerticalStackLayout Spacing="12">
+                    <HorizontalStackLayout Spacing="12">
+                        <BoxView WidthRequest="4" HeightRequest="36" Color="{StaticResource PrimaryRed}" CornerRadius="2"/>
+                        <Label Text="Online Safety"
+                               FontSize="18"
+                               FontAttributes="Bold"
+                               TextColor="{AppThemeBinding Light={StaticResource TextDark}, Dark={StaticResource DarkText}}"
+                               VerticalOptions="Center"/>
+                    </HorizontalStackLayout>
+
+                    <VerticalStackLayout Spacing="14">
+                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="14">
+                            <ContentView WidthRequest="24" HeightRequest="24" VerticalOptions="Start">
+                                <Path Data="M4,4 L20,4 L20,16 L12,16 L8,20 L8,16 L4,16 L4,4 Z M8,8 L16,8 M8,12 L14,12"
+                                      Stroke="{StaticResource IconColor}"
+                                      StrokeThickness="1.5"
+                                      StrokeLineCap="Round"
+                                      StrokeLineJoin="Round"
+                                      Fill="Transparent"
+                                      HorizontalOptions="Center"
+                                      VerticalOptions="Center"
+                                      Aspect="Uniform" />
+                            </ContentView>
+                            <Label Grid.Column="1" Text="Chat in the app until you feel comfortable - our chat keeps your phone number private"
+                                   FontSize="14"
+                                   TextColor="{AppThemeBinding Light={StaticResource TextLight}, Dark=#AAAAAA}"
+                                   LineBreakMode="WordWrap"/>
+                        </Grid>
+
+                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="14">
+                            <ContentView WidthRequest="24" HeightRequest="24" VerticalOptions="Start">
+                                <Path Data="M12,4 L12,12 M12,12 L16,8 M12,12 L8,8 M4,16 L20,16 L20,20 L4,20 L4,16 Z M8,4 L16,4"
+                                      Stroke="{StaticResource IconColor}"
+                                      StrokeThickness="1.5"
+                                      StrokeLineCap="Round"
+                                      StrokeLineJoin="Round"
+                                      Fill="Transparent"
+                                      HorizontalOptions="Center"
+                                      VerticalOptions="Center"
+                                      Aspect="Uniform" />
+                            </ContentView>
+                            <Label Grid.Column="1" Text="Video chat before meeting in person - it confirms identity and helps gauge chemistry"
+                                   FontSize="14"
+                                   TextColor="{AppThemeBinding Light={StaticResource TextLight}, Dark=#AAAAAA}"
+                                   LineBreakMode="WordWrap"/>
+                        </Grid>
+
+                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="14">
+                            <ContentView WidthRequest="24" HeightRequest="24" VerticalOptions="Start">
+                                <Path Data="M12,2 L22,12 L12,22 L2,12 L12,2 Z M12,8 L12,12 M12,16 L12.01,16"
+                                      Stroke="{StaticResource IconColor}"
+                                      StrokeThickness="1.5"
+                                      StrokeLineCap="Round"
+                                      StrokeLineJoin="Round"
+                                      Fill="Transparent"
+                                      HorizontalOptions="Center"
+                                      VerticalOptions="Center"
+                                      Aspect="Uniform" />
+                            </ContentView>
+                            <Label Grid.Column="1" Text="Reverse image search profile photos - catfishers often use stolen pictures"
+                                   FontSize="14"
+                                   TextColor="{AppThemeBinding Light={StaticResource TextLight}, Dark=#AAAAAA}"
+                                   LineBreakMode="WordWrap"/>
+                        </Grid>
+
+                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="14">
+                            <ContentView WidthRequest="24" HeightRequest="24" VerticalOptions="Start">
+                                <Path Data="M12,4 L20,8 L12,12 L4,8 L12,4 Z M12,12 L12,20 M20,12 L20,16 M4,12 L4,16"
+                                      Stroke="{StaticResource IconColor}"
+                                      StrokeThickness="1.5"
+                                      StrokeLineCap="Round"
+                                      StrokeLineJoin="Round"
+                                      Fill="Transparent"
+                                      HorizontalOptions="Center"
+                                      VerticalOptions="Center"
+                                      Aspect="Uniform" />
+                            </ContentView>
+                            <Label Grid.Column="1" Text="Look for verified profiles - they've confirmed their identity with us"
+                                   FontSize="14"
+                                   TextColor="{AppThemeBinding Light={StaticResource TextLight}, Dark=#AAAAAA}"
+                                   LineBreakMode="WordWrap"/>
+                        </Grid>
+                    </VerticalStackLayout>
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- Red Flags - What to Watch For -->
+            <Border Margin="20,8,20,8"
+                    Padding="20,16"
+                    BackgroundColor="{AppThemeBinding Light={StaticResource CardBg}, Dark={StaticResource DarkCardBg}}"
+                    Stroke="{AppThemeBinding Light=#E6E9EE, Dark=#333330}"
+                    StrokeThickness="1"
+                    StrokeShape="RoundRectangle 20">
+                <VerticalStackLayout Spacing="12">
+                    <HorizontalStackLayout Spacing="12">
+                        <BoxView WidthRequest="4" HeightRequest="36" Color="{StaticResource PrimaryRed}" CornerRadius="2"/>
+                        <Label Text="🚩 Red Flags to Watch For"
+                               FontSize="18"
+                               FontAttributes="Bold"
+                               TextColor="{AppThemeBinding Light={StaticResource TextDark}, Dark={StaticResource DarkText}}"
+                               VerticalOptions="Center"/>
+                    </HorizontalStackLayout>
+
+                    <VerticalStackLayout Spacing="10">
+                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                            <ContentView WidthRequest="20" HeightRequest="20">
+                                <Path Data="M12,2 L12,6 M12,10 L12,14"
+                                      Stroke="#C05050"
+                                      StrokeThickness="1.5"
+                                      StrokeLineCap="Round"
+                                      HorizontalOptions="Center"
+                                      VerticalOptions="Center"
+                                      Aspect="Uniform" />
+                            </ContentView>
+                            <Label Grid.Column="1" Text="Pressuring you to meet before you're ready"
+                                   FontSize="14"
+                                   TextColor="{AppThemeBinding Light={StaticResource TextLight}, Dark=#AAAAAA}"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                            <ContentView WidthRequest="20" HeightRequest="20">
+                                <Path Data="M12,2 L12,6 M12,10 L12,14"
+                                      Stroke="#C05050"
+                                      StrokeThickness="1.5"
+                                      StrokeLineCap="Round"
+                                      HorizontalOptions="Center"
+                                      VerticalOptions="Center"
+                                      Aspect="Uniform" />
+                            </ContentView>
+                            <Label Grid.Column="1" Text="Inconsistent stories or evasive about personal details"
+                                   FontSize="14"
+                                   TextColor="{AppThemeBinding Light={StaticResource TextLight}, Dark=#AAAAAA}"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                            <ContentView WidthRequest="20" HeightRequest="20">
+                                <Path Data="M12,2 L12,6 M12,10 L12,14"
+                                      Stroke="#C05050"
+                                      StrokeThickness="1.5"
+                                      StrokeLineCap="Round"
+                                      HorizontalOptions="Center"
+                                      VerticalOptions="Center"
+                                      Aspect="Uniform" />
+                            </ContentView>
+                            <Label Grid.Column="1" Text="Love bombing - excessive affection or commitment too quickly"
+                                   FontSize="14"
+                                   TextColor="{AppThemeBinding Light={StaticResource TextLight}, Dark=#AAAAAA}"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                            <ContentView WidthRequest="20" HeightRequest="20">
+                                <Path Data="M12,2 L12,6 M12,10 L12,14"
+                                      Stroke="#C05050"
+                                      StrokeThickness="1.5"
+                                      StrokeLineCap="Round"
+                                      HorizontalOptions="Center"
+                                      VerticalOptions="Center"
+                                      Aspect="Uniform" />
+                            </ContentView>
+                            <Label Grid.Column="1" Text="Disrespecting boundaries or getting angry when you say no"
+                                   FontSize="14"
+                                   TextColor="{AppThemeBinding Light={StaticResource TextLight}, Dark=#AAAAAA}"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                            <ContentView WidthRequest="20" HeightRequest="20">
+                                <Path Data="M12,2 L12,6 M12,10 L12,14"
+                                      Stroke="#C05050"
+                                      StrokeThickness="1.5"
+                                      StrokeLineCap="Round"
+                                      HorizontalOptions="Center"
+                                      VerticalOptions="Center"
+                                      Aspect="Uniform" />
+                            </ContentView>
+                            <Label Grid.Column="1" Text="Asking for explicit photos early in conversation"
+                                   FontSize="14"
+                                   TextColor="{AppThemeBinding Light={StaticResource TextLight}, Dark=#AAAAAA}"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                            <ContentView WidthRequest="20" HeightRequest="20">
+                                <Path Data="M12,2 L12,6 M12,10 L12,14"
+                                      Stroke="#C05050"
+                                      StrokeThickness="1.5"
+                                      StrokeLineCap="Round"
+                                      HorizontalOptions="Center"
+                                      VerticalOptions="Center"
+                                      Aspect="Uniform" />
+                            </ContentView>
+                            <Label Grid.Column="1" Text="Making you feel guilty or obligated"
+                                   FontSize="14"
+                                   TextColor="{AppThemeBinding Light={StaticResource TextLight}, Dark=#AAAAAA}"/>
+                        </Grid>
+                    </VerticalStackLayout>
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- How to Report & Block -->
+            <Border Margin="20,8,20,8"
+                    Padding="20,16"
+                    BackgroundColor="{AppThemeBinding Light={StaticResource CardBg}, Dark={StaticResource DarkCardBg}}"
+                    Stroke="{AppThemeBinding Light=#E6E9EE, Dark=#333330}"
+                    StrokeThickness="1"
+                    StrokeShape="RoundRectangle 20">
+                <VerticalStackLayout Spacing="12">
+                    <HorizontalStackLayout Spacing="12">
+                        <BoxView WidthRequest="4" HeightRequest="36" Color="{StaticResource PrimaryRed}" CornerRadius="2"/>
+                        <Label Text="Report and Block"
+                               FontSize="18"
+                               FontAttributes="Bold"
+                               TextColor="{AppThemeBinding Light={StaticResource TextDark}, Dark={StaticResource DarkText}}"
+                               VerticalOptions="Center"/>
+                    </HorizontalStackLayout>
+
+                    <Label Text="Don't hesitate to use our safety tools. You're in control."
+                           FontSize="13"
+                           TextColor="{AppThemeBinding Light={StaticResource TextLight}, Dark=#AAAAAA}"
+                           LineBreakMode="WordWrap"/>
+
+                    <VerticalStackLayout Spacing="12">
+                        <Border Padding="14,10"
+                                BackgroundColor="{AppThemeBinding Light=#F8F9FA, Dark=#2A2A2E}"
+                                StrokeThickness="0"
+                                StrokeShape="RoundRectangle 12">
+                            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                                <ContentView WidthRequest="24" HeightRequest="24">
+                                    <Path Data="M12,2 L12,6 M12,10 L12,14 M8,4 L16,4 M4,8 L8,8 M16,8 L20,8 M8,12 L16,12 M4,16 L8,16 M16,16 L20,16 M8,20 L16,20"
+                                          Stroke="{StaticResource IconColor}"
+                                          StrokeThickness="1.5"
+                                          StrokeLineCap="Round"
+                                          HorizontalOptions="Center"
+                                          VerticalOptions="Center"
+                                          Aspect="Uniform" />
+                                </ContentView>
+                                <Label Grid.Column="1" Text="Block users who make you uncomfortable - they won't be notified"
+                                       FontSize="13"
+                                       TextColor="{AppThemeBinding Light={StaticResource TextDark}, Dark={StaticResource DarkText}}"
+                                       LineBreakMode="WordWrap"/>
+                            </Grid>
+                        </Border>
+
+                        <Border Padding="14,10"
+                                BackgroundColor="{AppThemeBinding Light=#F8F9FA, Dark=#2A2A2E}"
+                                StrokeThickness="0"
+                                StrokeShape="RoundRectangle 12">
+                            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                                <ContentView WidthRequest="24" HeightRequest="24">
+                                    <Path Data="M12,2 L12,6 M12,10 L12,14 M4,12 L20,12 M8,8 L16,16 M16,8 L8,16"
+                                          Stroke="{StaticResource IconColor}"
+                                          StrokeThickness="1.5"
+                                          StrokeLineCap="Round"
+                                          HorizontalOptions="Center"
+                                          VerticalOptions="Center"
+                                          Aspect="Uniform" />
+                                </ContentView>
+                                <Label Grid.Column="1" Text="Report suspicious behavior - your report helps protect others"
+                                       FontSize="13"
+                                       TextColor="{AppThemeBinding Light={StaticResource TextDark}, Dark={StaticResource DarkText}}"
+                                       LineBreakMode="WordWrap"/>
+                            </Grid>
+                        </Border>
+
+                        <Border Padding="14,10"
+                                BackgroundColor="{AppThemeBinding Light=#F8F9FA, Dark=#2A2A2E}"
+                                StrokeThickness="0"
+                                StrokeShape="RoundRectangle 12">
+                            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                                <ContentView WidthRequest="24" HeightRequest="24">
+                                    <Path Data="M12,2 L12,6 M12,10 L12,14 M8,6 L16,6 M6,12 L18,12"
+                                          Stroke="{StaticResource IconColor}"
+                                          StrokeThickness="1.5"
+                                          StrokeLineCap="Round"
+                                          HorizontalOptions="Center"
+                                          VerticalOptions="Center"
+                                          Aspect="Uniform" />
+                                </ContentView>
+                                <Label Grid.Column="1" Text="Mute conversations that feel overwhelming - take breaks when needed"
+                                       FontSize="13"
+                                       TextColor="{AppThemeBinding Light={StaticResource TextDark}, Dark={StaticResource DarkText}}"
+                                       LineBreakMode="WordWrap"/>
+                            </Grid>
+                        </Border>
+                    </VerticalStackLayout>
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- Support & Resources Section -->
+            <Border Margin="20,8,20,24"
+                    Padding="20,16"
+                    BackgroundColor="{AppThemeBinding Light={StaticResource PrimaryRedLight}, Dark=#2A1A1A}"
+                    Stroke="{StaticResource PrimaryRed}"
+                    StrokeThickness="1.5"
+                    StrokeShape="RoundRectangle 20">
+                <VerticalStackLayout Spacing="14">
+                    <Label Text="🤝 Need Support?"
+                           FontSize="18"
+                           FontAttributes="Bold"
+                           TextColor="{StaticResource PrimaryRed}"
+                           HorizontalOptions="Center"/>
+
+                    <Label Text="You're never alone. Use our safety features to stay protected, and remember:"
+                           FontSize="13"
+                           TextColor="{AppThemeBinding Light={StaticResource TextDark}, Dark=#DDDDDD}"
+                           LineBreakMode="WordWrap"
+                           HorizontalTextAlignment="Center"/>
+
+                    <VerticalStackLayout Spacing="10">
+                        <Border Padding="14,12"
+                                BackgroundColor="Transparent"
+                                Stroke="{StaticResource PrimaryRed}"
+                                StrokeThickness="1"
+                                StrokeShape="RoundRectangle 16">
+                            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                                <ContentView WidthRequest="24" HeightRequest="24">
+                                    <Path Data="M12,2 L12,6 M12,10 L12,14 M8,4 L16,4 M4,8 L8,8 M16,8 L20,8 M8,12 L16,12 M4,16 L8,16 M16,16 L20,16 M8,20 L16,20"
+                                          Stroke="{StaticResource PrimaryRed}"
+                                          StrokeThickness="1.5"
+                                          StrokeLineCap="Round"
+                                          HorizontalOptions="Center"
+                                          VerticalOptions="Center"
+                                          Aspect="Uniform" />
+                                </ContentView>
+                                <Label Grid.Column="1" Text="Emergency Contacts - Add trusted friends who can help in urgent situations"
+                                       FontSize="12"
+                                       TextColor="{AppThemeBinding Light={StaticResource TextDark}, Dark=#DDDDDD}"
+                                       LineBreakMode="WordWrap"/>
+                            </Grid>
+                        </Border>
+
+                        <Border Padding="14,12"
+                                BackgroundColor="Transparent"
+                                Stroke="{StaticResource PrimaryRed}"
+                                StrokeThickness="1"
+                                StrokeShape="RoundRectangle 16">
+                            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                                <ContentView WidthRequest="24" HeightRequest="24">
+                                    <Path Data="M12,4 L12,12 M12,12 L16,8 M12,12 L8,8 M4,16 L20,16 L20,20 L4,20 L4,16 Z"
+                                          Stroke="{StaticResource PrimaryRed}"
+                                          StrokeThickness="1.5"
+                                          StrokeLineCap="Round"
+                                          StrokeLineJoin="Round"
+                                          Fill="Transparent"
+                                          HorizontalOptions="Center"
+                                          VerticalOptions="Center"
+                                          Aspect="Uniform" />
+                                </ContentView>
+                                <Label Grid.Column="1" Text="Share Date Details - Let friends know where you'll be"
+                                       FontSize="12"
+                                       TextColor="{AppThemeBinding Light={StaticResource TextDark}, Dark=#DDDDDD}"
+                                       LineBreakMode="WordWrap"/>
+                            </Grid>
+                        </Border>
+
+                        <Border Padding="14,12"
+                                BackgroundColor="Transparent"
+                                Stroke="{StaticResource PrimaryRed}"
+                                StrokeThickness="1"
+                                StrokeShape="RoundRectangle 16">
+                            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                                <ContentView WidthRequest="24" HeightRequest="24">
+                                    <Path Data="M12,2 L12,6 M12,10 L12,14 M8,4 L16,4 M4,8 L8,8 M16,8 L20,8 M8,12 L16,12 M4,16 L8,16 M16,16 L20,16 M8,20 L16,20"
+                                          Stroke="{StaticResource PrimaryRed}"
+                                          StrokeThickness="1.5"
+                                          StrokeLineCap="Round"
+                                          HorizontalOptions="Center"
+                                          VerticalOptions="Center"
+                                          Aspect="Uniform" />
+                                </ContentView>
+                                <Label Grid.Column="1" Text="Block and Report - Don't hesitate to remove anyone who makes you uncomfortable"
+                                       FontSize="12"
+                                       TextColor="{AppThemeBinding Light={StaticResource TextDark}, Dark=#DDDDDD}"
+                                       LineBreakMode="WordWrap"/>
+                            </Grid>
+                        </Border>
+                    </VerticalStackLayout>
+
+                    <Button Text="Set Up Emergency Contacts →"
+                            BackgroundColor="{StaticResource PrimaryRed}"
+                            TextColor="White"
+                            CornerRadius="25"
+                            HeightRequest="48"
+                            FontAttributes="Bold"
+                            Margin="0,8,0,0"
+                            Clicked="OnEmergencyContactsButtonClicked"/>
+                </VerticalStackLayout>
+            </Border>
+
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

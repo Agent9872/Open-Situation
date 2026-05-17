@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<toolkit:Popup xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+               xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+               xmlns:toolkit="http://schemas.microsoft.com/dotnet/2022/maui/toolkit"
+               x:Class="Lock.Pages.Chat.Popups.PinSetupPopup"
+               CanBeDismissedByTappingOutsideOfPopup="False"
+               Size="300,380">
+
+    <Border BackgroundColor="#1C1C25"
+            StrokeThickness="0"
+            StrokeShape="RoundRectangle 16"
+            Padding="24,20">
+
+        <VerticalStackLayout Spacing="16">
+            <Label x:Name="TitleLabel"
+                   Text="Set PIN Lock"
+                   FontSize="18"
+                   FontAttributes="Bold"
+                   TextColor="White"
+                   HorizontalOptions="Center"/>
+
+            <Label Text="Choose a PIN to lock this chat"
+                   FontSize="12"
+                   TextColor="#A8A8A8"
+                   HorizontalOptions="Center"/>
+
+            <Entry x:Name="PinEntry"
+                   Placeholder="Enter PIN (4-6 digits)"
+                   TextColor="White"
+                   PlaceholderColor="#555566"
+                   BackgroundColor="#2F3337"
+                   Keyboard="Numeric"
+                   MaxLength="6"
+                   IsPassword="True"
+                   HorizontalTextAlignment="Center"
+                   FontSize="18"
+                   HeightRequest="48"/>
+
+            <Entry x:Name="ConfirmPinEntry"
+                   Placeholder="Confirm PIN"
+                   TextColor="White"
+                   PlaceholderColor="#555566"
+                   BackgroundColor="#2F3337"
+                   Keyboard="Numeric"
+                   MaxLength="6"
+                   IsPassword="True"
+                   HorizontalTextAlignment="Center"
+                   FontSize="18"
+                   HeightRequest="48"
+                   IsVisible="False"/>
+
+            <Label x:Name="ErrorMessageLabel"
+                   Text=""
+                   TextColor="#FF5252"
+                   FontSize="12"
+                   IsVisible="False"
+                   HorizontalOptions="Center"/>
+
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="12" Margin="0,8,0,0">
+                <Button Text="Cancel"
+                        BackgroundColor="#2F3337"
+                        TextColor="#A8A8A8"
+                        CornerRadius="8"
+                        HeightRequest="44"
+                        Clicked="OnCancelClicked"/>
+                <Button x:Name="NextButton"
+                        Grid.Column="1"
+                        Text="Next"
+                        BackgroundColor="#008080"
+                        TextColor="White"
+                        CornerRadius="8"
+                        HeightRequest="44"
+                        Clicked="OnNextClicked"/>
+            </Grid>
+        </VerticalStackLayout>
+    </Border>
+</toolkit:Popup>

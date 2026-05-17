@@ -1,0 +1,601 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Lock.Pages.TermsPage"
+             Title="Terms and Conditions"
+             BackgroundColor="#0A0A0F"
+             NavigationPage.HasNavigationBar="False">
+
+    <ContentPage.Resources>
+        <Color x:Key="PrimaryColor">#FF3B6F</Color>
+        <Color x:Key="PrimaryDark">#E62E5C</Color>
+        <Color x:Key="BackgroundDark">#0A0A0F</Color>
+        <Color x:Key="SurfaceDark">#1A1A24</Color>
+        <Color x:Key="SurfaceLight">#22222E</Color>
+        <Color x:Key="TextPrimary">#FFFFFF</Color>
+        <Color x:Key="TextSecondary">#A0A0B0</Color>
+        <Color x:Key="TextTertiary">#6E6E7E</Color>
+        <Color x:Key="SuccessGreen">#008080</Color>
+        <Color x:Key="BorderColor">#2C2C38</Color>
+
+        <Style TargetType="Label">
+            <Setter Property="TextColor" Value="{StaticResource TextPrimary}" />
+            <Setter Property="FontFamily" Value="-apple-system" />
+        </Style>
+        <Style x:Key="SectionTitleStyle" TargetType="Label">
+            <Setter Property="FontSize" Value="17" />
+            <Setter Property="FontAttributes" Value="Bold" />
+            <Setter Property="TextColor" Value="{StaticResource TextPrimary}" />
+            <Setter Property="Margin" Value="0,16,0,8" />
+        </Style>
+        <Style x:Key="SubSectionStyle" TargetType="Label">
+            <Setter Property="FontSize" Value="15" />
+            <Setter Property="FontAttributes" Value="Bold" />
+            <Setter Property="TextColor" Value="{StaticResource TextSecondary}" />
+            <Setter Property="Margin" Value="0,12,0,6" />
+        </Style>
+        <Style x:Key="BodyTextStyle" TargetType="Label">
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="TextColor" Value="{StaticResource TextTertiary}" />
+            <Setter Property="LineHeight" Value="1.4" />
+        </Style>
+        <Style x:Key="ListItemStyle" TargetType="Label">
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="TextColor" Value="{StaticResource TextTertiary}" />
+            <Setter Property="Margin" Value="8,2,0,2" />
+        </Style>
+        <Style x:Key="DateStyle" TargetType="Label">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="TextColor" Value="{StaticResource TextTertiary}" />
+            <Setter Property="FontAttributes" Value="Italic" />
+        </Style>
+        <Style x:Key="CardFrame" TargetType="Frame">
+            <Setter Property="BackgroundColor" Value="{StaticResource SurfaceDark}" />
+            <Setter Property="CornerRadius" Value="16" />
+            <Setter Property="Padding" Value="20,16" />
+            <Setter Property="Margin" Value="0,8" />
+            <Setter Property="HasShadow" Value="False" />
+            <Setter Property="BorderColor" Value="{StaticResource BorderColor}" />
+        </Style>
+        <Style x:Key="PrimaryButton" TargetType="Button">
+            <Setter Property="BackgroundColor" Value="{StaticResource PrimaryColor}" />
+            <Setter Property="TextColor" Value="{StaticResource TextPrimary}" />
+            <Setter Property="CornerRadius" Value="14" />
+            <Setter Property="HeightRequest" Value="50" />
+            <Setter Property="FontSize" Value="16" />
+            <Setter Property="FontAttributes" Value="Bold" />
+            <Setter Property="Margin" Value="0,8" />
+        </Style>
+        <Style x:Key="OutlineButton" TargetType="Button">
+            <Setter Property="BackgroundColor" Value="Transparent" />
+            <Setter Property="TextColor" Value="{StaticResource TextSecondary}" />
+            <Setter Property="BorderColor" Value="{StaticResource BorderColor}" />
+            <Setter Property="BorderWidth" Value="1" />
+            <Setter Property="CornerRadius" Value="14" />
+            <Setter Property="HeightRequest" Value="44" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="Margin" Value="0,4" />
+        </Style>
+    </ContentPage.Resources>
+
+    <Grid RowDefinitions="Auto,*,Auto">
+        <BoxView Grid.RowSpan="3" BackgroundColor="{StaticResource BackgroundDark}" />
+
+        <!-- Header -->
+        <Grid Grid.Row="0"
+      BackgroundColor="{StaticResource SurfaceDark}"
+      Padding="20,12,20,12"   
+            ColumnDefinitions="Auto,*"
+      HeightRequest="70">
+            <!-- Optional: constrain height -->
+
+
+            <VerticalStackLayout Grid.Column="1" 
+                         HorizontalOptions="Center" 
+                         VerticalOptions="Center"
+                         Spacing="2">
+                <Label Text="Terms of Service"
+               FontSize="20"           
+                    FontAttributes="Bold"
+               HorizontalOptions="Center" />
+                    <Label Text="Effective: May 17, 2026"
+               Style="{StaticResource DateStyle}"
+               HorizontalOptions="Center" />
+            </VerticalStackLayout>
+        </Grid>
+
+        <!-- Scrollable Content -->
+        <ScrollView Grid.Row="1" 
+            Padding="20,16"
+            VerticalScrollBarVisibility="Never">
+            <VerticalStackLayout Spacing="12">
+
+                <!-- Quick Summary -->
+                <Frame Style="{StaticResource CardFrame}"
+                       BackgroundColor="{StaticResource PrimaryColor}"
+                       Margin="0,0,0,8">
+                    <VerticalStackLayout Spacing="8">
+                        <Label Text="📋 Quick Summary"
+                               FontSize="16"
+                               FontAttributes="Bold"
+                               TextColor="{StaticResource TextPrimary}" />
+                        <Label Text="• Cancel your subscription at any time prior to midnight of the third business day after subscribing (AZ, CA, CO, CT, IL, IA, MN, NY, NC, OH, RI, WI residents)."
+                               FontSize="13" TextColor="#FFE0E8" LineHeight="1.3" />
+                        <Label Text="• Apple ID subscriptions must be cancelled through Apple, not through Lock. Apple also handles Apple ID refunds."
+                               FontSize="13" TextColor="#FFE0E8" LineHeight="1.3" />
+                        <Label Text="• Google Play subscriptions must be cancelled through Google Play."
+                               FontSize="13" TextColor="#FFE0E8" LineHeight="1.3" />
+                        <Label Text="• Lock does NOT conduct criminal background checks. You are solely responsible for your interactions — on and off the app."
+                               FontSize="13" TextColor="#FFE0E8" LineHeight="1.3" />
+                        <Label Text="NOTE: Brief summaries appear at the top of key sections for ease of reading. They form part of — but do not replace — the full text of each section. Please read each section in its entirety."
+                               FontSize="12" TextColor="#FFD0DC" LineHeight="1.3" FontAttributes="Italic" Margin="0,6,0,0" />
+                    </VerticalStackLayout>
+                </Frame>
+
+                <!-- 1. Introduction -->
+                <Frame Style="{StaticResource CardFrame}">
+                    <VerticalStackLayout Spacing="8">
+                        <Label Text="1. Introduction" Style="{StaticResource SectionTitleStyle}" />
+                        <Label Text="By accessing or using Lock, you agree to be bound by this Terms of Service Agreement ('Terms' or 'Agreement'), including our Privacy Policy, Cookie Policy, Community Guidelines, and Safety Tips. Read this Agreement and these policies carefully before you create an account."
+                               Style="{StaticResource BodyTextStyle}" />
+                        <Label Text="DISPUTE RESOLUTION NOTICE:" Style="{StaticResource SubSectionStyle}" />
+                        <Label Text="Please carefully review Section 15 (Dispute Resolution). It governs how disputes between you and Lock will be resolved. Section 15 requires, with limited exceptions, that all disputes shall be resolved by binding individual arbitration. It includes a mandatory informal dispute resolution process, small claims court election, class action and jury trial waivers, and mass arbitration procedures. In arbitration, there is typically less discovery and appellate review than in court."
+                               Style="{StaticResource BodyTextStyle}" TextColor="{StaticResource PrimaryColor}" />
+                        <Label Text="Contracting Entity:" Style="{StaticResource SubSectionStyle}" />
+                        <Label Text="Depending on where you live, your agreement is with:&#10;&#10;• European Economic Area, UK, or Switzerland: Lock Technology Services Limited, 10 Match Street, Dublin 2, Ireland&#10;• Japan: Lock Japan Services GK, Tokyo&#10;• All other users: Lock LLC, 123 Dating Lane, Suite 400, Wilmington, DE 19801, USA"
+                               Style="{StaticResource ListItemStyle}" />
+                        <Label Text="We may update these Terms from time to time. Notice of material changes will be posted with an updated effective date. Continued access or use after the effective date constitutes your consent. If you do not accept a change, stop using Lock immediately."
+                               Style="{StaticResource BodyTextStyle}" Margin="0,8,0,0" />
+                        <Label Text="Mandatory Features: We reserve the right to introduce mandatory features at any time to enhance functionality, security, or user experience. If you do not wish to engage with a mandatory feature, you may lose access to your account."
+                               Style="{StaticResource BodyTextStyle}" />
+                    </VerticalStackLayout>
+                </Frame>
+
+                <!-- 2. Account Eligibility & Responsibilities -->
+                <Frame Style="{StaticResource CardFrame}">
+                    <VerticalStackLayout Spacing="8">
+                        <Label Text="2. Account Eligibility &amp; Your Responsibilities" Style="{StaticResource SectionTitleStyle}" />
+                        <Label Text="Before creating an account, make sure you are eligible. This section details what you can and cannot do, and the rights you grant Lock."
+                               Style="{StaticResource BodyTextStyle}" TextColor="{StaticResource TextSecondary}" FontAttributes="Italic" />
+
+                        <Label Text="2a. Eligibility" Style="{StaticResource SubSectionStyle}" />
+                        <Label Text="You are not authorized to create an account or use Lock unless all of the following are true:"
+                               Style="{StaticResource BodyTextStyle}" />
+                        <Label Text="• You are an individual (not a body corporate, partnership, or other business entity) at least 18 years old&#10;• You are legally qualified to enter a binding contract with Lock&#10;• You are not located in a country subject to a U.S. Government embargo or designated as 'terrorist supporting'&#10;• You are not on any list of prohibited individuals (e.g., U.S. Treasury Specially Designated Nationals list)&#10;• You are not prohibited by law from using our Services&#10;• You have not committed, been convicted of, or pled no contest to any crime involving violence, the threat of violence, or sexual misconduct&#10;• You are not required to register as a sex offender with any state, federal, or local registry&#10;• You do not have any other active accounts on Lock&#10;• You have not previously been removed from Lock or its affiliates' services, unless you have our express written permission to create a new account"
+                               Style="{StaticResource ListItemStyle}" />
+                        <Label Text="If at any time you cease to meet these requirements, your authorization to access Lock is automatically revoked. You must immediately delete your account, and we retain the right to remove it without warning. We reserve the right to verify your age and identity, including through government-issued ID checks and third-party verification services, at any time."
+                               Style="{StaticResource BodyTextStyle}" Margin="0,8,0,0" />
+
+                        <Label Text="2b. Your Responsibilities" Style="{StaticResource SubSectionStyle}" />
+                        <Label Text="You agree to:&#10;&#10;1. Comply with these Terms and check for updates regularly&#10;2. Comply with all applicable laws, including privacy, intellectual property, and anti-spam laws&#10;3. Use the latest version of the Lock app&#10;4. Treat other users courteously and respectfully, both on and off the Service&#10;5. Be respectful when communicating with Lock customer care staff&#10;6. Review our Safety Tips&#10;7. Review and comply with our Community Guidelines&#10;8. Take reasonable measures to protect your account login credentials"
+                               Style="{StaticResource ListItemStyle}" />
+
+                        <Label Text="2c. Prohibited Conduct" Style="{StaticResource SubSectionStyle}" />
+                        <Label Text="You agree that you will NOT:&#10;&#10;1. Misrepresent your identity, age, employment, qualifications, or affiliations&#10;2. Use the Service in a way that damages or prevents its use by other users&#10;3. Interfere with, disrupt, or negatively affect the platform, servers, or networks&#10;4. Use the Service for any harmful, illegal, or nefarious purpose, including money laundering or financial crimes&#10;5. Harass, bully, stalk, intimidate, assault, defame, harm, or mistreat any person&#10;6. Post or share Prohibited Content (see Section 2d)&#10;7. Solicit passwords or personal identifying information from other users for commercial or unlawful purposes&#10;8. Solicit money, gifts, loans, or items of value from another user in any form&#10;9. Use another user's account or share your account with another person&#10;10. Use the Service for fraud, pyramid schemes, or similar practices&#10;11. Use the Service in relation to political campaign financing or to influence any election (other than sharing your own personal political opinions)&#10;12. Violate the terms of the license granted to you by Lock (see Section 6)&#10;13. Disclose private or proprietary information you do not have the right to disclose&#10;14. Copy, modify, transmit, or create derivative works from any Member Content or Our Content without Lock's prior written consent&#10;15. Express or imply that any statements you make are endorsed by Lock&#10;16. Use any bot, crawler, scraper, or automated process to access, retrieve, or data-mine the Service&#10;17. Upload viruses, malware, or other malicious code&#10;18. Forge headers or manipulate identifiers to disguise the origin of any transmitted information&#10;19. Frame or mirror any part of the Service without Lock's prior written authorization&#10;20. Modify, adapt, sublicense, translate, sell, reverse engineer, decompile, or disassemble any portion of the Service&#10;21. Use or develop any third-party applications that interact with Lock or Member Content without our written consent, including AI or machine learning systems&#10;22. Probe, scan, or test the vulnerability of the Service or any of our systems&#10;23. Encourage or promote any activity that violates these Terms&#10;24. Create a new account after we suspend or terminate your account without our express permission&#10;25. Submit false, misleading, or manifestly unfounded reports, or abuse our reporting or appeals systems"
+                               Style="{StaticResource ListItemStyle}" />
+                        <Label Text="Your authorization to access the Service is automatically revoked if you engage in any of the above."
+                               Style="{StaticResource BodyTextStyle}" TextColor="{StaticResource PrimaryColor}" Margin="0,8,0,0" />
+
+                        <Label Text="2d. Prohibited Content" Style="{StaticResource SubSectionStyle}" />
+                        <Label Text="Lock prohibits uploading or sharing content that:&#10;&#10;1. Could reasonably be deemed offensive, harassing, upsetting, embarrassing, or alarming to any person&#10;2. Is obscene, pornographic, violent, or may otherwise offend human dignity, or contains nudity&#10;3. Is abusive, insulting, threatening, discriminatory, or promotes or encourages racism, sexism, hatred, or bigotry&#10;4. Is illegal or encourages illegal activity, including terrorism, human trafficking, money muling, child abuse and exploitation, or incitement of violence or hatred&#10;5. Encourages or facilitates any activity that may result in harm, including promotion of self-harm, eating disorders, dangerous challenges, violent extremism, or harmful misinformation&#10;6. Is defamatory, libelous, or untrue&#10;7. Relates to commercial activities: sales, competitions, employment or investment opportunities, promotions, advertising, solicitation for services, sex work, 'sugar daddy' or 'sugar baby' arrangements, links to other websites, or premium-rate phone numbers&#10;8. Involves or facilitates the transmission of junk mail or spam&#10;9. Contains spyware, adware, viruses, corrupt files, worm programs, or other malicious code&#10;10. Infringes any third-party rights, including intellectual property or privacy rights&#10;11. Includes the image or likeness of another person without that person's consent (or, for a minor, the minor's parent or guardian)&#10;12. Includes an image of a minor who is unaccompanied, not fully clothed, or that depicts or implies a minor engaged in sexual activity&#10;13. Is inconsistent with the intended use of the Service&#10;14. May harm the reputation of Lock or its affiliates"
+                               Style="{StaticResource ListItemStyle}" />
+                        <Label Text="Uploading or sharing Prohibited Content may result in the immediate suspension or termination of your account."
+                               Style="{StaticResource BodyTextStyle}" TextColor="{StaticResource PrimaryColor}" Margin="0,8,0,0" />
+                    </VerticalStackLayout>
+                </Frame>
+
+                <!-- 3. Content -->
+                <Frame Style="{StaticResource CardFrame}">
+                    <VerticalStackLayout Spacing="8">
+                        <Label Text="3. Content" Style="{StaticResource SectionTitleStyle}" />
+                        <Label Text="It is important that you understand your rights and responsibilities with regard to content on the Service. You are expressly prohibited from posting inappropriate content."
+                               Style="{StaticResource BodyTextStyle}" TextColor="{StaticResource TextSecondary}" FontAttributes="Italic" />
+                        <Label Text="While using the Service, you may have access to: (i) content that you upload or provide ('Your Content'); (ii) content that other users upload or provide ('Member Content'); and (iii) content that Lock provides on and through the Service ('Our Content'). 'Content' includes all text, images, video, audio, profile information, direct messages, and any material generated by AI Technology."
+                               Style="{StaticResource BodyTextStyle}" />
+                        <Label Text="Lock may use or offer AI-powered technology ('AI Technology') as part of the Service. You are solely responsible for any content generated by such AI Technology that you create, upload, or share."
+                               Style="{StaticResource BodyTextStyle}" />
+
+                        <Label Text="3a. Your Content" Style="{StaticResource SubSectionStyle}" />
+                        <Label Text="You are solely responsible and liable for Your Content and agree to indemnify, defend, release, and hold us harmless from any claims made in connection with Your Content."
+                               Style="{StaticResource BodyTextStyle}" />
+                        <Label Text="You represent and warrant that the information you provide is accurate and that you will update it to ensure its accuracy. Content on your profile should be relevant to the intended use of the Service."
+                               Style="{StaticResource BodyTextStyle}" />
+                        <Label Text="You may not display any personal contact, banking, or peer-to-peer payment information on your public profile — including home addresses, phone numbers, email addresses, URLs, credit/debit card details, or peer-to-peer payment usernames. If you choose to share personal information with other users, you do so at your own risk."
+                               Style="{StaticResource BodyTextStyle}" />
+                        <Label Text="Your profile will be visible to people around the world. You acknowledge that other users may share Your Content with third parties. By uploading Your Content, you represent and warrant that you have all necessary rights and licenses."
+                               Style="{StaticResource BodyTextStyle}" />
+                        <Label Text="You understand and agree that we may analyze, access, store, and use Your Content — including messages and communications — to monitor, develop, personalize, and improve our Services, including through machine learning and automated technologies, in accordance with applicable law."
+                               Style="{StaticResource BodyTextStyle}" />
+                        <Label Text="We have the right to remove, delete, edit, limit, or block access to any of Your Content at any time at our sole discretion. We have no obligation to display or review Your Content."
+                               Style="{StaticResource BodyTextStyle}" />
+
+                        <Label Text="3b. Member Content" Style="{StaticResource SubSectionStyle}" />
+                        <Label Text="Member Content belongs to the user who posted it. Lock expressly disclaims any responsibility for Member Content. You may not copy Member Content or use it for commercial purposes, to spam, to harass, or to make unlawful threats."
+                               Style="{StaticResource BodyTextStyle}" />
+
+                        <Label Text="3c. Our Content" Style="{StaticResource SubSectionStyle}" />
+                        <Label Text="All text, graphics, user interfaces, trademarks, logos, sounds, artwork, images, and other intellectual property appearing on the Service is owned, controlled, or licensed by Lock and protected by copyright, trademark, and other intellectual property laws. All rights, title, and interest in Our Content remain with us at all times."
+                               Style="{StaticResource BodyTextStyle}" />
+                    </VerticalStackLayout>
+                </Frame>
+
+                <!-- 4. Inappropriate Content, Misconduct & Reporting -->
+                <Frame Style="{StaticResource CardFrame}">
+                    <VerticalStackLayout Spacing="8">
+                        <Label Text="4. Inappropriate Content, Misconduct &amp; Reporting" Style="{StaticResource SectionTitleStyle}" />
+                        <Label Text="Lock does not tolerate inappropriate content or behavior on our Services."
+                               Style="{StaticResource BodyTextStyle}" TextColor="{StaticResource TextSecondary}" FontAttributes="Italic" />
+                        <Label Text="We are committed to maintaining a positive and respectful community. We do not tolerate any inappropriate content or misconduct, whether on or off the Service. You can report a user directly through the 'Report User' link on any user's profile or in the messaging experience."
+                               Style="{StaticResource BodyTextStyle}" />
+                        <Label Text="We may share data between our affiliates for the safety and security of our users, and may take necessary actions if we believe you have violated these Terms — including banning you from the Service and affiliated services (such as other dating apps operated by our group), and preventing you from creating new accounts."
+                               Style="{StaticResource BodyTextStyle}" />
+                        <Label Text="We use a combination of automated tools and human reviewers to enforce our content rules, including technology that proactively detects and removes certain types of prohibited material. Violations may result in consequences ranging from a warning to a permanent account ban. Manifestly unfounded reports may result in enforcement actions against the reporter. Repeated submission of manifestly unfounded reports will result in a ban."
+                               Style="{StaticResource BodyTextStyle}" />
+                        <Label Text="If you believe Your Content was removed in error, you may submit an appeal by emailing appeals@lockapp.com."
+                               Style="{StaticResource BodyTextStyle}" />
+
+                        <Label Text="Encrypted Messaging:" Style="{StaticResource SubSectionStyle}" />
+                        <Label Text="All private messages on Lock are end-to-end encrypted (E2EE). Lock cannot access, read, or view the content of your private conversations, and cannot provide message content to any third party because we do not possess it. When you report a conversation, recent message content is shared with our trust and safety team — this is the only circumstance in which message content leaves the encrypted channel. Because chats are encrypted, you are entirely responsible for what you send."
+                               Style="{StaticResource BodyTextStyle}" />
+
+                        <Label Text="Live / Real-Time Features:" Style="{StaticResource SubSectionStyle}" />
+                        <Label Text="Live video, audio, and real-time streaming features are transmitted directly between participants and are not recorded, stored, or viewable by Lock. You are solely responsible for your conduct during any live session."
+                               Style="{StaticResource BodyTextStyle}" />
+
+                        <Label Text="Human Trafficking &amp; CSAM — Zero Tolerance:" Style="{StaticResource SubSectionStyle}" />
+                        <Label Text="Lock has a zero-tolerance policy for human trafficking, sexual exploitation, and child sexual abuse material (CSAM). We maintain established protocols to report suspected activity to the National Center for Missing and Exploited Children (NCMEC) and law enforcement immediately upon detection, in compliance with 18 U.S.C. § 2258A. There are no exceptions to this policy."
+                               Style="{StaticResource BodyTextStyle}" />
+                    </VerticalStackLayout>
+                </Frame>
+
+                <!-- 5. Privacy -->
+                <Frame Style="{StaticResource CardFrame}">
+                    <VerticalStackLayout Spacing="8">
+                        <Label Text="5. Privacy" Style="{StaticResource SectionTitleStyle}" />
+                        <Label Text="Privacy is important to us. We have a separate Privacy Policy that you agree to read."
+                               Style="{StaticResource BodyTextStyle}" TextColor="{StaticResource TextSecondary}" FontAttributes="Italic" />
+                        <Label Text="For information about how Lock and its affiliates collect, use, and share your personal data, please read our Privacy Policy at lockapp.com/privacy. By using our Services, you agree that we may use your personal data in accordance with our Privacy Policy. Our Privacy Policy covers how we collect and process your personal information, location data, cookies and device identifiers, sharing with third-party service providers, industry-standard security measures, and compliance with GDPR, CCPA, LGPD, POPIA, and other applicable privacy laws."
+                               Style="{StaticResource BodyTextStyle}" />
+                        <Label Text="Under applicable law, you may request deletion of your personal data at any time through Settings > Privacy > Delete My Data. Under New York law, we will return or destroy your personal information upon contract termination."
+                               Style="{StaticResource BodyTextStyle}" />
+                    </VerticalStackLayout>
+                </Frame>
+
+                <!-- 6. Rights Lock Grants You -->
+                <Frame Style="{StaticResource CardFrame}">
+                    <VerticalStackLayout Spacing="8">
+                        <Label Text="6. Rights Lock Grants You" Style="{StaticResource SectionTitleStyle}" />
+                        <Label Text="Lock grants you the right to use and enjoy our Services, subject to these Terms."
+                               Style="{StaticResource BodyTextStyle}" TextColor="{StaticResource TextSecondary}" FontAttributes="Italic" />
+                        <Label Text="For as long as you comply with these Terms, Lock grants you a personal, worldwide, royalty-free, non-assignable, non-exclusive, revocable, and non-sublicensable license to access and use our Services for purposes as intended by Lock and permitted by these Terms and applicable laws. This license is automatically revoked if you fail to comply with these Terms."
+                               Style="{StaticResource BodyTextStyle}" />
+                    </VerticalStackLayout>
+                </Frame>
+
+                <!-- 7. Rights You Grant Lock -->
+                <Frame Style="{StaticResource CardFrame}">
+                    <VerticalStackLayout Spacing="8">
+                        <Label Text="7. Rights You Grant Lock" Style="{StaticResource SectionTitleStyle}" />
+                        <Label Text="You own all of the content you provide to Lock, but you also grant us the right to use Your Content as provided in this Agreement."
+                               Style="{StaticResource BodyTextStyle}" TextColor="{StaticResource TextSecondary}" FontAttributes="Italic" />
+                        <Label Text="By creating an account, you grant to Lock a worldwide, perpetual, transferable, sub-licensable, royalty-free right and license to host, store, use, copy, display, reproduce, adapt, edit, publish, translate, modify, reformat, incorporate into other works, advertise, distribute, and otherwise make available to the general public Your Content, in whole or in part, in any way and in any format or medium currently known or developed in the future."
+                               Style="{StaticResource BodyTextStyle}" />
+                        <Label Text="You further grant to Lock a worldwide, perpetual, transferable, sub-licensable, royalty-free license to: (a) collect and use Your Content to perform its obligations under this Agreement; and (b) train, develop, adapt, modify, enhance, or improve the Services and other products or services, including through the use of AI Technology. You acknowledge that Lock's Services may 'learn' and improve based on information received and generated (including Your Content) and cannot thereafter 'unlearn'."
+                               Style="{StaticResource BodyTextStyle}" />
+                        <Label Text="You agree that Lock may access, preserve, and disclose your account information, including Your Content, if required to do so by law or upon a good faith belief that such access is reasonably necessary to: (i) comply with legal process; (ii) enforce these Terms; (iii) respond to claims that any content violates third-party rights; (iv) respond to your requests for customer service; (v) protect the rights, property, or personal safety of Lock or any other person; (vi) investigate, prevent, or take other action regarding illegal activity or suspected fraud; or (vii) comply with the data rights requests of other users."
+                               Style="{StaticResource BodyTextStyle}" />
+                        <Label Text="By submitting suggestions or feedback to Lock, you agree that Lock may use and share such feedback for any purpose without compensating you, and you waive all rights in or to such suggestions or feedback."
+                               Style="{StaticResource BodyTextStyle}" />
+                    </VerticalStackLayout>
+                </Frame>
+
+                <!-- 8. Purchases, Subscriptions & Refunds -->
+                <Frame Style="{StaticResource CardFrame}">
+                    <VerticalStackLayout Spacing="8">
+                        <Label Text="8. Purchases, Subscriptions &amp; Refunds" Style="{StaticResource SectionTitleStyle}" />
+                        <Label Text="If you purchase a subscription, it will automatically renew — and you will be charged — until you cancel."
+                               Style="{StaticResource BodyTextStyle}" TextColor="{StaticResource TextSecondary}" FontAttributes="Italic" />
+
+                        <Label Text="8a. External Service Purchases (Apple / Google Play):" Style="{StaticResource SubSectionStyle}" />
+                        <Label Text="When you make a purchase through Apple ID or Google Play ('External Service'), your External Service Account will be charged at the time of purchase in accordance with the terms disclosed to you at that time. If your purchase includes an automatically renewing subscription, your External Service Account will continue to be periodically charged until you cancel."
+                               Style="{StaticResource BodyTextStyle}" />
+                        <Label Text="To cancel an Apple ID subscription: go to Settings > [Your Name] > Subscriptions on your iOS device, or visit Apple Support at https://getsupport.apple.com.&#10;To cancel a Google Play subscription: open the Google Play app on your device, go to Settings > Subscriptions."
+                               Style="{StaticResource ListItemStyle}" />
+                        <Label Text="If you initiate a chargeback or payment reversal on an External Service purchase, Lock may terminate your account immediately. If the chargeback is overturned, please contact support@lockapp.com. Lock will retain all funds charged to your External Service Account until you cancel your subscription through your External Service Account."
+                               Style="{StaticResource BodyTextStyle}" />
+
+                        <Label Text="8b. Internal Purchases:" Style="{StaticResource SubSectionStyle}" />
+                        <Label Text="If you make a purchase directly within the Lock app ('Internal Purchase'), you agree to pay the displayed prices and any applicable taxes. You authorize Lock to charge your payment method. If your Internal Purchase includes an automatically renewing subscription, your payment method will continue to be periodically charged until you cancel. To cancel, log in to the Lock app and go to Account > Settings. If a payment is not successfully processed, you remain responsible for any uncollected amounts."
+                               Style="{StaticResource BodyTextStyle}" />
+
+                        <Label Text="8c. Virtual Items:" Style="{StaticResource SubSectionStyle}" />
+                        <Label Text="From time to time, you may purchase a limited, personal, non-transferable, revocable license to access special features including Boosts, Super Likes, Live Credits, or Gifts ('Virtual Items'). ALL PURCHASES AND REDEMPTIONS OF VIRTUAL ITEMS ARE FINAL AND NON-REFUNDABLE. The license granted in Virtual Items will terminate when your account is closed or terminated. Virtual Items may only be redeemed through our Services and may not be sold or transferred."
+                               Style="{StaticResource BodyTextStyle}" />
+
+                        <Label Text="8d. Refunds:" Style="{StaticResource SubSectionStyle}" />
+                        <Label Text="Generally, all purchases are nonrefundable. However, special terms apply in the following jurisdictions:&#10;&#10;• EU, EEA, UK &amp; Switzerland: Full refund available within 14 days after the subscription begins.&#10;• Germany: You may terminate your subscription after renewal with one month's notice.&#10;• Republic of Korea: Full refund available within 7 days of purchase.&#10;• Arizona, California, Colorado, Connecticut, Illinois, Iowa, Minnesota, New York, North Carolina, Ohio, Rhode Island, and Wisconsin: You may cancel your subscription, without penalty or obligation, at any time prior to midnight of the third business day following the date you subscribed.&#10;• Death during subscription: Your estate shall be entitled to a refund for the period after your death.&#10;• Disability during subscription: If you become disabled before the end of your subscription period, you are entitled to a refund for the remaining period."
+                               Style="{StaticResource ListItemStyle}" />
+                        <Label Text="If you subscribed through Apple ID, your refund request must be directed to Apple — not Lock. For all other refund requests, contact Lock Customer Service at support@lockapp.com, or mail a signed and dated notice of cancellation (including your name, email address, phone number, or other unique identifier used to sign up) to:&#10;&#10;Lock LLC, Attn: Cancellations&#10;123 Dating Lane, Suite 400&#10;Wilmington, DE 19801, USA"
+                               Style="{StaticResource ListItemStyle}" Margin="0,8,0,0" />
+                        <Label Text="Pricing: Our pricing varies by region, subscription length, bundle size, past purchases, account activity, and other factors. To the extent permissible by law, we reserve the right to limit the availability of, or discontinue, any product, feature, coupon, discount, or offer at any time."
+                               Style="{StaticResource BodyTextStyle}" Margin="0,8,0,0" />
+                    </VerticalStackLayout>
+                </Frame>
+
+                <!-- 9. Account Termination -->
+                <Frame Style="{StaticResource CardFrame}">
+                    <VerticalStackLayout Spacing="8">
+                        <Label Text="9. Account Termination" Style="{StaticResource SectionTitleStyle}" />
+                        <Label Text="If you no longer wish to use our Services, or if we terminate your account for any reason, here's what you need to know."
+                               Style="{StaticResource BodyTextStyle}" TextColor="{StaticResource TextSecondary}" FontAttributes="Italic" />
+                        <Label Text="You can delete your account at any time by logging into the app, going to Settings > Delete Account, and following the instructions. IMPORTANT: You must cancel or manage any External Service subscriptions (Apple App Store, Google Play) separately through those stores to avoid continued billing."
+                               Style="{StaticResource BodyTextStyle}" />
+                        <Label Text="Lock also reserves the right to review and, if appropriate, suspend, terminate, or ban your account without a refund if Lock believes that you have violated these Terms, misused our Services, or behaved in a way that Lock regards as inappropriate or unlawful, on or off our Services, in our sole discretion. We reserve the right to make use of any personal, technological, legal, or other means available to enforce the Terms at any time without prior notice."
+                               Style="{StaticResource BodyTextStyle}" />
+                        <Label Text="Consistent with applicable law, we may not share information with you regarding your account termination if doing so would potentially impair the safety or privacy of other users. If your account is terminated for any reason, these Terms continue and remain enforceable. Your information will be maintained and deleted in accordance with our Privacy Policy. Banned users' device identifiers may be shared within our affiliated group of companies to prevent re-registration."
+                               Style="{StaticResource BodyTextStyle}" />
+                        <Label Text="You may appeal a termination decision by emailing appeals@lockapp.com within 30 days of termination."
+                               Style="{StaticResource BodyTextStyle}" />
+                    </VerticalStackLayout>
+                </Frame>
+
+                <!-- 10. No Criminal Background Checks -->
+                <Frame Style="{StaticResource CardFrame}">
+                    <VerticalStackLayout Spacing="8">
+                        <Label Text="10. No Criminal Background or Identity Verification Checks" Style="{StaticResource SectionTitleStyle}" />
+                        <Label Text="Lock does not conduct criminal background or identity verification checks on its users. Though Lock strives to encourage a respectful user experience, it is not responsible for the conduct of any user on or off the Service. Use your best judgment and review our Safety Tips."
+                               Style="{StaticResource BodyTextStyle}" TextColor="{StaticResource TextSecondary}" FontAttributes="Italic" />
+                        <Label Text="YOU UNDERSTAND THAT LOCK DOES NOT CONDUCT CRIMINAL BACKGROUND OR IDENTITY VERIFICATION CHECKS ON ITS USERS OR OTHERWISE INQUIRE INTO THE BACKGROUND OF ITS USERS. LOCK MAKES NO REPRESENTATIONS OR WARRANTIES AS TO THE CONDUCT, IDENTITY, HEALTH, PHYSICAL CONDITION, INTENTIONS, LEGITIMACY, OR VERACITY OF USERS."
+                               Style="{StaticResource BodyTextStyle}" />
+                        <Label Text="Lock reserves the right to — and you authorize Lock to — conduct criminal background checks or other screenings (such as sex offender register searches) at any time using available public records. If Lock decides to conduct any screening through a consumer reporting agency, you hereby authorize Lock to obtain and use a consumer report about you to determine your eligibility under these Terms."
+                               Style="{StaticResource BodyTextStyle}" />
+                        <Label Text="YOU ARE SOLELY RESPONSIBLE FOR YOUR INTERACTIONS WITH OTHER USERS. LOCK CANNOT, AND SEX OFFENDER SCREENINGS AND OTHER TOOLS DO NOT, GUARANTEE YOUR SAFETY AND ARE NOT A SUBSTITUTE FOR FOLLOWING OUR SAFETY TIPS AND OTHER SENSIBLE SAFETY PRECAUTIONS. ALWAYS USE YOUR BEST JUDGMENT AND TAKE APPROPRIATE SAFETY PRECAUTIONS WHEN COMMUNICATING WITH OR MEETING NEW PEOPLE."
+                               Style="{StaticResource BodyTextStyle}" TextColor="{StaticResource PrimaryColor}" />
+
+                        <Label Text="⚠️ Real-World Meeting Safety — Please Read:" Style="{StaticResource SubSectionStyle}" />
+                        <Label Text="• Always meet in a public place for the first several meetings&#10;• Tell a friend or family member where you are going and who you are meeting&#10;• Arrange your own transportation — do not rely on your date for a ride&#10;• Stay sober enough to make safe decisions&#10;• Never share your home address, workplace, or financial details early on&#10;• Trust your instincts — if something feels wrong, leave&#10;• Video chat before meeting in person to verify someone is who they claim to be&#10;• NEVER send money, cryptocurrency, or gifts to someone you have not met in person — romance scams are prevalent. The FTC estimates consumers lose over $1 billion annually to romance scams"
+                               Style="{StaticResource ListItemStyle}" />
+                        <Label Text="Lock is not responsible for the conduct of any user on or off the Service. You agree to use caution in all interactions with other users, particularly if you decide to communicate off the Service or meet in person."
+                               Style="{StaticResource BodyTextStyle}" />
+                    </VerticalStackLayout>
+                </Frame>
+
+                <!-- 11. Disclaimer of Warranties -->
+                <Frame Style="{StaticResource CardFrame}">
+                    <VerticalStackLayout Spacing="8">
+                        <Label Text="11. Disclaimer of Warranties" Style="{StaticResource SectionTitleStyle}" />
+                        <Label Text="Lock's Services are provided 'as is' and we do not make, and cannot make, any representations about the content or features of our Services or Member Content."
+                               Style="{StaticResource BodyTextStyle}" TextColor="{StaticResource TextSecondary}" FontAttributes="Italic" />
+                        <Label Text="LOCK PROVIDES OUR SERVICES ON AN 'AS IS' AND 'AS AVAILABLE' BASIS AND, TO THE EXTENT PERMITTED BY APPLICABLE LAW, GRANTS NO WARRANTIES OF ANY KIND, WHETHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE WITH RESPECT TO OUR SERVICES (INCLUDING ALL CONTENT CONTAINED THEREIN), INCLUDING, WITHOUT LIMITATION, ANY IMPLIED WARRANTIES OF SATISFACTORY QUALITY, MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, OR NON-INFRINGEMENT. LOCK DOES NOT REPRESENT OR WARRANT THAT (A) OUR SERVICES WILL BE UNINTERRUPTED, SECURE, OR ERROR-FREE; (B) ANY DEFECTS OR ERRORS IN OUR SERVICES WILL BE DISCOVERED OR CORRECTED; OR (C) THAT ANY CONTENT OR INFORMATION YOU OBTAIN ON OR THROUGH OUR SERVICES WILL BE ACCURATE, COMPLETE, CURRENT, OR APPROPRIATE FOR YOUR PURPOSES. FURTHERMORE, LOCK MAKES NO GUARANTEES AS TO THE NUMBER OF ACTIVE USERS AT ANY TIME; USERS' ABILITY OR DESIRE TO COMMUNICATE WITH OR MEET YOU; OR THE ULTIMATE COMPATIBILITY WITH OR CONDUCT BY USERS YOU MEET THROUGH THE SERVICES."
+                               Style="{StaticResource BodyTextStyle}" />
+                        <Label Text="LOCK ASSUMES NO RESPONSIBILITY FOR ANY CONTENT THAT YOU OR ANOTHER USER OR THIRD PARTY POSTS, SENDS, OR RECEIVES THROUGH OUR SERVICES, NOR DOES LOCK ASSUME ANY RESPONSIBILITY FOR THE IDENTITY, INTENTIONS, LEGITIMACY, CONDUCT, OR VERACITY OF ANY USERS WITH WHOM YOU MAY COMMUNICATE THROUGH LOCK ON OR OFF THE SERVICE. ANY MATERIAL DOWNLOADED OR OTHERWISE OBTAINED THROUGH THE USE OF OUR SERVICES IS ACCESSED AT YOUR OWN DISCRETION AND RISK."
+                               Style="{StaticResource BodyTextStyle}" />
+                    </VerticalStackLayout>
+                </Frame>
+
+                <!-- 12. DMCA / Copyright -->
+                <Frame Style="{StaticResource CardFrame}">
+                    <VerticalStackLayout Spacing="8">
+                        <Label Text="12. Digital Millennium Copyright Act (DMCA)" Style="{StaticResource SectionTitleStyle}" />
+                        <Label Text="We take copyright infringement very seriously and ask you to help us address it promptly and effectively."
+                               Style="{StaticResource BodyTextStyle}" TextColor="{StaticResource TextSecondary}" FontAttributes="Italic" />
+                        <Label Text="Lock has adopted a policy towards copyright infringement in accordance with the DMCA. If you believe any Member Content or Our Content infringes upon your intellectual property rights, please submit a DMCA Takedown Notice including:&#10;&#10;• A physical or electronic signature of a person authorized to act on behalf of the copyright owner&#10;• Identification of the copyrighted work claimed to have been infringed&#10;• Identification of the material to be removed and information sufficient for Lock to locate it&#10;• Information sufficient to permit Lock to contact you (address, telephone number, and email)&#10;• A statement of good faith belief that the use is not authorized by the copyright owner, its agent, or the law&#10;• A statement, under penalty of perjury, that the information in the notification is accurate and you are authorized to act on behalf of the copyright owner"
+                               Style="{StaticResource ListItemStyle}" />
+                        <Label Text="DMCA Takedown Notices should be sent to: legal@lockapp.com or mailed to Lock LLC Legal, 123 Dating Lane, Suite 400, Wilmington, DE 19801, USA. Lock will terminate the accounts of repeat infringers."
+                               Style="{StaticResource BodyTextStyle}" />
+                    </VerticalStackLayout>
+                </Frame>
+
+                <!-- 13. Ads and Third-Party Content -->
+                <Frame Style="{StaticResource CardFrame}">
+                    <VerticalStackLayout Spacing="8">
+                        <Label Text="13. Ads and Third-Party Content" Style="{StaticResource SectionTitleStyle}" />
+                        <Label Text="You may see ads and third-party promotions on our Services. Lock does not endorse and is not responsible for your interactions with those products or services."
+                               Style="{StaticResource BodyTextStyle}" TextColor="{StaticResource TextSecondary}" FontAttributes="Italic" />
+                        <Label Text="Our Services may contain advertisements and promotions offered by third parties, as well as links to other websites or resources. Lock is not responsible for the availability or content of any external websites or resources, and does not endorse any products or services offered by third parties. If you choose to interact with third parties made available through our Services, such party's terms will govern their relationship with you. Lock is not responsible or liable for such third parties' terms or actions."
+                               Style="{StaticResource BodyTextStyle}" />
+                    </VerticalStackLayout>
+                </Frame>
+
+                <!-- 14. Limitation of Liability -->
+                <Frame Style="{StaticResource CardFrame}">
+                    <VerticalStackLayout Spacing="8">
+                        <Label Text="14. Limitation of Liability" Style="{StaticResource SectionTitleStyle}" />
+                        <Label Text="Lock's liability is limited to the maximum extent allowed by applicable law."
+                               Style="{StaticResource BodyTextStyle}" TextColor="{StaticResource TextSecondary}" FontAttributes="Italic" />
+                        <Label Text="TO THE FULLEST EXTENT PERMITTED BY APPLICABLE LAW, IN NO EVENT WILL LOCK, ITS AFFILIATES, EMPLOYEES, LICENSORS, OR SERVICE PROVIDERS BE LIABLE FOR ANY INDIRECT, CONSEQUENTIAL, EXEMPLARY, INCIDENTAL, SPECIAL, PUNITIVE, FIXED, OR ENHANCED DAMAGES, INCLUDING, WITHOUT LIMITATION, LOSS OF PROFITS, WHETHER INCURRED DIRECTLY OR INDIRECTLY, OR ANY LOSS OF DATA, USE, GOODWILL, OR OTHER INTANGIBLE LOSSES, RESULTING FROM: (I) YOUR ACCESS TO OR USE OF OR INABILITY TO ACCESS OR USE THE SERVICES; (II) THE CONDUCT OR CONTENT OF ANY USERS OR THIRD PARTIES ON OR THROUGH ANY OF OUR AFFILIATES' SERVICES OR IN CONNECTION WITH THE SERVICES; OR (III) ANY UNAUTHORIZED ACCESS, USE, OR ALTERATION OF YOUR CONTENT, EVEN IF LOCK HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES."
+                               Style="{StaticResource BodyTextStyle}" />
+                        <Label Text="TO THE FULLEST EXTENT PERMITTED BY APPLICABLE LAW, IN NO EVENT WILL LOCK'S AGGREGATE LIABILITY TO YOU FOR ALL CLAIMS RELATING TO THE SERVICES EXCEED THE GREATER OF: (A) $100 USD; OR (B) THE AMOUNT PAID, IF ANY, BY YOU TO LOCK FOR THE SERVICES DURING THE TWENTY-FOUR (24) MONTH PERIOD IMMEDIATELY PRECEDING THE DATE THAT YOU FIRST FILE A LAWSUIT, ARBITRATION, OR ANY OTHER LEGAL PROCEEDING AGAINST LOCK."
+                               Style="{StaticResource BodyTextStyle}" />
+                        <Label Text="SOME JURISDICTIONS DO NOT ALLOW THE LIMITATION OF CERTAIN DAMAGES, SO SOME OR ALL OF THE LIMITATIONS IN THIS SECTION MAY NOT APPLY TO YOU."
+                               Style="{StaticResource BodyTextStyle}" />
+                    </VerticalStackLayout>
+                </Frame>
+
+                <!-- 15. Dispute Resolution -->
+                <Frame Style="{StaticResource CardFrame}">
+                    <VerticalStackLayout Spacing="8">
+                        <Label Text="15. Dispute Resolution" Style="{StaticResource SectionTitleStyle}" />
+                        <Label Text="In the unlikely event that we have a legal dispute, here is how the Parties agree to proceed, except where prohibited by applicable law."
+                               Style="{StaticResource BodyTextStyle}" TextColor="{StaticResource TextSecondary}" FontAttributes="Italic" />
+
+                        <Label Text="15a. Informal Dispute Resolution (Required First Step):" Style="{StaticResource SubSectionStyle}" />
+                        <Label Text="If you are dissatisfied with our Services, please contact Lock Customer Service first. If you choose to pursue a Dispute, you agree to first send a detailed Notice to: Lock LLC, c/o CT Corporation, 1209 Orange Street, City of Wilmington, County of New Castle, Delaware 19801, USA."
+                               Style="{StaticResource BodyTextStyle}" />
+                        <Label Text="Your Notice must contain: (1) your full name; (2) information that enables Lock to identify your account (profile screenshot, email address, phone number, date of birth); and (3) a detailed description of your Dispute, including the factual basis of your claim(s), the relief you are seeking, and a corresponding calculation of your alleged damages. You must personally sign this Notice for it to be effective."
+                               Style="{StaticResource BodyTextStyle}" />
+                        <Label Text="You and Lock agree to negotiate in good faith to resolve the Dispute. If the Dispute is not resolved within 60 days after receipt of a fully completed Notice, you or Lock may initiate arbitration (subject to the right to elect small claims court). Completion of this informal dispute resolution process is a condition precedent to filing any demand for arbitration or small claims court action."
+                               Style="{StaticResource BodyTextStyle}" />
+
+                        <Label Text="15b. Class Action Waiver and Jury Trial Waiver:" Style="{StaticResource SubSectionStyle}" />
+                        <Label Text="TO THE FULLEST EXTENT ALLOWABLE BY LAW, YOU AND LOCK EACH WAIVE THE RIGHT TO A JURY TRIAL AND THE RIGHT TO LITIGATE DISPUTES IN COURT IN FAVOR OF INDIVIDUAL ARBITRATION (EXCEPT TO THE EXTENT A COURT FINDS THE 'ENDING FORCED ARBITRATION OF SEXUAL ASSAULT AND SEXUAL HARASSMENT ACT' APPLIES). YOU AND LOCK EACH WAIVE THE RIGHT TO FILE OR PARTICIPATE IN A CLASS ACTION OR TO SEEK RELIEF ON A CLASS, COLLECTIVE, REPRESENTATIVE, CONSOLIDATED, OR PRIVATE ATTORNEY GENERAL BASIS."
+                               Style="{StaticResource BodyTextStyle}" />
+
+                        <Label Text="15c. Dispute Resolution Through Arbitration or Small Claims Court:" Style="{StaticResource SubSectionStyle}" />
+                        <Label Text="Any Dispute not resolved through the informal process shall be exclusively resolved through BINDING INDIVIDUAL ARBITRATION administered by National Arbitration and Mediation ('NAM') under NAM's Comprehensive Dispute Resolution Rules and Procedures, except for:&#10;&#10;1. Disputes within the jurisdiction of a small claims court — either party may elect to have the claim heard in small claims court&#10;2. Disputes covered by the 'Ending Forced Arbitration of Sexual Assault and Sexual Harassment Act' (EFAA)&#10;3. Users residing in the EU, EEA, UK, or Switzerland — Sections 15b, 15c, 15d, and 15e do not apply; you may bring claims in your country of residence"
+                               Style="{StaticResource ListItemStyle}" />
+                        <Label Text="Opt-Out: You may opt out of this arbitration agreement within 30 days of first creating your account by emailing legal@lockapp.com with subject line 'Arbitration Opt-Out', including your full name and email address or phone number associated with your account."
+                               Style="{StaticResource BodyTextStyle}" TextColor="{StaticResource SuccessGreen}" Margin="0,8,0,0" />
+
+                        <Label Text="15d. Arbitration Procedures:" Style="{StaticResource SubSectionStyle}" />
+                        <Label Text="The arbitration shall be conducted by a single, neutral arbitrator in or close to your location. The arbitrator is bound by these Terms. If NAM is unavailable, the Parties shall mutually agree on an alternative administrator. Each party may serve up to five requests for relevant documents and up to five interrogatories. Arbitration proceedings are usually simpler, less costly, and more streamlined than trials. The arbitration award is binding only between you and Lock and will not have preclusive effect in any proceeding involving a different party."
+                               Style="{StaticResource BodyTextStyle}" />
+
+                        <Label Text="15e. Future Changes:" Style="{StaticResource SubSectionStyle}" />
+                        <Label Text="This Dispute Resolution Section 15 applies to all Disputes between the Parties, including claims that accrued prior to the time of your consent to this Agreement. You may elect to opt out of the retroactive application of this Section 15 as to claims that accrued prior to your consent by sending written notice within 30 days of consenting to this Agreement to: legal@lockapp.com with subject 'Arbitration Retroactive Opt-Out'."
+                               Style="{StaticResource BodyTextStyle}" />
+                    </VerticalStackLayout>
+                </Frame>
+
+                <!-- 16. Governing Law -->
+                <Frame Style="{StaticResource CardFrame}">
+                    <VerticalStackLayout Spacing="8">
+                        <Label Text="16. Governing Law" Style="{StaticResource SectionTitleStyle}" />
+                        <Label Text="You acknowledge that Lock maintains its principal place of business in Wilmington, Delaware. You agree that the Services, this Agreement, and all Disputes shall be deemed to have arisen in the State of Delaware, and that Delaware law and the Federal Arbitration Act will apply to any Dispute (except where prohibited by law)."
+                               Style="{StaticResource BodyTextStyle}" />
+                        <Label Text="Additional jurisdiction-specific rules:&#10;• EU / EEA users: The choice of Delaware governing law shall not apply where mandatory consumer protection law explicitly prohibits such choice&#10;• United Kingdom users: English law applies&#10;• Japan users: Japanese law applies"
+                               Style="{StaticResource ListItemStyle}" />
+                    </VerticalStackLayout>
+                </Frame>
+
+                <!-- 17. Venue / Forum Selection -->
+                <Frame Style="{StaticResource CardFrame}">
+                    <VerticalStackLayout Spacing="8">
+                        <Label Text="17. Venue / Forum Selection" Style="{StaticResource SectionTitleStyle}" />
+                        <Label Text="To the fullest extent allowable by law, any claims that are not arbitrated must be litigated in the courts of New Castle County, Delaware, USA (except for claims filed in small claims court, or for users residing in the EU, EEA, UK, or Switzerland, or another jurisdiction where this is prohibited by law). You and Lock consent to the exercise of personal jurisdiction of courts in the State of Delaware."
+                               Style="{StaticResource BodyTextStyle}" />
+                    </VerticalStackLayout>
+                </Frame>
+
+                <!-- 18. Indemnity -->
+                <Frame Style="{StaticResource CardFrame}">
+                    <VerticalStackLayout Spacing="8">
+                        <Label Text="18. Indemnity" Style="{StaticResource SectionTitleStyle}" />
+                        <Label Text="You agree to indemnify Lock if a claim is made against Lock due to your actions."
+                               Style="{StaticResource BodyTextStyle}" TextColor="{StaticResource TextSecondary}" FontAttributes="Italic" />
+                        <Label Text="You agree, to the extent permitted under applicable law, to indemnify, defend, and hold harmless Lock, our affiliates, and their and our respective officers, directors, agents, and employees from and against any and all complaints, demands, claims, damages, losses, costs, liabilities, and expenses, including attorney's fees, due to, arising out of, or relating in any way to: your access to or use of our Services; Your Content; your conduct toward other users; or your breach of this Agreement. SOME JURISDICTIONS DO NOT ALLOW INDEMNIFICATION, SO SOME OR ALL OF THIS SECTION MAY NOT APPLY TO YOU."
+                               Style="{StaticResource BodyTextStyle}" />
+                    </VerticalStackLayout>
+                </Frame>
+
+                <!-- 19. Acceptance of Terms -->
+                <Frame Style="{StaticResource CardFrame}">
+                    <VerticalStackLayout Spacing="8">
+                        <Label Text="19. Acceptance of Terms" Style="{StaticResource SectionTitleStyle}" />
+                        <Label Text="By using our Services, you accept the Terms of this Agreement."
+                               Style="{StaticResource BodyTextStyle}" TextColor="{StaticResource TextSecondary}" FontAttributes="Italic" />
+                        <Label Text="By using our Services, whether through a mobile device, mobile application, or computer, you agree to be bound by: (i) these Terms, which we may amend from time to time; (ii) our Privacy Policy, Cookie Policy, Community Guidelines, and Safety Tips; and (iii) any Additional Terms Upon Purchase. If you do not accept and agree to be bound by all of the terms of this Agreement, you are not entitled to use our Services."
+                               Style="{StaticResource BodyTextStyle}" />
+                    </VerticalStackLayout>
+                </Frame>
+
+                <!-- 20. Entire Agreement -->
+                <Frame Style="{StaticResource CardFrame}">
+                    <VerticalStackLayout Spacing="8">
+                        <Label Text="20. Entire Agreement" Style="{StaticResource SectionTitleStyle}" />
+                        <Label Text="This Agreement supersedes any previous agreements or representations."
+                               Style="{StaticResource BodyTextStyle}" TextColor="{StaticResource TextSecondary}" FontAttributes="Italic" />
+                        <Label Text="These Terms, together with our Privacy Policy, Cookie Policy, Community Guidelines, Safety Tips, and any Additional Terms Upon Purchase, contain the entire agreement between you and Lock regarding the use of our Services and supersede all previous agreements, representations, and arrangements between us, written or oral."
+                               Style="{StaticResource BodyTextStyle}" />
+                        <Label Text="If any provision of these Terms is held invalid, illegal, or unenforceable, the remainder of the Terms shall continue in full force and effect. Our failure to exercise or enforce any right or provision shall not constitute a waiver of such right or provision. Your Lock account is non-transferable, and all of your rights to your account terminate upon your death, unless otherwise provided by law. Rights and licenses granted hereunder may not be transferred or assigned by you, but may be assigned by us without restriction. No agency, partnership, joint venture, or other special relationship or employment is created as a result of these Terms."
+                               Style="{StaticResource BodyTextStyle}" />
+                    </VerticalStackLayout>
+                </Frame>
+
+                <!-- 21. Special State Terms (USA) -->
+                <Frame Style="{StaticResource CardFrame}">
+                    <VerticalStackLayout Spacing="8">
+                        <Label Text="21. Special State Terms (USA)" Style="{StaticResource SectionTitleStyle}" />
+                        <Label Text="Special terms apply in Arizona, California, Colorado, Connecticut, Illinois, Iowa, Minnesota, New York, North Carolina, Ohio, Rhode Island, and Wisconsin."
+                               Style="{StaticResource BodyTextStyle}" TextColor="{StaticResource TextSecondary}" FontAttributes="Italic" />
+
+                        <Label Text="New York subscribers:" Style="{StaticResource SubSectionStyle}" />
+                        <Label Text="• The Services do not guarantee any number of referrals — the functionality allows you to view as many profiles as you would like&#10;• Upon written notice delivered to Lock LLC, 123 Dating Lane, Suite 400, Wilmington, DE 19801, subscribers may place their subscription on hold for up to one year&#10;• You may review the New York Dating Service Consumer Bill of Rights at lockapp.com/ny-rights"
+                               Style="{StaticResource ListItemStyle}" />
+
+                        <Label Text="AZ, CA, CO, CT, IL, IA, MN, NY, NC, OH, RI, WI subscribers:" Style="{StaticResource SubSectionStyle}" />
+                        <Label Text="• Right to Cancel: You may cancel your subscription, without penalty or obligation, at any time prior to midnight of the third business day following the date you subscribed&#10;• Death: If you die before the end of your subscription period, your estate shall be entitled to a refund for the period after your death&#10;• Disability: If you become disabled before the end of your subscription period, you are entitled to a refund for the remaining period"
+                               Style="{StaticResource ListItemStyle}" />
+
+                        <Label Text="IL, NY, NC, and OH subscribers:" Style="{StaticResource SubSectionStyle}" />
+                        <Label Text="Our Services are widely available in the United States. If you believe you have moved outside a location where we provide the Services, contact us at support@lockapp.com and we will work with you to provide alternative services or a refund."
+                               Style="{StaticResource BodyTextStyle}" />
+
+                        <Label Text="California Consumer Complaints:" Style="{StaticResource SubSectionStyle}" />
+                        <Label Text="In accordance with Cal. Civ. Code §1789.3, you may report complaints to the Complaint Assistance Unit of the Division of Consumer Services of the California Department of Consumer Affairs, 1625 North Market Blvd., Suite N112, Sacramento, CA 95834, or by telephone at (800) 952-5210."
+                               Style="{StaticResource BodyTextStyle}" />
+                    </VerticalStackLayout>
+                </Frame>
+
+                <!-- 22. Special Country Terms -->
+                <Frame Style="{StaticResource CardFrame}">
+                    <VerticalStackLayout Spacing="8">
+                        <Label Text="22. Special Country Terms" Style="{StaticResource SectionTitleStyle}" />
+
+                        <Label Text="EU / EEA &amp; Switzerland:" Style="{StaticResource SubSectionStyle}" />
+                        <Label Text="Arbitration Sections 15b, 15c, 15d, and 15e do not apply to you. You may bring claims in your country of residence in accordance with applicable law. The European Commission's Online Dispute Resolution platform is available at https://consumer-redress.ec.europa.eu/index_en."
+                               Style="{StaticResource ListItemStyle}" />
+
+                        <Label Text="United Kingdom:" Style="{StaticResource SubSectionStyle}" />
+                        <Label Text="If you believe we have taken action against your content or account in a way that does not comply with these Terms, you have the right to bring a claim for breach of contract under UK law. We encourage you to first submit an appeal, as this may lead to a faster and more efficient resolution."
+                               Style="{StaticResource ListItemStyle}" />
+
+                        <Label Text="Denmark / EU Cancellation Form:" Style="{StaticResource SubSectionStyle}" />
+                        <Label Text="If you wish to exercise your right of cancellation, you may complete and send the standard EU cancellation form to: Lock Technology Services Limited, Attn: Cancellations, 1 Hatch Street Upper, Dublin 2, Ireland D02PY28, or email legal@lockapp.com. Note: you cannot cancel an order that includes a delivery of digital content not delivered on a physical medium if order processing has begun with your express, prior consent — this means Virtual Item purchases are FINAL AND NON-EXCHANGEABLE OR REFUNDABLE."
+                               Style="{StaticResource ListItemStyle}" />
+
+                        <Label Text="Australia:" Style="{StaticResource SubSectionStyle}" />
+                        <Label Text="Australian Consumer Law applies and cannot be excluded. Nothing in these Terms limits rights you may have under the Australian Consumer Law."
+                               Style="{StaticResource ListItemStyle}" />
+                    </VerticalStackLayout>
+                </Frame>
+
+                <!-- 23. Contact Information -->
+                <Frame Style="{StaticResource CardFrame}">
+                    <VerticalStackLayout Spacing="8">
+                        <Label Text="23. Contact Information" Style="{StaticResource SectionTitleStyle}" />
+                        <Label Text="📧 General Support: support@lockapp.com&#10;⚖️ Legal &amp; Cancellations: legal@lockapp.com&#10;🔒 Security Issues: security@lockapp.com&#10;🚫 Account Appeals: appeals@lockapp.com&#10;📍 Mailing Address: Lock LLC, Attn: Cancellations, 123 Dating Lane, Suite 400, Wilmington, DE 19801, USA&#10;⏰ Response Time: 2–3 business days"
+                               Style="{StaticResource ListItemStyle}" />
+                        <Label Text="For urgent safety concerns or to report illegal activity, use the in-app reporting tool or contact your local law enforcement immediately."
+                               Style="{StaticResource BodyTextStyle}" />
+                        <Label Text="EU users may also file complaints with their local Data Protection Authority (DPA) or access out-of-court dispute resolution through the European Commission's ODR platform."
+                               Style="{StaticResource BodyTextStyle}" />
+                    </VerticalStackLayout>
+                </Frame>
+
+                <!-- Acknowledgment -->
+                <Frame Style="{StaticResource CardFrame}"
+                       BackgroundColor="{StaticResource SurfaceLight}"
+                       Margin="0,16,0,8">
+                    <VerticalStackLayout Spacing="12">
+                        <Label Text="✓ Your Agreement"
+                               FontSize="16"
+                               FontAttributes="Bold"
+                               HorizontalOptions="Center" />
+                        <Label Text="By tapping 'I Understand', you confirm that you have read and agree to be bound by all 23 sections of these Terms, including the No Background Check disclosure (Section 10), encrypted messaging policy (Section 4), arbitration agreement and class action waiver (Section 15), limitation of liability (Section 14), and subscription cancellation and refund rights (Section 8). You confirm you are at least 18 years old and meet all eligibility requirements in Section 2."
+                               Style="{StaticResource BodyTextStyle}"
+                               HorizontalOptions="Center"
+                               HorizontalTextAlignment="Center" />
+                    </VerticalStackLayout>
+                </Frame>
+
+            </VerticalStackLayout>
+        </ScrollView>
+
+        <!-- Bottom Buttons -->
+        <Grid Grid.Row="2"
+              BackgroundColor="{StaticResource SurfaceDark}"
+              Padding="20,16,20,32"
+              ColumnDefinitions="*,*"
+              ColumnSpacing="12">
+            <Button Grid.Column="0"
+                    Text="Decline"
+                    Style="{StaticResource OutlineButton}"
+                    Clicked="OnDeclineClicked" />
+            <Button Grid.Column="1"
+                    Text="I Understand"
+                    Style="{StaticResource PrimaryButton}"
+                    Clicked="OnBackButtonClicked" />
+        </Grid>
+    </Grid>
+</ContentPage>

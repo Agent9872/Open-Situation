@@ -1,0 +1,287 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:shapes="clr-namespace:Microsoft.Maui.Controls.Shapes;assembly=Microsoft.Maui.Controls"
+             x:Class="Lock.Pages.LoginPage"
+             Title=""
+             BackgroundColor="#0A0A0C"
+             NavigationPage.HasNavigationBar="False"
+             Shell.NavBarIsVisible="False">
+
+    <ContentPage.Resources>
+        <Style x:Key="FieldLabel" TargetType="Label">
+            <Setter Property="FontSize" Value="9" />
+            <Setter Property="TextColor" Value="#66F5F0EE" />
+            <Setter Property="CharacterSpacing" Value="2" />
+            <Setter Property="FontAttributes" Value="Bold" />
+            <Setter Property="Margin" Value="0,0,0,6" />
+        </Style>
+
+        <Style x:Key="FieldEntry" TargetType="Entry">
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="BackgroundColor" Value="Transparent" />
+            <Setter Property="TextColor" Value="#F5F0EE" />
+            <Setter Property="PlaceholderColor" Value="#44F5F0EE" />
+            <Setter Property="HeightRequest" Value="48" />
+            <Setter Property="Margin" Value="0" />
+            <Setter Property="VerticalOptions" Value="Center" />
+        </Style>
+
+        <Style x:Key="PrimaryButton" TargetType="Button">
+            <Setter Property="BackgroundColor" Value="#FF3B6F" />
+            <Setter Property="TextColor" Value="White" />
+            <Setter Property="CornerRadius" Value="14" />
+            <Setter Property="HeightRequest" Value="50" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontAttributes" Value="Bold" />
+            <Setter Property="CharacterSpacing" Value="2" />
+        </Style>
+    </ContentPage.Resources>
+
+    <Grid>
+
+        <!-- Background Carousel Images -->
+        <AbsoluteLayout HorizontalOptions="Fill" VerticalOptions="Fill">
+            <Image x:Name="BgImage1" Source="login.png"  Aspect="AspectFill" Opacity="0.85"
+                   AbsoluteLayout.LayoutBounds="0,0,1,1" AbsoluteLayout.LayoutFlags="All" />
+            <Image x:Name="BgImage2" Source="login1.png" Aspect="AspectFill" Opacity="0"
+                   AbsoluteLayout.LayoutBounds="0,0,1,1" AbsoluteLayout.LayoutFlags="All" />
+            <Image x:Name="BgImage3" Source="login2.png" Aspect="AspectFill" Opacity="0"
+                   AbsoluteLayout.LayoutBounds="0,0,1,1" AbsoluteLayout.LayoutFlags="All" />
+            <Image x:Name="BgImage4" Source="login3.png" Aspect="AspectFill" Opacity="0"
+                   AbsoluteLayout.LayoutBounds="0,0,1,1" AbsoluteLayout.LayoutFlags="All" />
+            <Image x:Name="BgImage5" Source="login4.png" Aspect="AspectFill" Opacity="0"
+                   AbsoluteLayout.LayoutBounds="0,0,1,1" AbsoluteLayout.LayoutFlags="All" />
+        </AbsoluteLayout>
+
+        <!-- Dark Overlay -->
+        <BoxView Color="#99000000" HorizontalOptions="Fill" VerticalOptions="Fill" />
+
+        <!-- Centered ScrollView -->
+        <ScrollView VerticalOptions="Fill" HorizontalOptions="Fill">
+            <Grid VerticalOptions="Fill" HorizontalOptions="Fill" MinimumHeightRequest="700">
+                <VerticalStackLayout
+                    Spacing="28"
+                    Padding="24,0"
+                    HorizontalOptions="Center"
+                    VerticalOptions="Center"
+                    MaximumWidthRequest="400">
+
+                    <!-- HEADER -->
+                    <VerticalStackLayout Spacing="10" HorizontalOptions="Center">
+                        <Label Text="Open Situation"
+                               FontSize="36"
+                               TextColor="White"
+                               HorizontalOptions="Center"
+                               FontAttributes="Bold" />
+
+                        <Label Text="WHERE REAL CONNECTIONS BEGIN"
+                               FontSize="9"
+                               TextColor="#CCFFFFFF"
+                               CharacterSpacing="2.5"
+                               HorizontalOptions="Center" />
+
+                        <!-- Badges Row -->
+                        <HorizontalStackLayout Spacing="10" HorizontalOptions="Center" Margin="0,6,0,0">
+                            <HorizontalStackLayout Spacing="5" VerticalOptions="Center">
+                                <BoxView Color="#C2455E" WidthRequest="5" HeightRequest="5" CornerRadius="3" VerticalOptions="Center" />
+                                <Label Text="100K+ Matches" FontSize="10" TextColor="White" />
+                            </HorizontalStackLayout>
+                            <Label Text="·" TextColor="#66FFFFFF" FontSize="10" VerticalOptions="Center" />
+                            <HorizontalStackLayout Spacing="4" VerticalOptions="Center">
+                                <Label Text="★★★★★" TextColor="#FFD700" FontSize="9" VerticalOptions="Center" />
+                                <Label Text="4.8" TextColor="White" FontSize="10" VerticalOptions="Center" />
+                            </HorizontalStackLayout>
+                            <Label Text="·" TextColor="#66FFFFFF" FontSize="10" VerticalOptions="Center" />
+                            <HorizontalStackLayout Spacing="5" VerticalOptions="Center">
+                                <BoxView Color="#C2455E" WidthRequest="5" HeightRequest="5" CornerRadius="3" VerticalOptions="Center" />
+                                <Label Text="Verified" FontSize="10" TextColor="White" />
+                            </HorizontalStackLayout>
+                        </HorizontalStackLayout>
+                    </VerticalStackLayout>
+
+                    <!-- CARD -->
+                    <Frame BackgroundColor="Transparent"
+                           CornerRadius="20"
+                           Padding="20"
+                           HasShadow="False"
+                           BorderColor="White">
+
+                        <VerticalStackLayout Spacing="16">
+
+                            <VerticalStackLayout Spacing="4">
+                                <Label Text="Welcome back!"
+                                       FontSize="18"
+                                       FontAttributes="Bold"
+                                       TextColor="White"
+                                       HorizontalOptions="Center" />
+                                <Label Text="Sign in to continue your journey"
+                                       FontSize="12"
+                                       TextColor="#CCFFFFFF"
+                                       HorizontalOptions="Center" />
+                            </VerticalStackLayout>
+
+                            <!-- FIELDS -->
+                            <VerticalStackLayout Spacing="14">
+
+                                <!-- Phone -->
+                                <VerticalStackLayout Spacing="0">
+                                    <Label Text="PHONE NUMBER" Style="{StaticResource FieldLabel}" />
+                                    <Grid ColumnDefinitions="32,*" ColumnSpacing="8">
+                                        <shapes:Path Grid.Column="0"
+                                                     Data="M6.62 10.79a15.053 15.053 0 006.59 6.59l2.2-2.2a1 1 0 011.11-.21 11.36 11.36 0 003.54.57 1 1 0 011 1V21a1 1 0 01-1 1A17 17 0 013 4a1 1 0 011-1h3.5a1 1 0 011 1 11.36 11.36 0 00.57 3.54 1 1 0 01-.21 1.11z"
+                                                     Stroke="#008080" StrokeThickness="1.5" Fill="Transparent"
+                                                     WidthRequest="18" HeightRequest="18" Aspect="Uniform"
+                                                     HorizontalOptions="Center" VerticalOptions="Center" />
+                                        <Entry Grid.Column="1"
+                                               x:Name="PhoneEntry"
+                                               Placeholder="Phone number"
+                                               Keyboard="Telephone"
+                                               MaxLength="20"
+                                               Style="{StaticResource FieldEntry}" />
+                                    </Grid>
+                                </VerticalStackLayout>
+
+                                <!-- Password -->
+                                <VerticalStackLayout Spacing="0">
+                                    <Label Text="PASSWORD" Style="{StaticResource FieldLabel}" />
+                                    <Grid ColumnDefinitions="32,*,28" ColumnSpacing="8">
+                                        <shapes:Path Grid.Column="0"
+                                                     Data="M19 11H5a2 2 0 00-2 2v7a2 2 0 002 2h14a2 2 0 002-2v-7a2 2 0 00-2-2zM7 11V7a5 5 0 0110 0v4"
+                                                     Stroke="#008080" StrokeThickness="1.5" Fill="Transparent"
+                                                     WidthRequest="18" HeightRequest="18" Aspect="Uniform"
+                                                     HorizontalOptions="Center" VerticalOptions="Center" />
+                                        <Entry Grid.Column="1"
+                                               x:Name="PasswordEntry"
+                                               Placeholder="Password"
+                                               IsPassword="True"
+                                               Style="{StaticResource FieldEntry}" />
+                                        <Grid Grid.Column="2" WidthRequest="24" HeightRequest="48" VerticalOptions="Center">
+                                            <Grid.GestureRecognizers>
+                                                <TapGestureRecognizer Tapped="TogglePasswordVisibility" />
+                                            </Grid.GestureRecognizers>
+                                            <shapes:Path x:Name="EyeOpenIcon"
+                                                         Data="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8zM12 9a3 3 0 100 6 3 3 0 000-6z"
+                                                         Stroke="#008080" StrokeThickness="1.5" Fill="Transparent"
+                                                         WidthRequest="16" HeightRequest="16" Aspect="Uniform"
+                                                         HorizontalOptions="Center" VerticalOptions="Center" IsVisible="True" />
+                                            <shapes:Path x:Name="EyeClosedIcon"
+                                                         Data="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24M1 1l22 22"
+                                                         Stroke="#008080" StrokeThickness="1.5" Fill="Transparent"
+                                                         WidthRequest="16" HeightRequest="16" Aspect="Uniform"
+                                                         HorizontalOptions="Center" VerticalOptions="Center" IsVisible="False" />
+                                        </Grid>
+                                    </Grid>
+                                </VerticalStackLayout>
+
+                                <!-- Remember Me -->
+                                <HorizontalStackLayout Spacing="10" VerticalOptions="Center">
+                                    <CheckBox x:Name="RememberMeCheckBox"
+          Color="#C2455E"
+          CheckedChanged="RememberMe_CheckedChanged" />
+                                    <Label Text="Remember me"
+                                           FontSize="12"
+                                           TextColor="#CCFFFFFF"
+                                           VerticalOptions="Center" />
+                                </HorizontalStackLayout>
+
+                            </VerticalStackLayout>
+
+                            <!-- LINKS -->
+                            <Grid ColumnDefinitions="*,*" Margin="0,-4,0,4">
+                                <Label Text="Forgot password?"
+                                       FontSize="11"
+                                       TextColor="White"
+                                       Grid.Column="0"
+                                       VerticalOptions="Center" />
+                                <HorizontalStackLayout Grid.Column="1"
+                                                       Spacing="4"
+                                                       HorizontalOptions="End"
+                                                       VerticalOptions="Center">
+                                    <Label Text="No account?" FontSize="11" TextColor="#E0E0E0" />
+                                    <Label Text="Register"
+                                           FontSize="11"
+                                           FontAttributes="Bold"
+                                           TextColor="#008080">
+                                        <Label.GestureRecognizers>
+                                            <TapGestureRecognizer Tapped="RegisterButton_Clicked" />
+                                        </Label.GestureRecognizers>
+                                    </Label>
+                                </HorizontalStackLayout>
+                            </Grid>
+
+                            <!-- SIGN IN BUTTON -->
+                            <Grid>
+                                <Button x:Name="SignInButton"
+            Text="SIGN IN"
+            Style="{StaticResource PrimaryButton}"
+            Clicked="SignInButton_Clicked" />
+
+                                <!-- Loading overlay -->
+                                <Frame x:Name="LoadingOverlay"
+           IsVisible="False"
+           BackgroundColor="#FF3B6F"
+           CornerRadius="14"
+           HeightRequest="50"
+           Padding="0"
+           HasShadow="False"
+           BorderColor="Transparent">
+
+                                    <HorizontalStackLayout
+            HorizontalOptions="Center"
+            VerticalOptions="Center"
+            Spacing="12">
+
+                                        <ActivityIndicator
+                IsRunning="True"
+                Color="White"
+                WidthRequest="20"
+                HeightRequest="20" />
+
+                                        <Label Text="Signing in..."
+                   TextColor="White"
+                   FontSize="13"
+                   FontAttributes="Bold"
+                   CharacterSpacing="1"
+                   VerticalOptions="Center" />
+                                    </HorizontalStackLayout>
+                                </Frame>
+                            </Grid>
+                            <!-- ERROR MESSAGE -->
+                            <Label x:Name="MessageLabel"
+                                   TextColor="#FF6B6B"
+                                   FontSize="12"
+                                   IsVisible="False"
+                                   HorizontalTextAlignment="Center" />
+
+                            <!-- APPEAL BUTTON -->
+                            <Button x:Name="AppealButton"
+                                    Text="APPEAL THIS DECISION"
+                                    IsVisible="False"
+                                    BackgroundColor="#1A0800"
+                                    TextColor="#FF9800"
+                                    BorderColor="#FF9800"
+                                    BorderWidth="1"
+                                    CornerRadius="14"
+                                    HeightRequest="46"
+                                    FontSize="12"
+                                    FontAttributes="Bold"
+                                    CharacterSpacing="1.5"
+                                    Clicked="AppealButton_Clicked" />
+
+                            <!-- TERMS -->
+                            <Label Text="By signing in, you agree to our Terms of Service and Privacy Policy"
+                                   FontSize="8"
+                                   TextColor="#CCCCCC"
+                                   HorizontalTextAlignment="Center"
+                                   LineBreakMode="WordWrap"
+                                   Margin="0,4,0,0" />
+
+                        </VerticalStackLayout>
+                    </Frame>
+
+                </VerticalStackLayout>
+            </Grid>
+        </ScrollView>
+    </Grid>
+</ContentPage>

@@ -1,0 +1,508 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:shapes="clr-namespace:Microsoft.Maui.Controls.Shapes;assembly=Microsoft.Maui.Controls"
+             x:Class="Lock.Pages.Chat.GroupSettingsPage"
+             BackgroundColor="#0F0F0F"
+             Shell.NavBarIsVisible="False"
+             NavigationPage.HasNavigationBar="False">
+
+    <Grid RowDefinitions="Auto,*">
+
+        <!-- ══ HEADER ══ -->
+        <Grid Grid.Row="0" Padding="16,8,16,8" BackgroundColor="#0F0F0F"
+              ColumnDefinitions="Auto,*,Auto">
+
+            <!-- Back -->
+            <Grid Grid.Column="0" WidthRequest="40" HeightRequest="40" VerticalOptions="Center">
+                <Grid.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnBackTapped"/>
+                </Grid.GestureRecognizers>
+                <Label Text="←" FontSize="22" TextColor="#888888"
+                       HorizontalOptions="Center" VerticalOptions="Center"/>
+            </Grid>
+
+            <!-- Title -->
+            <VerticalStackLayout Grid.Column="1" Spacing="2" Margin="8,0">
+                <Label Text="Group Settings" FontSize="26" FontAttributes="Bold" TextColor="#FFFFFF"/>
+                <Label x:Name="GroupSubtitleLabel" Text="Loading…"
+                       FontSize="12" TextColor="#666666"/>
+            </VerticalStackLayout>
+
+            <!-- Save -->
+            <Frame Grid.Column="2"
+                   x:Name="SaveFrame"
+                   Padding="0" CornerRadius="20"
+                   BackgroundColor="#008080" HasShadow="False" BorderColor="Transparent"
+                   VerticalOptions="Center" IsVisible="False">
+                <Button x:Name="SaveButton" Text="Save"
+                        BackgroundColor="Transparent" TextColor="White"
+                        FontAttributes="Bold" FontSize="12" Padding="16,6"
+                        Clicked="OnSaveClicked"/>
+            </Frame>
+        </Grid>
+
+        <!-- ══ BODY ══ -->
+        <ScrollView Grid.Row="1" BackgroundColor="#0F0F0F"
+                    VerticalScrollBarVisibility="Never">
+            <VerticalStackLayout Padding="16,4,16,40" Spacing="10">
+
+                <!-- ── Group Photo ── -->
+                <Frame CornerRadius="18" HasShadow="False"
+                       BorderColor="#252525" BackgroundColor="#161616" Padding="20">
+                    <VerticalStackLayout Spacing="10" HorizontalOptions="Center">
+
+                        <!-- Avatar circle -->
+                        <Grid WidthRequest="90" HeightRequest="90"
+                              HorizontalOptions="Center">
+                            <Grid.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="OnEditImageTapped"/>
+                            </Grid.GestureRecognizers>
+
+                            <!-- Circle background -->
+                            <Frame WidthRequest="90" HeightRequest="90"
+                                   CornerRadius="45" BackgroundColor="#1E1E1E"
+                                   HasShadow="False" IsClippedToBounds="True" Padding="0">
+                                <Image x:Name="GroupImage"
+                                       Aspect="AspectFill"
+                                       WidthRequest="90" HeightRequest="90"
+                                       IsVisible="False"/>
+                            </Frame>
+
+                            <!-- Camera placeholder (shown when no image) -->
+                            <VerticalStackLayout x:Name="CameraIcon"
+                                                 HorizontalOptions="Center"
+                                                 VerticalOptions="Center"
+                                                 Spacing="2" IsVisible="True">
+                                <Label Text="📷" FontSize="28"
+                                       HorizontalOptions="Center"/>
+                                <Label Text="Edit" FontSize="10" TextColor="#666666"
+                                       HorizontalOptions="Center"/>
+                            </VerticalStackLayout>
+
+                            <!-- Edit badge -->
+                            <Frame WidthRequest="26" HeightRequest="26"
+                                   CornerRadius="13" BackgroundColor="#FF3B6F"
+                                   HasShadow="False" Padding="0"
+                                   HorizontalOptions="End" VerticalOptions="End">
+                                <Label Text="✎" FontSize="12" TextColor="White"
+                                       HorizontalOptions="Center" VerticalOptions="Center"/>
+                            </Frame>
+                        </Grid>
+
+                        <Label Text="Tap to change group photo"
+                               FontSize="11" TextColor="#444444"
+                               HorizontalOptions="Center"/>
+                    </VerticalStackLayout>
+                </Frame>
+
+                <!-- ── Basic Info ── -->
+                <Frame CornerRadius="18" HasShadow="False"
+                       BorderColor="#252525" BackgroundColor="#161616" Padding="16">
+                    <VerticalStackLayout Spacing="0">
+
+                        <Label Text="BASIC INFO" FontSize="10" FontAttributes="Bold"
+                               TextColor="#444444" CharacterSpacing="1.5" Margin="0,0,0,12"/>
+
+                        <!-- Group Name -->
+                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10"
+                              Padding="0,10">
+                            <Label Grid.Column="0" Text="Name" FontSize="14"
+                                   TextColor="#AAAAAA" VerticalOptions="Center"
+                                   WidthRequest="72"/>
+                            <Entry Grid.Column="1"
+                                   x:Name="GroupNameEntry"
+                                   Placeholder="Group name…"
+                                   PlaceholderColor="#444444"
+                                   TextColor="#FFFFFF"
+                                   BackgroundColor="Transparent"
+                                   FontSize="14"
+                                   HeightRequest="40"/>
+                        </Grid>
+                        <BoxView HeightRequest="1" Color="#1E1E1E"/>
+
+                        <!-- Category -->
+                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10"
+                              Padding="0,10">
+                            <Label Grid.Column="0" Text="Category" FontSize="14"
+                                   TextColor="#AAAAAA" VerticalOptions="Center"
+                                   WidthRequest="72"/>
+                            <Entry Grid.Column="1"
+                                   x:Name="CategoryEntry"
+                                   Placeholder="e.g. Hiking, Music, Dating…"
+                                   PlaceholderColor="#444444"
+                                   TextColor="#FFFFFF"
+                                   BackgroundColor="Transparent"
+                                   FontSize="14"
+                                   HeightRequest="40"/>
+                        </Grid>
+                        <BoxView HeightRequest="1" Color="#1E1E1E"/>
+
+                        <!-- Description -->
+                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10"
+                              Padding="0,10">
+                            <Label Grid.Column="0" Text="About" FontSize="14"
+                                   TextColor="#AAAAAA" VerticalOptions="Start"
+                                   Margin="0,12,0,0" WidthRequest="72"/>
+                            <Editor Grid.Column="1"
+                                    x:Name="GroupDescriptionEditor"
+                                    Placeholder="Describe your group…"
+                                    PlaceholderColor="#444444"
+                                    TextColor="#FFFFFF"
+                                    BackgroundColor="Transparent"
+                                    FontSize="14"
+                                    HeightRequest="80"
+                                    AutoSize="TextChanges"/>
+                        </Grid>
+
+                    </VerticalStackLayout>
+                </Frame>
+
+                <!-- ── Group Type + Visibility ── -->
+                <Frame CornerRadius="18" HasShadow="False"
+                       BorderColor="#252525" BackgroundColor="#161616" Padding="16">
+                    <VerticalStackLayout Spacing="0">
+
+                        <Label Text="TYPE &amp; VISIBILITY" FontSize="10" FontAttributes="Bold"
+                               TextColor="#444444" CharacterSpacing="1.5" Margin="0,0,0,12"/>
+
+                        <!-- Group Type -->
+                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10" Padding="0,4">
+                            <Label Grid.Column="0" Text="Type" FontSize="14"
+                                   TextColor="#AAAAAA" VerticalOptions="Center"
+                                   WidthRequest="72"/>
+                            <Picker Grid.Column="1"
+                                    x:Name="GroupTypePicker"
+                                    Title="Select type"
+                                    TitleColor="#444444"
+                                    TextColor="#FFFFFF"
+                                    BackgroundColor="Transparent"
+                                    FontSize="14"
+                                    SelectedIndexChanged="OnGroupTypeChanged">
+                                <Picker.Items>
+                                    <x:String>Community Circle</x:String>
+                                    <x:String>Interest Based</x:String>
+                                    <x:String>Squad Dating</x:String>
+                                    <x:String>Mood Room</x:String>
+                                    <x:String>Private Group</x:String>
+                                    <x:String>Event Group</x:String>
+                                    <x:String>Support Circle</x:String>
+                                </Picker.Items>
+                            </Picker>
+                        </Grid>
+                        <BoxView HeightRequest="1" Color="#1E1E1E"/>
+
+                        <!-- Visibility -->
+                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10" Padding="0,4">
+                            <Label Grid.Column="0" Text="Visible" FontSize="14"
+                                   TextColor="#AAAAAA" VerticalOptions="Center"
+                                   WidthRequest="72"/>
+                            <Picker Grid.Column="1"
+                                    x:Name="VisibilityPicker"
+                                    Title="Who can see this?"
+                                    TitleColor="#444444"
+                                    TextColor="#FFFFFF"
+                                    BackgroundColor="Transparent"
+                                    FontSize="14">
+                                <Picker.Items>
+                                    <x:String>🔓 Public</x:String>
+                                    <x:String>🔒 Private</x:String>
+                                    <x:String>🤫 Secret</x:String>
+                                </Picker.Items>
+                            </Picker>
+                        </Grid>
+                        <BoxView HeightRequest="1" Color="#1E1E1E"/>
+
+                        <!-- Max Members -->
+                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10" Padding="0,10">
+                            <Label Grid.Column="0" Text="Slots" FontSize="14"
+                                   TextColor="#AAAAAA" VerticalOptions="Center"
+                                   WidthRequest="72"/>
+                            <Entry Grid.Column="1"
+                                   x:Name="MaxMembersEntry"
+                                   Placeholder="0 = unlimited"
+                                   PlaceholderColor="#444444"
+                                   TextColor="#FFFFFF"
+                                   BackgroundColor="Transparent"
+                                   Keyboard="Numeric"
+                                   FontSize="14"
+                                   HeightRequest="40"/>
+                            <Label Grid.Column="2" Text="max" FontSize="12"
+                                   TextColor="#555555" VerticalOptions="Center"/>
+                        </Grid>
+
+                    </VerticalStackLayout>
+                </Frame>
+
+                <!-- ── Squad Dating info banner ── -->
+                <Frame x:Name="SquadInfoBanner"
+                       IsVisible="False"
+                       CornerRadius="14" HasShadow="False"
+                       BorderColor="#008080" BackgroundColor="#0D2626" Padding="14,12">
+                    <HorizontalStackLayout Spacing="10">
+                        <Label Text="👥" FontSize="18" VerticalOptions="Center"/>
+                        <Label Text="Squad Dating lets 2–4 friends match with another squad together."
+                               FontSize="12" TextColor="#008080"
+                               LineBreakMode="WordWrap" VerticalOptions="Center"/>
+                    </HorizontalStackLayout>
+                </Frame>
+
+                <!-- ── Mood Filter (Mood Room only) ── -->
+                <Frame x:Name="MoodFilterCard"
+                       IsVisible="False"
+                       CornerRadius="18" HasShadow="False"
+                       BorderColor="#252525" BackgroundColor="#161616" Padding="16">
+                    <VerticalStackLayout Spacing="0">
+
+                        <Label Text="🌙  MOOD FILTER" FontSize="10" FontAttributes="Bold"
+                               TextColor="#444444" CharacterSpacing="1.5" Margin="0,0,0,12"/>
+
+                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10" Padding="0,4">
+                            <Label Grid.Column="0" Text="Mood" FontSize="14"
+                                   TextColor="#AAAAAA" VerticalOptions="Center"
+                                   WidthRequest="72"/>
+                            <Picker Grid.Column="1"
+                                    x:Name="MoodFilterPicker"
+                                    Title="Select mood"
+                                    TitleColor="#444444"
+                                    TextColor="#FFFFFF"
+                                    BackgroundColor="Transparent"
+                                    FontSize="14"
+                                    SelectedIndexChanged="OnMoodFilterSelectedIndexChanged">
+                                <Picker.Items>
+                                    <x:String>Happy</x:String>
+                                    <x:String>Sad</x:String>
+                                    <x:String>Excited</x:String>
+                                    <x:String>Lonely</x:String>
+                                    <x:String>Romantic</x:String>
+                                    <x:String>Adventurous</x:String>
+                                    <x:String>Chill</x:String>
+                                    <x:String>Playful</x:String>
+                                    <x:String>Deep Talks</x:String>
+                                    <x:String>Flirty</x:String>
+                                    <x:String>✨ Custom Mood</x:String>
+                                </Picker.Items>
+                            </Picker>
+                        </Grid>
+
+                        <!-- Custom mood entry -->
+                        <Frame x:Name="CustomMoodContainer"
+                               IsVisible="False"
+                               CornerRadius="10" HasShadow="False"
+                               BorderColor="#008080" BackgroundColor="#0D1A1A"
+                               Padding="12,4" Margin="0,8,0,0">
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                <Entry x:Name="CustomMoodEntry"
+                                       Placeholder="Type your custom mood…"
+                                       PlaceholderColor="#444444"
+                                       TextColor="#FFFFFF"
+                                       BackgroundColor="Transparent"
+                                       FontSize="13"
+                                       VerticalOptions="Center"/>
+                                <Frame Grid.Column="1"
+                                       Padding="0" CornerRadius="8"
+                                       BackgroundColor="#008080"
+                                       HasShadow="False" VerticalOptions="Center">
+                                    <Button Text="Add"
+                                            BackgroundColor="Transparent"
+                                            TextColor="White"
+                                            FontSize="12" FontAttributes="Bold"
+                                            Padding="12,4"
+                                            HeightRequest="32"
+                                            Clicked="OnAddCustomMoodClicked"/>
+                                </Frame>
+                            </Grid>
+                        </Frame>
+                    </VerticalStackLayout>
+                </Frame>
+
+                <!-- ── Interest Tags ── -->
+                <Frame CornerRadius="18" HasShadow="False"
+                       BorderColor="#252525" BackgroundColor="#161616" Padding="16">
+                    <VerticalStackLayout Spacing="12">
+
+                        <Label Text="INTEREST TAGS" FontSize="10" FontAttributes="Bold"
+                               TextColor="#444444" CharacterSpacing="1.5"/>
+
+                        <FlexLayout x:Name="TagsContainer"
+                                    Direction="Row"
+                                    Wrap="Wrap"
+                                    JustifyContent="Start"
+                                    AlignItems="Center"/>
+                    </VerticalStackLayout>
+                </Frame>
+
+                <!-- ── Permissions / Toggles ── -->
+                <Frame CornerRadius="18" HasShadow="False"
+                       BorderColor="#252525" BackgroundColor="#161616" Padding="16">
+                    <VerticalStackLayout Spacing="0">
+
+                        <Label Text="PERMISSIONS" FontSize="10" FontAttributes="Bold"
+                               TextColor="#444444" CharacterSpacing="1.5" Margin="0,0,0,12"/>
+
+                        <!-- Encryption -->
+                        <Grid ColumnDefinitions="*,Auto" Padding="0,12">
+                            <VerticalStackLayout Grid.Column="0" Spacing="2" VerticalOptions="Center">
+                                <Label Text="🔒  End-to-End Encryption"
+                                       FontSize="14" FontAttributes="Bold" TextColor="#FFFFFF"/>
+                                <Label Text="Messages are encrypted — Lock cannot read them"
+                                       FontSize="11" TextColor="#555555"/>
+                            </VerticalStackLayout>
+                            <Switch x:Name="EncryptionSwitch" Grid.Column="1"
+                                    IsToggled="True"
+                                    ThumbColor="#008080" OnColor="#008080"/>
+                        </Grid>
+                        <BoxView HeightRequest="1" Color="#1E1E1E"/>
+
+                        <!-- Require Approval -->
+                        <Grid ColumnDefinitions="*,Auto" Padding="0,12">
+                            <VerticalStackLayout Grid.Column="0" Spacing="2" VerticalOptions="Center">
+                                <Label Text="Require Join Approval"
+                                       FontSize="14" FontAttributes="Bold" TextColor="#FFFFFF"/>
+                                <Label Text="Admin approves each join request manually"
+                                       FontSize="11" TextColor="#555555"/>
+                            </VerticalStackLayout>
+                            <Switch x:Name="RequireApprovalSwitch" Grid.Column="1"
+                                    IsToggled="False"
+                                    ThumbColor="#008080" OnColor="#008080"/>
+                        </Grid>
+
+                        <!-- Anonymous Mode (Support Circle only) -->
+                        <BoxView x:Name="AnonymousDivider"
+                                 HeightRequest="1" Color="#1E1E1E" IsVisible="False"/>
+                        <Grid x:Name="AnonymousModeGrid"
+                              ColumnDefinitions="*,Auto" Padding="0,12" IsVisible="False">
+                            <VerticalStackLayout Grid.Column="0" Spacing="2" VerticalOptions="Center">
+                                <Label Text="💙  Anonymous Mode"
+                                       FontSize="14" FontAttributes="Bold" TextColor="#FFFFFF"/>
+                                <Label Text="Members appear as 'Member #N' — identity hidden"
+                                       FontSize="11" TextColor="#555555"/>
+                            </VerticalStackLayout>
+                            <Switch x:Name="AnonymousModeSwitch" Grid.Column="1"
+                                    IsToggled="False"
+                                    ThumbColor="#008080" OnColor="#008080"/>
+                        </Grid>
+
+                    </VerticalStackLayout>
+                </Frame>
+
+                <!-- ── Admins ── -->
+                <Frame CornerRadius="18" HasShadow="False"
+       BorderColor="#252525" BackgroundColor="#161616" Padding="16">
+                    <VerticalStackLayout Spacing="12">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <Label Text="⭐  Admins" FontSize="14"
+                   FontAttributes="Bold" TextColor="#FFFFFF"
+                   VerticalOptions="Center"/>
+                            <Frame Grid.Column="1"
+                   x:Name="AddAdminFrame"
+                   IsVisible="False"
+                   Padding="0" CornerRadius="20"
+                   BackgroundColor="#1E1E1E" HasShadow="False"
+                   BorderColor="#2E2E2E" VerticalOptions="Center">
+                                <Button Text="+ Add Admin"
+                        BackgroundColor="Transparent"
+                        TextColor="#008080"
+                        FontSize="12" FontAttributes="Bold"
+                        Padding="14,6"
+                        Clicked="OnAddAdminClicked"/>
+                            </Frame>
+                        </Grid>
+                        <VerticalStackLayout x:Name="AdminsContainer" Spacing="10"/>
+                    </VerticalStackLayout>
+                </Frame>
+
+                <!-- ── Members ── -->
+                <Frame CornerRadius="18" HasShadow="False"
+                       BorderColor="#252525" BackgroundColor="#161616" Padding="16">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <VerticalStackLayout Grid.Column="0" Spacing="2" VerticalOptions="Center">
+                            <Label Text="👥  Members" FontSize="14"
+                                   FontAttributes="Bold" TextColor="#FFFFFF"/>
+                            <Label x:Name="MemberCountLabel"
+                                   FontSize="11" TextColor="#555555"/>
+                        </VerticalStackLayout>
+                        <Frame Grid.Column="1"
+                               Padding="0" CornerRadius="20"
+                               BackgroundColor="#1E1E1E" HasShadow="False"
+                               BorderColor="#2E2E2E" VerticalOptions="Center">
+                            <Button Text="View All"
+                                    BackgroundColor="Transparent"
+                                    TextColor="#008080"
+                                    FontSize="12" FontAttributes="Bold"
+                                    Padding="14,6"
+                                    Clicked="OnViewMembersClicked"/>
+                        </Frame>
+                    </Grid>
+                </Frame>
+
+                <!-- ── Danger Zone ── -->
+                <VerticalStackLayout x:Name="DangerZoneLayout" IsVisible="False" Spacing="8">
+
+                    <!-- Section label -->
+                    <HorizontalStackLayout Spacing="8" Margin="4,8,0,0">
+                        <BoxView WidthRequest="3" HeightRequest="14" Color="#FF3B6F"
+                                 VerticalOptions="Center" CornerRadius="2"/>
+                        <Label Text="⚠️  DANGER ZONE" FontSize="10" FontAttributes="Bold"
+                               TextColor="#FF3B6F" CharacterSpacing="1.5"
+                               VerticalOptions="Center"/>
+                    </HorizontalStackLayout>
+
+                    <!-- Leave Group -->
+                    <Frame CornerRadius="18" HasShadow="False"
+                           BorderColor="#3A1A22" BackgroundColor="#1A0F14" Padding="16">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <VerticalStackLayout Grid.Column="0" Spacing="2" VerticalOptions="Center">
+                                <Label Text="Leave Group" FontSize="14"
+                                       FontAttributes="Bold" TextColor="#FFFFFF"/>
+                                <Label Text="You can rejoin later if the group is public"
+                                       FontSize="11" TextColor="#555555"/>
+                            </VerticalStackLayout>
+                            <Frame Grid.Column="1"
+                                   Padding="0" CornerRadius="20"
+                                   BackgroundColor="#FF3B6F" HasShadow="False"
+                                   BorderColor="Transparent" VerticalOptions="Center">
+                                <Button x:Name="LeaveGroupButton"
+                                        Text="Leave"
+                                        BackgroundColor="Transparent" TextColor="White"
+                                        FontSize="12" FontAttributes="Bold"
+                                        Padding="14,6"
+                                        Clicked="OnLeaveGroupClicked"/>
+                            </Frame>
+                        </Grid>
+                    </Frame>
+
+                    <!-- Delete Group (creator only) -->
+                    <Frame x:Name="DeleteGroupFrame"
+                           IsVisible="False"
+                           CornerRadius="18" HasShadow="False"
+                           BorderColor="#3A0A0A" BackgroundColor="#1A0808" Padding="16">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <VerticalStackLayout Grid.Column="0" Spacing="2" VerticalOptions="Center">
+                                <Label Text="Delete Group" FontSize="14"
+                                       FontAttributes="Bold" TextColor="#FF3B6F"/>
+                                <Label Text="Permanently deletes all messages &amp; data"
+                                       FontSize="11" TextColor="#555555"/>
+                            </VerticalStackLayout>
+                            <Frame Grid.Column="1"
+                                   Padding="0" CornerRadius="20"
+                                   BackgroundColor="#8B0000" HasShadow="False"
+                                   BorderColor="Transparent" VerticalOptions="Center">
+                                <Button x:Name="DeleteGroupButton"
+                                        Text="Delete"
+                                        BackgroundColor="Transparent" TextColor="White"
+                                        FontSize="12" FontAttributes="Bold"
+                                        Padding="14,6"
+                                        Clicked="OnDeleteGroupClicked"/>
+                            </Frame>
+                        </Grid>
+                    </Frame>
+
+                </VerticalStackLayout>
+
+                <BoxView HeightRequest="20" BackgroundColor="Transparent"/>
+            </VerticalStackLayout>
+        </ScrollView>
+    </Grid>
+
+</ContentPage>

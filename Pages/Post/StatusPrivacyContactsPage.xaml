@@ -1,0 +1,342 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:conv="clr-namespace:Lock.Converter.Post"
+             x:Class="Lock.Pages.Post.StatusPrivacyContactsPage"
+             Title=""
+             BackgroundColor="#0E0E12">
+
+    <ContentPage.Resources>
+        <conv:InverseBoolConverter x:Key="InverseBoolConverter" />
+    </ContentPage.Resources>
+
+    <Grid RowDefinitions="Auto,Auto,*,Auto">
+
+        <!-- ── HEADER ── -->
+        <Grid Grid.Row="0"
+              ColumnDefinitions="Auto,*,Auto"
+              Padding="16,52,16,14"
+              BackgroundColor="#0E0E12">
+
+            <!-- Back button -->
+            <Border Grid.Column="0"
+                    BackgroundColor="#16161C"
+                    StrokeThickness="1"
+                    Stroke="#2A2A38"
+                    StrokeShape="RoundRectangle 20"
+                    WidthRequest="36" HeightRequest="36"
+                    VerticalOptions="Center">
+                <Border.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnBackClicked" />
+                </Border.GestureRecognizers>
+                <Path Data="M560-240 320-480l240-240 56 56-184 184 184 184-56 56Z"
+                      Fill="#7A7A8C"
+                      HeightRequest="14" WidthRequest="14"
+                      HorizontalOptions="Center" VerticalOptions="Center"
+                      Aspect="Uniform" />
+            </Border>
+
+            <!-- Title block -->
+            <VerticalStackLayout Grid.Column="1"
+                                 VerticalOptions="Center"
+                                 HorizontalOptions="Center"
+                                 Spacing="1">
+                <Label x:Name="PageTitleLabel"
+                       Text="Allowed Contacts"
+                       FontSize="15" FontAttributes="Bold"
+                       TextColor="#F0EDE8"
+                       HorizontalOptions="Center" />
+                <Label Text="Select who can view your status"
+                       FontSize="11" TextColor="#5A5A6A"
+                       HorizontalOptions="Center" />
+            </VerticalStackLayout>
+
+            <!-- Selected count badge -->
+            <Border Grid.Column="2"
+                    x:Name="SelectedCountBadge"
+                    BackgroundColor="#2A1520"
+                    StrokeThickness="1"
+                    Stroke="#FF3B6F"
+                    StrokeShape="RoundRectangle 12"
+                    Padding="8,3"
+                    VerticalOptions="Center"
+                    IsVisible="False">
+                <Label x:Name="SelectedCountLabel"
+                       Text="0"
+                       FontSize="10" FontAttributes="Bold"
+                       TextColor="#FF3B6F" />
+            </Border>
+        </Grid>
+
+        <!-- Header divider -->
+        <BoxView Grid.Row="0"
+                 HeightRequest="1"
+                 BackgroundColor="#1C1C25"
+                 VerticalOptions="End" />
+
+        <!-- ── SEARCH BAR ── -->
+        <Border Grid.Row="1"
+                BackgroundColor="#16161C"
+                StrokeThickness="1"
+                Stroke="#2A2A38"
+                StrokeShape="RoundRectangle 14"
+                Margin="16,12,16,0"
+                Padding="6,0">
+            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8" Padding="4,0">
+
+                <!-- Search icon -->
+                <Path Grid.Column="0"
+                      Data="m775.5-168.5-247.77-248Q498-390.5 459-376.75T383.16-363q-91.13 0-153.9-62.98-62.76-62.97-62.76-153.5 0-90.52 62.7-153.52 62.71-63 153.5-63 90.8 0 153.8 63.01 63 63 63 153.57 0 40.42-15 79.42T546-434.29L794-187l-18.5 18.5Z"
+                      Fill="#5A5A6A"
+                      HeightRequest="14" WidthRequest="14"
+                      VerticalOptions="Center" Aspect="Uniform" />
+
+                <SearchBar Grid.Column="1"
+                           x:Name="SearchBar"
+                           Placeholder="Search contacts..."
+                           TextChanged="OnSearchTextChanged"
+                           BackgroundColor="Transparent"
+                           TextColor="#F0EDE8"
+                           PlaceholderColor="#3A3A4A"
+                           FontSize="14"
+                           CancelButtonColor="#FF3B6F"
+                           HeightRequest="44" />
+
+                <!-- Clear button (shown when text present) -->
+                <Border Grid.Column="2"
+                        x:Name="ClearSearchButton"
+                        BackgroundColor="#2A2A38"
+                        StrokeThickness="0"
+                        StrokeShape="RoundRectangle 10"
+                        WidthRequest="24" HeightRequest="24"
+                        VerticalOptions="Center"
+                        IsVisible="False">
+                    <Border.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnClearSearch" />
+                    </Border.GestureRecognizers>
+                    <Path Data="M480-444.5 270.5-235l-17-17L463-461.5 253.5-671l17-17L480-478l209.5-209.5 17 17L497-461.5l209.5 209.5-17 17L480-444.5Z"
+                          Fill="#7A7A8C"
+                          HeightRequest="10" WidthRequest="10"
+                          HorizontalOptions="Center" VerticalOptions="Center"
+                          Aspect="Uniform" />
+                </Border>
+            </Grid>
+        </Border>
+
+        <!-- ── CONTACTS LIST ── -->
+        <CollectionView x:Name="ContactsCollectionView"
+                Grid.Row="2"
+                SelectionMode="None"
+                BackgroundColor="#0E0E12"
+                Margin="0,10,0,0">
+
+            <CollectionView.ItemTemplate>
+                <DataTemplate>
+                    <Grid Padding="16,0">
+                        <Border BackgroundColor="#16161C"
+                        StrokeThickness="0"
+                        StrokeShape="RoundRectangle 14"
+                        Margin="0,4,0,4"
+                        Padding="0">
+
+                            <Grid ColumnDefinitions="Auto,*,Auto"
+                          ColumnSpacing="12"
+                          Padding="12,10">
+
+                                <!-- Avatar with gradient ring -->
+                                <Grid Grid.Column="0"
+                              WidthRequest="48" HeightRequest="48">
+
+                                    <!-- Gradient ring (visible when selected) -->
+                                    <Ellipse WidthRequest="48" HeightRequest="48"
+                                     StrokeThickness="2"
+                                     IsVisible="{Binding IsSelected}">
+                                        <Ellipse.Stroke>
+                                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                                <GradientStop Color="#FF3B6F" Offset="0" />
+                                                <GradientStop Color="#00B5B5" Offset="1" />
+                                            </LinearGradientBrush>
+                                        </Ellipse.Stroke>
+                                    </Ellipse>
+
+                                    <!-- Plain ring (unselected) -->
+                                    <Ellipse WidthRequest="48" HeightRequest="48"
+                                     Stroke="#2A2A38"
+                                     StrokeThickness="1.5"
+                                     IsVisible="{Binding IsSelected, Converter={StaticResource InverseBoolConverter}}" />
+
+                                    <!-- Profile image clipped to circle -->
+                                    <Frame WidthRequest="40" HeightRequest="40"
+                                   CornerRadius="20"
+                                   Padding="0"
+                                   IsClippedToBounds="True"
+                                   HasShadow="False"
+                                   BackgroundColor="#1C1C25"
+                                   BorderColor="Transparent"
+                                   HorizontalOptions="Center"
+                                   VerticalOptions="Center">
+                                        <Grid>
+                                            <!-- Fallback initials -->
+                                            <Label Text="{Binding Initials}"
+                                           FontSize="15"
+                                           FontAttributes="Bold"
+                                           TextColor="#F0EDE8"
+                                           HorizontalOptions="Center"
+                                           VerticalOptions="Center" />
+                                            <!-- Actual image (on top, hides initials when loaded) -->
+                                            <Image Source="{Binding ProfileImage}"
+                                           Aspect="AspectFill"
+                                           HeightRequest="40"
+                                           WidthRequest="40"
+                                           IsVisible="{Binding HasProfileImage}" />
+                                        </Grid>
+                                    </Frame>
+
+                                    <!-- Tick overlay when selected -->
+                                    <Border WidthRequest="18" HeightRequest="18"
+                                    BackgroundColor="#FF3B6F"
+                                    StrokeThickness="1.5"
+                                    Stroke="#0E0E12"
+                                    StrokeShape="RoundRectangle 9"
+                                    HorizontalOptions="End"
+                                    VerticalOptions="End"
+                                    IsVisible="{Binding IsSelected}">
+                                        <Path Data="M382-254.5 187.5-449l18-18 176.5 176.5 391-391 18 18-409 409Z"
+                                      Fill="White"
+                                      HeightRequest="8" WidthRequest="8"
+                                      HorizontalOptions="Center"
+                                      VerticalOptions="Center"
+                                      Aspect="Uniform" />
+                                    </Border>
+                                </Grid>
+
+                                <!-- Name + Phone -->
+                                <VerticalStackLayout Grid.Column="1"
+                                             VerticalOptions="Center"
+                                             Spacing="3">
+                                    <Label Text="{Binding Name}"
+                                   FontSize="14"
+                                   FontAttributes="Bold"
+                                   TextColor="#F0EDE8"
+                                   LineBreakMode="TailTruncation" />
+                                    <HorizontalStackLayout Spacing="6">
+                                        <Label Text="{Binding Phone}"
+                                       FontSize="11"
+                                       TextColor="#5A5A6A"
+                                       LineBreakMode="TailTruncation" />
+                                    </HorizontalStackLayout>
+                                </VerticalStackLayout>
+
+                                <!-- Checkbox - Like the Terms and Conditions -->
+                                <Grid Grid.Column="2"
+                              ColumnDefinitions="Auto,Auto"
+                              ColumnSpacing="8"
+                              VerticalOptions="Center"
+                              HorizontalOptions="End">
+
+                                    <!-- Checkbox -->
+                                    <CheckBox x:Name="ContactCheckBox"
+                                      Grid.Column="0"
+                                      IsChecked="{Binding IsSelected}"
+                                      Color="#FF3B6F"
+                                      VerticalOptions="Center"
+                                      HeightRequest="20"
+                                      WidthRequest="20">
+                                        <CheckBox.Triggers>
+                                            <DataTrigger TargetType="CheckBox"
+                                                 Binding="{Binding IsSelected}"
+                                                 Value="True">
+                                                <Setter Property="Color" Value="#FF3B6F" />
+                                            </DataTrigger>
+                                            <DataTrigger TargetType="CheckBox"
+                                                 Binding="{Binding IsSelected}"
+                                                 Value="False">
+                                                <Setter Property="Color" Value="#3A3A4A" />
+                                            </DataTrigger>
+                                        </CheckBox.Triggers>
+                                    </CheckBox>
+
+                                    <!-- Tap gesture for the entire area -->
+                                    <Grid.GestureRecognizers>
+                                        <TapGestureRecognizer Tapped="OnContactTapped"
+                                                      CommandParameter="{Binding .}" />
+                                    </Grid.GestureRecognizers>
+                                </Grid>
+
+                            </Grid>
+                        </Border>
+                    </Grid>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+
+            <!-- Empty state -->
+            <CollectionView.EmptyView>
+                <VerticalStackLayout Padding="32"
+                             VerticalOptions="Center"
+                             HorizontalOptions="Center"
+                             Spacing="12">
+                    <Path Data="M480-480q-66 0-113-47t-47-113q0-66 47-113t113-47q66 0 113 47t47 113q0 66-47 113t-113 47ZM160-160v-112q0-34 17.5-62.5T224-378q62-31 126-46.5T480-440q66 0 130 15.5T736-378q29 15 46.5 43.5T800-272v112H160Z"
+                  Fill="#2A2A38"
+                  HeightRequest="48" WidthRequest="48"
+                  HorizontalOptions="Center"
+                  Aspect="Uniform" />
+                    <Label Text="No contacts found"
+                   FontSize="15" FontAttributes="Bold"
+                   TextColor="#3A3A4A"
+                   HorizontalOptions="Center" />
+                    <Label Text="Contacts who use Lock will appear here"
+                   FontSize="12"
+                   TextColor="#2A2A38"
+                   HorizontalOptions="Center"
+                   HorizontalTextAlignment="Center" />
+                </VerticalStackLayout>
+            </CollectionView.EmptyView>
+
+        </CollectionView>
+        
+        
+        <!-- ── SAVE BUTTON (REDUCED SIZE) ── -->
+        <Grid Grid.Row="3"
+              Padding="16,8,16,24"
+              RowDefinitions="Auto,Auto"
+              RowSpacing="6">
+
+            <!-- Divider -->
+            <BoxView Grid.Row="0"
+                     HeightRequest="0.5"
+                     BackgroundColor="#1C1C25"
+                     Margin="-16,0" />
+
+            <!-- Button - Smaller size -->
+            <Border Grid.Row="1"
+                    StrokeThickness="0"
+                    StrokeShape="RoundRectangle 12"
+                    HorizontalOptions="Center"
+                    WidthRequest="140">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                        <GradientStop Color="#FF3B6F" Offset="0" />
+                        <GradientStop Color="#CC2F59" Offset="1" />
+                    </LinearGradientBrush>
+                </Border.Background>
+                <Border.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnSaveClicked" />
+                </Border.GestureRecognizers>
+                <HorizontalStackLayout Spacing="6"
+                                       HorizontalOptions="Center"
+                                       Padding="0,10">
+                    <Path Data="M382-254.5 187.5-449l18-18 176.5 176.5 391-391 18 18-409 409Z"
+                          Fill="White"
+                          HeightRequest="12" WidthRequest="12"
+                          VerticalOptions="Center"
+                          Aspect="Uniform" />
+                    <Label Text="Save"
+                           FontSize="13" FontAttributes="Bold"
+                           TextColor="White"
+                           VerticalOptions="Center" />
+                </HorizontalStackLayout>
+            </Border>
+        </Grid>
+
+    </Grid>
+</ContentPage>

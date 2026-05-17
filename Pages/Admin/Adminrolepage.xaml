@@ -1,0 +1,472 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:shapes="clr-namespace:Microsoft.Maui.Controls.Shapes;assembly=Microsoft.Maui.Controls"
+             x:Class="Lock.Pages.Admin.AdminRolePage"
+             Title=""
+             BackgroundColor="#0A0A1A"
+             Shell.NavBarIsVisible="False">
+
+    <ContentPage.Resources>
+
+        <Style x:Key="SubLabel" TargetType="Label">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="TextColor" Value="#6B7280" />
+        </Style>
+
+        <Style x:Key="ChipBorder" TargetType="Border">
+            <Setter Property="StrokeShape" Value="RoundRectangle 10" />
+            <Setter Property="Padding" Value="8,3" />
+            <Setter Property="VerticalOptions" Value="Center" />
+        </Style>
+
+    </ContentPage.Resources>
+
+    <Grid RowDefinitions="Auto,Auto,*">
+
+        <!-- ══ TOP BAR ══ -->
+        <Grid Grid.Row="0"
+              BackgroundColor="#0D0D20"
+              Padding="16,48,16,14">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="40" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="40" />
+            </Grid.ColumnDefinitions>
+
+            <!-- Back button -->
+            <Border Grid.Column="0"
+                    BackgroundColor="#151528"
+                    Stroke="#1E1E3A"
+                    StrokeThickness="1"
+                    StrokeShape="RoundRectangle 10"
+                    WidthRequest="36"
+                    HeightRequest="36"
+                    HorizontalOptions="Start"
+                    VerticalOptions="Center">
+                <Border.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnBackTapped" />
+                </Border.GestureRecognizers>
+                <Path Data="M560-240 320-480l240-240 56 56-184 184 184 184-56 56Z"
+                      Fill="#00C9C9"
+                      WidthRequest="16" HeightRequest="16"
+                      Aspect="Uniform"
+                      HorizontalOptions="Center"
+                      VerticalOptions="Center" />
+            </Border>
+
+            <!-- Title -->
+            <VerticalStackLayout Grid.Column="1"
+                                 Spacing="2"
+                                 HorizontalOptions="Center"
+                                 VerticalOptions="Center">
+                <Label Text="ROLE MANAGER"
+                       FontSize="13"
+                       FontAttributes="Bold"
+                       TextColor="#00C9C9"
+                       CharacterSpacing="3"
+                       HorizontalOptions="Center" />
+                <Label x:Name="SubtitleLabel"
+                       Text="Loading users…"
+                       FontSize="10"
+                       TextColor="#4A5568"
+                       CharacterSpacing="1"
+                       HorizontalOptions="Center" />
+            </VerticalStackLayout>
+
+            <!-- Refresh button -->
+            <Border Grid.Column="2"
+                    BackgroundColor="#151528"
+                    Stroke="#1E1E3A"
+                    StrokeThickness="1"
+                    StrokeShape="RoundRectangle 10"
+                    WidthRequest="36"
+                    HeightRequest="36"
+                    HorizontalOptions="End"
+                    VerticalOptions="Center">
+                <Border.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnRefreshTapped" />
+                </Border.GestureRecognizers>
+                <Path Data="M480-160q-134 0-227-93t-93-227q0-134 93-227t227-93q69 0 132 28.5T720-690v-110h80v280H520v-80h168q-32-56-87.5-88T480-720q-100 0-170 70t-70 170q0 100 70 170t170 70q77 0 139-44t87-116h84q-28 118-119.5 192T480-160Z"
+                      Fill="#4A9EFF"
+                      WidthRequest="16" HeightRequest="16"
+                      Aspect="Uniform"
+                      HorizontalOptions="Center"
+                      VerticalOptions="Center" />
+            </Border>
+        </Grid>
+
+        <!-- Teal top-line accent -->
+        <BoxView Grid.Row="0"
+                 Color="#00C9C9"
+                 HeightRequest="2"
+                 VerticalOptions="Start"
+                 HorizontalOptions="Fill" />
+
+        <!-- ══ SEARCH BAR ══ -->
+        <Grid Grid.Row="1"
+              Padding="16,10,16,10"
+              BackgroundColor="#0D0D20">
+            <Border BackgroundColor="#131326"
+                    Stroke="#1E1E3A"
+                    StrokeThickness="1"
+                    StrokeShape="RoundRectangle 14"
+                    Padding="12,0">
+                <Grid ColumnDefinitions="22,*,22" ColumnSpacing="10">
+
+                    <!-- Search icon -->
+                    <Path Grid.Column="0"
+                          Data="M784-120 532-372q-30 24-69 38t-83 14q-109 0-184.5-75.5T120-580q0-109 75.5-184.5T380-840q109 0 184.5 75.5T640-580q0 44-14 83t-38 69l252 252-56 56ZM380-400q75 0 127.5-52.5T560-580q0-75-52.5-127.5T380-760q-75 0-127.5 52.5T200-580q0 75 52.5 127.5T380-400Z"
+                          Fill="#4A5568"
+                          WidthRequest="16" HeightRequest="16"
+                          Aspect="Uniform"
+                          VerticalOptions="Center" />
+
+                    <Entry Grid.Column="1"
+                           x:Name="SearchEntry"
+                           Placeholder="Search by name or phone…"
+                           PlaceholderColor="#3A4555"
+                           TextColor="#E0E8FF"
+                           BackgroundColor="Transparent"
+                           FontSize="14"
+                           HeightRequest="46"
+                           VerticalOptions="Center"
+                           TextChanged="OnSearchTextChanged" />
+
+                    <!-- Clear icon -->
+                    <Grid Grid.Column="2"
+                          x:Name="ClearIconGrid"
+                          WidthRequest="22" HeightRequest="22"
+                          VerticalOptions="Center"
+                          IsVisible="False">
+                        <Grid.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnClearSearch" />
+                        </Grid.GestureRecognizers>
+                        <Path Data="M256-200l-56-56 224-224-224-224 56-56 224 224 224-224 56 56-224 224 224 224-56 56-224-224-224 224Z"
+                              Fill="#6B7280"
+                              WidthRequest="14" HeightRequest="14"
+                              Aspect="Uniform"
+                              HorizontalOptions="Center"
+                              VerticalOptions="Center" />
+                    </Grid>
+
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!-- ══ USER LIST ══ -->
+        <Grid Grid.Row="2">
+
+            <!-- Loading state -->
+            <VerticalStackLayout x:Name="LoadingView"
+                                 HorizontalOptions="Center"
+                                 VerticalOptions="Center"
+                                 Spacing="16"
+                                 IsVisible="True">
+                <ActivityIndicator IsRunning="True"
+                                   Color="#00C9C9"
+                                   WidthRequest="40" HeightRequest="40" />
+                <Label Text="Loading users…"
+                       FontSize="13"
+                       TextColor="#4A5568"
+                       HorizontalOptions="Center" />
+            </VerticalStackLayout>
+
+            <!-- Empty state -->
+            <VerticalStackLayout x:Name="EmptyView"
+                                 HorizontalOptions="Center"
+                                 VerticalOptions="Center"
+                                 Spacing="12"
+                                 IsVisible="False">
+                <Path Data="M480-480q-66 0-113-47t-47-113q0-66 47-113t113-47q66 0 113 47t47 113q0 66-47 113t-113 47ZM160-160v-112q0-34 17.5-62.5T224-378q62-31 126-46.5T480-440q66 0 130 15.5T736-378q29 15 46.5 43.5T800-272v112H160Z"
+                      Fill="#1E1E3A"
+                      WidthRequest="56" HeightRequest="56"
+                      Aspect="Uniform"
+                      HorizontalOptions="Center" />
+                <Label Text="No users found"
+                       FontSize="15"
+                       FontAttributes="Bold"
+                       TextColor="#3A4555"
+                       HorizontalOptions="Center" />
+                <Label Text="Try a different search term"
+                       FontSize="12"
+                       TextColor="#2A3444"
+                       HorizontalOptions="Center" />
+            </VerticalStackLayout>
+
+            <!-- Actual list -->
+            <CollectionView x:Name="UsersCollection"
+                            IsVisible="False"
+                            SelectionMode="None">
+                <CollectionView.ItemsLayout>
+                    <LinearItemsLayout Orientation="Vertical" ItemSpacing="0" />
+                </CollectionView.ItemsLayout>
+
+                <CollectionView.Header>
+                    <Grid HeightRequest="6" />
+                </CollectionView.Header>
+
+                <CollectionView.Footer>
+                    <Grid HeightRequest="40" />
+                </CollectionView.Footer>
+
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+                        <Grid Padding="16,5">
+
+                            <!-- ══ USER CARD ══ -->
+                            <Border BackgroundColor="#0F0F22"
+                                    Stroke="{Binding CardStroke}"
+                                    StrokeThickness="1"
+                                    StrokeShape="RoundRectangle 16"
+                                    Padding="14,14">
+
+                                <Grid ColumnDefinitions="54,*,Auto"
+                                      ColumnSpacing="12">
+
+                                    <!-- ── AVATAR COLUMN ── -->
+                                    <Grid Grid.Column="0"
+                                          WidthRequest="50" HeightRequest="50"
+                                          VerticalOptions="Start">
+
+                                        <!-- Outer ring -->
+                                        <Border WidthRequest="50" HeightRequest="50"
+                                                BackgroundColor="Transparent"
+                                                Stroke="{Binding AvatarRingColor}"
+                                                StrokeThickness="2"
+                                                StrokeShape="RoundRectangle 25" />
+
+                                        <!-- Inner circle with image/placeholder -->
+                                        <Border WidthRequest="44" HeightRequest="44"
+                                                BackgroundColor="#1A1A30"
+                                                Stroke="Transparent"
+                                                StrokeShape="RoundRectangle 22"
+                                                HorizontalOptions="Center"
+                                                VerticalOptions="Center"
+                                                Padding="0">
+                                            <Grid>
+                                                <!-- Placeholder icon -->
+                                                <Path Data="M480-480q-66 0-113-47t-47-113q0-66 47-113t113-47q66 0 113 47t47 113q0 66-47 113t-113 47ZM160-160v-112q0-34 17.5-62.5T224-378q62-31 126-46.5T480-440q66 0 130 15.5T736-378q29 15 46.5 43.5T800-272v112H160Z"
+                                                      Fill="#2A2A45"
+                                                      WidthRequest="24" HeightRequest="24"
+                                                      Aspect="Uniform"
+                                                      HorizontalOptions="Center"
+                                                      VerticalOptions="Center"
+                                                      IsVisible="{Binding HasNoImage}" />
+                                                <!-- Profile image -->
+                                                <Image Source="{Binding ProfileImageSource}"
+                                                       Aspect="AspectFill"
+                                                       IsVisible="{Binding HasImage}"
+                                                       HorizontalOptions="Fill"
+                                                       VerticalOptions="Fill" />
+                                            </Grid>
+                                        </Border>
+
+                                        <!-- Online dot -->
+                                        <Ellipse WidthRequest="11" HeightRequest="11"
+                                                 Fill="{Binding OnlineDotColor}"
+                                                 Stroke="#0F0F22"
+                                                 StrokeThickness="2"
+                                                 HorizontalOptions="End"
+                                                 VerticalOptions="End"
+                                                 Margin="0,0,1,1" />
+                                    </Grid>
+
+                                    <!-- ── USER INFO COLUMN ── -->
+                                    <VerticalStackLayout Grid.Column="1"
+                                                         Spacing="4"
+                                                         VerticalOptions="Center">
+
+                                        <!-- Name + admin crown badge -->
+                                        <HorizontalStackLayout Spacing="6">
+                                            <Label Text="{Binding Name}"
+                                                   FontSize="14"
+                                                   FontAttributes="Bold"
+                                                   TextColor="#E8EEFF"
+                                                   VerticalOptions="Center"
+                                                   MaxLines="1"
+                                                   LineBreakMode="TailTruncation" />
+                                            <Border IsVisible="{Binding IsAdmin}"
+                                                    BackgroundColor="#0D2845"
+                                                    Stroke="#1A4A80"
+                                                    StrokeThickness="1"
+                                                    StrokeShape="RoundRectangle 8"
+                                                    Padding="5,2"
+                                                    VerticalOptions="Center">
+                                                <HorizontalStackLayout Spacing="3">
+                                                    <Label Text="👑"
+                                                           FontSize="9"
+                                                           VerticalOptions="Center" />
+                                                    <Label Text="ADMIN"
+                                                           FontSize="8"
+                                                           FontAttributes="Bold"
+                                                           TextColor="#4A9EFF"
+                                                           CharacterSpacing="1"
+                                                           VerticalOptions="Center" />
+                                                </HorizontalStackLayout>
+                                            </Border>
+                                        </HorizontalStackLayout>
+
+                                        <!-- Phone -->
+                                        <Label Text="{Binding PhoneNumber}"
+                                               FontSize="11"
+                                               TextColor="#4A5568" />
+
+                                        <!-- Location + Mood row -->
+                                        <HorizontalStackLayout Spacing="8" Margin="0,2,0,0">
+
+                                            <!-- Location -->
+                                            <HorizontalStackLayout Spacing="3"
+                                                                   IsVisible="{Binding HasLocation}">
+                                                <Path Data="M480-480q33 0 56.5-23.5T560-560q0-33-23.5-56.5T480-640q-33 0-56.5 23.5T400-560q0 33 23.5 56.5T480-480Zm0 294q122-112 181-203.5T720-552q0-109-69.5-178.5T480-800q-101 0-170.5 69.5T240-552q0 71 59 162.5T480-186Z"
+                                                      Fill="#6B7280"
+                                                      WidthRequest="10" HeightRequest="10"
+                                                      Aspect="Uniform"
+                                                      VerticalOptions="Center" />
+                                                <Label Text="{Binding Location}"
+                                                       FontSize="10"
+                                                       TextColor="#6B7280"
+                                                       VerticalOptions="Center" />
+                                            </HorizontalStackLayout>
+
+                                            <!-- Mood chip -->
+                                            <Border IsVisible="{Binding HasMood}"
+                                                    BackgroundColor="{Binding MoodBg}"
+                                                    Stroke="{Binding MoodBorder}"
+                                                    StrokeThickness="1"
+                                                    StrokeShape="RoundRectangle 8"
+                                                    Padding="6,2">
+                                                <Label Text="{Binding MoodDisplay}"
+                                                       FontSize="9"
+                                                       FontAttributes="Bold"
+                                                       TextColor="{Binding MoodColor}"
+                                                       VerticalOptions="Center" />
+                                            </Border>
+
+                                        </HorizontalStackLayout>
+
+                                        <!-- Joined date -->
+                                        <Label Text="{Binding JoinedText}"
+                                               FontSize="10"
+                                               TextColor="#2A3444" />
+
+                                        <!-- ══ PERMISSION SUMMARY LINE ══ -->
+                                        <HorizontalStackLayout Spacing="5" Margin="0,3,0,0">
+                                            <Label Text="🔐"
+                                                   FontSize="9"
+                                                   VerticalOptions="Center" />
+                                            <Label Text="{Binding PermissionSummary}"
+                                                   FontSize="9"
+                                                   TextColor="#4A4A6A"
+                                                   VerticalOptions="Center" />
+                                        </HorizontalStackLayout>
+
+                                    </VerticalStackLayout>
+
+                                    <!-- ── ACTIONS COLUMN ── -->
+                                    <VerticalStackLayout Grid.Column="2"
+                                                         VerticalOptions="Center"
+                                                         Spacing="8"
+                                                         MinimumWidthRequest="84">
+
+                                        <!-- Grant / Revoke admin button -->
+                                        <Border BackgroundColor="{Binding ActionBg}"
+                                                Stroke="{Binding ActionBorder}"
+                                                StrokeThickness="1"
+                                                StrokeShape="RoundRectangle 10"
+                                                Padding="0"
+                                                WidthRequest="84"
+                                                HeightRequest="34">
+                                            <Border.GestureRecognizers>
+                                                <TapGestureRecognizer
+                                                    Tapped="OnRoleToggleTapped"
+                                                    CommandParameter="{Binding .}" />
+                                            </Border.GestureRecognizers>
+                                            <Label Text="{Binding ActionLabel}"
+                                                   FontSize="10"
+                                                   FontAttributes="Bold"
+                                                   TextColor="{Binding ActionTextColor}"
+                                                   CharacterSpacing="0.5"
+                                                   HorizontalOptions="Center"
+                                                   VerticalOptions="Center" />
+                                        </Border>
+
+                                        <!-- Role label -->
+                                        <Label Text="{Binding RoleDisplay}"
+                                               FontSize="9"
+                                               TextColor="{Binding RoleColor}"
+                                               HorizontalOptions="Center"
+                                               CharacterSpacing="0.5" />
+
+                                        <!-- ══ PERMISSIONS BUTTON (hidden for admins) ══ -->
+                                        <Border IsVisible="{Binding PermissionsButtonVisible}"
+                                                BackgroundColor="#12122A"
+                                                StrokeThickness="1"
+                                                StrokeShape="RoundRectangle 10"
+                                                Padding="0"
+                                                WidthRequest="84"
+                                                HeightRequest="30">
+                                            <Border.Stroke>
+                                                <SolidColorBrush Color="#2A2A4A" />
+                                            </Border.Stroke>
+                                            <Border.GestureRecognizers>
+                                                <TapGestureRecognizer
+                                                    Tapped="OnManagePermissionsTapped"
+                                                    CommandParameter="{Binding .}" />
+                                            </Border.GestureRecognizers>
+                                            <HorizontalStackLayout Spacing="4"
+                                                                   HorizontalOptions="Center"
+                                                                   VerticalOptions="Center">
+                                                <Label Text="🔐"
+                                                       FontSize="10"
+                                                       VerticalOptions="Center" />
+                                                <Label Text="ACCESS"
+                                                       FontSize="9"
+                                                       FontAttributes="Bold"
+                                                       TextColor="#4A9EFF"
+                                                       CharacterSpacing="0.5"
+                                                       VerticalOptions="Center" />
+                                            </HorizontalStackLayout>
+                                        </Border>
+
+                                        <!-- Divider shown only for admins (full access badge instead) -->
+                                        <Border IsVisible="{Binding IsAdmin}"
+                                                BackgroundColor="#0D2845"
+                                                StrokeThickness="1"
+                                                StrokeShape="RoundRectangle 10"
+                                                Padding="0"
+                                                WidthRequest="84"
+                                                HeightRequest="30">
+                                            <Border.Stroke>
+                                                <SolidColorBrush Color="#1A4A80" />
+                                            </Border.Stroke>
+                                            <HorizontalStackLayout Spacing="4"
+                                                                   HorizontalOptions="Center"
+                                                                   VerticalOptions="Center">
+                                                <Label Text="✅"
+                                                       FontSize="10"
+                                                       VerticalOptions="Center" />
+                                                <Label Text="FULL"
+                                                       FontSize="9"
+                                                       FontAttributes="Bold"
+                                                       TextColor="#4A9EFF"
+                                                       CharacterSpacing="0.5"
+                                                       VerticalOptions="Center" />
+                                            </HorizontalStackLayout>
+                                        </Border>
+
+                                    </VerticalStackLayout>
+
+                                </Grid>
+                            </Border>
+
+                        </Grid>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+
+        </Grid>
+
+    </Grid>
+
+</ContentPage>

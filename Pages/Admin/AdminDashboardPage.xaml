@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Lock.Pages.Admin.AdminDashboardPage"
+             BackgroundColor="#0A0A0F">
+
+    <Grid RowDefinitions="Auto,Auto,*">
+
+        <!-- ══ HEADER ══ -->
+        <Grid Grid.Row="0" BackgroundColor="#0D0D14" Padding="16,24,16,10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <VerticalStackLayout Grid.Column="0" Spacing="2" VerticalOptions="Center">
+                <HorizontalStackLayout Spacing="6" VerticalOptions="Center">
+                    <Path Data="M480-80q-139-35-229.5-159.5T160-516v-244l320-120 320 120v244q0 85-29 163t-80.5 139T480-80Zm0-62q106-35 172-128.5T718-516v-205l-238-89-238 89v205q0 115 66 208.5T480-142Zm0-338Z"
+                  Fill="#00B5B5" HeightRequest="16" WidthRequest="16"
+                  Aspect="Uniform" VerticalOptions="Center"/>
+                    <Label Text="Analytics Console" FontSize="18" FontAttributes="Bold"
+                   TextColor="#F0EDE8" VerticalOptions="Center"/>
+                </HorizontalStackLayout>
+                <Label x:Name="LastUpdatedLabel" Text="Last updated: Just now"
+               FontSize="10" TextColor="#5A5A6A"/>
+            </VerticalStackLayout>
+            <Grid Grid.Column="1" WidthRequest="36" HeightRequest="36" VerticalOptions="Center">
+                <Grid.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnRefreshClicked"/>
+                </Grid.GestureRecognizers>
+                <Border BackgroundColor="#0D1F1F" StrokeThickness="1" Stroke="#1A3A3A"
+                StrokeShape="RoundRectangle 10" WidthRequest="36" HeightRequest="36">
+                    <Path Data="M480-160q-134 0-227-93t-93-227q0-134 93-227t227-93q69 0 132 28.5T720-690v-110h80v280H520v-80h168q-32-56-87.5-88T480-720q-100 0-170 70t-70 170q0 100 70 170t170 70q77 0 139-44t87-116h84q-28 106-114 173t-196 67Z"
+                  Fill="#00B5B5" HeightRequest="14" WidthRequest="14"
+                  Aspect="Uniform" HorizontalOptions="Center" VerticalOptions="Center"/>
+                </Border>
+            </Grid>
+        </Grid>
+        <BoxView Grid.Row="0" HeightRequest="1" BackgroundColor="#1C1C25" VerticalOptions="End"/>
+
+        <!-- ══ FILTER BAR ══ -->
+        <ScrollView Grid.Row="1" Orientation="Horizontal"
+                    HorizontalScrollBarVisibility="Never"
+                    BackgroundColor="#0D0D14">
+            <HorizontalStackLayout x:Name="FilterBar" Spacing="8" Padding="16,10">
+                <!-- Filter chips built in code-behind -->
+            </HorizontalStackLayout>
+        </ScrollView>
+        <BoxView Grid.Row="1" HeightRequest="1" BackgroundColor="#1C1C25" VerticalOptions="End"/>
+
+        <!-- ══ CONTENT ══ -->
+        <ScrollView Grid.Row="2" VerticalScrollBarVisibility="Never"
+                    HorizontalScrollBarVisibility="Never">
+            <VerticalStackLayout x:Name="DashboardContent" Spacing="0" Padding="0,0,0,40"/>
+        </ScrollView>
+
+    </Grid>
+</ContentPage>

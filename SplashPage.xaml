@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Lock.Pages.SplashPage"
+             BackgroundColor="#512BD4"
+             NavigationPage.HasNavigationBar="False"
+             Shell.NavBarIsVisible="False">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- App Logo/Name -->
+        <StackLayout Grid.Row="1" 
+                     HorizontalOptions="Center" 
+                     VerticalOptions="Center"
+                     Spacing="20">
+
+            <!-- You can replace this with your app's actual logo -->
+            <Label Text="LOCK"
+                   FontSize="48"
+                   FontAttributes="Bold"
+                   TextColor="White"
+                   HorizontalOptions="Center"/>
+
+            <Label Text="Secure Conversations"
+                   FontSize="18"
+                   TextColor="White"
+                   Opacity="0.8"
+                   HorizontalOptions="Center"/>
+
+            <!-- Loading Indicator -->
+            <ActivityIndicator IsRunning="True" 
+                               Color="White" 
+                               Scale="1.5"
+                               Margin="0,20,0,0"/>
+
+            <Label Text="Loading..."
+                   TextColor="White"
+                   Opacity="0.9"
+                   FontSize="16"
+                   HorizontalOptions="Center"
+                   Margin="0,10,0,0"/>
+        </StackLayout>
+
+        <!-- Version Info at bottom -->
+        <Label Grid.Row="2"
+               Text="Version 1.0.0"
+               TextColor="White"
+               Opacity="0.5"
+               FontSize="12"
+               HorizontalOptions="Center"
+               VerticalOptions="End"
+               Margin="0,0,0,20"/>
+    </Grid>
+</ContentPage>

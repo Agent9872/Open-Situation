@@ -1,0 +1,458 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:converters="clr-namespace:Lock.Converter.Chat"
+             x:Class="Lock.Pages.Chat.GroupMembersPage"
+             BackgroundColor="#0F0F0F"
+             Shell.NavBarIsVisible="False"
+             NavigationPage.HasNavigationBar="False">
+
+    <ContentPage.Resources>
+        <ResourceDictionary>
+            <converters:FileToImageSourceConverter x:Key="FileToImageSource"/>
+            <converters:StringIsNullOrEmptyConverter x:Key="StringIsNullOrEmpty"/>
+        </ResourceDictionary>
+    </ContentPage.Resources>
+
+    <Grid RowDefinitions="Auto,Auto,Auto,*">
+
+        <!-- ══ HEADER ══ -->
+        <Grid Grid.Row="0" Padding="16,8,16,8" BackgroundColor="#0F0F0F"
+              ColumnDefinitions="Auto,*,Auto">
+
+            <Grid Grid.Column="0" WidthRequest="40" HeightRequest="40" VerticalOptions="Center">
+                <Grid.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnBackTapped"/>
+                </Grid.GestureRecognizers>
+                <Label Text="←" FontSize="22" TextColor="#888888"
+                       HorizontalOptions="Center" VerticalOptions="Center"/>
+            </Grid>
+
+            <VerticalStackLayout Grid.Column="1" Spacing="2" Margin="8,0">
+                <Label Text="Group Members" FontSize="26" FontAttributes="Bold" TextColor="#FFFFFF"/>
+                <Label x:Name="MemberCountLabel" Text="Loading..." FontSize="12" TextColor="#666666"/>
+            </VerticalStackLayout>
+
+            <Grid Grid.Column="2" WidthRequest="40" HeightRequest="40" VerticalOptions="Center"/>
+        </Grid>
+
+        <!-- ══ TABS ══ -->
+        <HorizontalStackLayout x:Name="TabsContainer"
+                               Grid.Row="1"
+                               Spacing="12"
+                               Padding="16,8,16,8"
+                               VerticalOptions="Center"/>
+
+        <!-- ══ SEARCH BAR ══ -->
+        <Border Grid.Row="2"
+                BackgroundColor="#1E1E1E"
+                StrokeThickness="0"
+                Padding="12,8"
+                Margin="16,0,16,12"
+                StrokeShape="RoundRectangle 12">
+            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+
+                <Grid Grid.Column="0" WidthRequest="24" HeightRequest="24">
+                    <Path Data="M778-164 528-414q-30 26-69 40t-77 14q-92 0-156-64t-64-156q0-92 64-156t156-64q92 0 156 64t64 156q0 41-15 80t-39 66l250 250-20 20ZM382-388q81 0 136.5-55.5T574-580q0-81-55.5-136.5T382-772q-81 0-136.5 55.5T190-580q0 81 55.5 136.5T382-388Z"
+                          Fill="#888888"
+                          Aspect="Uniform"
+                          HorizontalOptions="Center" VerticalOptions="Center"/>
+                </Grid>
+
+                <Entry x:Name="SearchEntry"
+                       Grid.Column="1"
+                       Placeholder="Search by name or mood..."
+                       PlaceholderColor="#666666"
+                       TextColor="#FFFFFF"
+                       BackgroundColor="Transparent"
+                       FontSize="14"
+                       ClearButtonVisibility="WhileEditing"
+                       TextChanged="OnSearchTextChanged"/>
+
+                <Grid Grid.Column="2"
+                      x:Name="ClearSearchButton"
+                      IsVisible="False"
+                      WidthRequest="30" HeightRequest="30"
+                      HorizontalOptions="Center" VerticalOptions="Center">
+                    <Grid.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnClearSearchTapped"/>
+                    </Grid.GestureRecognizers>
+                    <Label Text="✕" FontSize="16" TextColor="#888888"
+                           HorizontalOptions="Center" VerticalOptions="Center"/>
+                </Grid>
+
+            </Grid>
+        </Border>
+
+        <!-- ══ CONTENT AREA ══ -->
+        <Grid Grid.Row="3">
+
+            <!-- ── MEMBERS TAB ── -->
+            <CollectionView x:Name="MembersCollectionView"
+                            SelectionMode="None"
+                            VerticalScrollBarVisibility="Never"
+                            IsVisible="True">
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+                        <Grid Padding="16,12" ColumnDefinitions="Auto,*,Auto"
+                              BackgroundColor="#0F0F0F">
+
+                            <Grid.GestureRecognizers>
+                                <TapGestureRecognizer
+                                    CommandParameter="{Binding .}"
+                                    Tapped="OnMemberTapped"/>
+                            </Grid.GestureRecognizers>
+
+                            <!-- Profile Image with Role Badge -->
+                            <Grid WidthRequest="56" HeightRequest="56">
+                                <Frame CornerRadius="28"
+                                       Padding="0"
+                                       IsClippedToBounds="True"
+                                       BackgroundColor="#1E1C1A"
+                                       HasShadow="False"
+                                       HeightRequest="56" WidthRequest="56"
+                                       HorizontalOptions="Center" VerticalOptions="Center">
+                                    <Image Source="{Binding UserProfileImagePath, Converter={StaticResource FileToImageSource}}"
+                                           Aspect="AspectFill"
+                                           HeightRequest="56" WidthRequest="56">
+                                        <Image.Triggers>
+                                            <DataTrigger TargetType="Image"
+                                                         Binding="{Binding UserProfileImagePath}"
+                                                         Value="{x:Null}">
+                                                <Setter Property="Source" Value="default_avatar.png"/>
+                                            </DataTrigger>
+                                            <DataTrigger TargetType="Image"
+                                                         Binding="{Binding UserProfileImagePath, Converter={StaticResource StringIsNullOrEmpty}}"
+                                                         Value="True">
+                                                <Setter Property="Source" Value="default_avatar.png"/>
+                                            </DataTrigger>
+                                        </Image.Triggers>
+                                    </Image>
+                                </Frame>
+
+                                <!-- Role Badge -->
+                                <Border IsVisible="{Binding IsPrivileged}"
+                                        BackgroundColor="{Binding RoleBadgeColor}"
+                                        StrokeThickness="0"
+                                        Padding="6,2"
+                                        Margin="0,36,0,0"
+                                        HorizontalOptions="Center"
+                                        VerticalOptions="Start"
+                                        StrokeShape="RoundRectangle 10">
+                                    <Label Text="{Binding RoleDisplay}"
+                                           FontSize="9"
+                                           FontAttributes="Bold"
+                                           TextColor="White"
+                                           HorizontalOptions="Center"/>
+                                </Border>
+                            </Grid>
+
+                            <!-- Member Info -->
+                            <VerticalStackLayout Grid.Column="1" Margin="12,0" Spacing="4"
+                                                 VerticalOptions="Center">
+
+                                <Label Text="{Binding DisplayName}"
+                                       FontSize="16"
+                                       FontAttributes="Bold"
+                                       TextColor="#FFFFFF"
+                                       LineBreakMode="TailTruncation"/>
+
+                                <HorizontalStackLayout Spacing="8">
+                                    <HorizontalStackLayout Spacing="4" IsVisible="{Binding HasMood}">
+                                        <Label Text="🌙" FontSize="10" TextColor="#008080"/>
+                                        <Label Text="{Binding UserMood}"
+                                               FontSize="11"
+                                               TextColor="#008080"
+                                               MaxLines="1"/>
+                                    </HorizontalStackLayout>
+
+                                    <HorizontalStackLayout Spacing="4">
+                                        <BoxView WidthRequest="6" HeightRequest="6"
+                                                 CornerRadius="3"
+                                                 Color="{Binding OnlineStatusColor}"
+                                                 VerticalOptions="Center"/>
+                                        <Label Text="{Binding OnlineStatusText}"
+                                               FontSize="10"
+                                               TextColor="#666666"/>
+                                    </HorizontalStackLayout>
+                                </HorizontalStackLayout>
+
+                                <Label Text="{Binding UserBioPreview}"
+                                       FontSize="11"
+                                       TextColor="#888888"
+                                       MaxLines="1"
+                                       LineBreakMode="TailTruncation"
+                                       IsVisible="{Binding HasBio}"/>
+                            </VerticalStackLayout>
+
+                            <!-- Compatibility / Remove Button -->
+                            <VerticalStackLayout Grid.Column="2"
+                                                 VerticalOptions="Center"
+                                                 HorizontalOptions="End"
+                                                 Spacing="6">
+
+                                <!-- Compatibility badge -->
+                                <Border BackgroundColor="#1E1E1E"
+                                        StrokeThickness="0"
+                                        Padding="8,4"
+                                        HorizontalOptions="End"
+                                        StrokeShape="RoundRectangle 12">
+                                    <Label Text="{Binding CompatibilityWithCurrentUser}"
+                                           FontSize="12"
+                                           FontAttributes="Bold"
+                                           TextColor="#008080"
+                                           HorizontalOptions="Center"/>
+                                </Border>
+
+                                <!-- Remove button (admin only, not self, not creator) -->
+                                <Border BackgroundColor="#3A1A1A"
+                                        StrokeThickness="0.5"
+                                        Stroke="#FF3B6F"
+                                        Padding="8,4"
+                                        HorizontalOptions="End"
+                                        IsVisible="{Binding CanBeRemoved}"
+                                        StrokeShape="RoundRectangle 8">
+                                    <Border.GestureRecognizers>
+                                        <TapGestureRecognizer
+                                            CommandParameter="{Binding .}"
+                                            Tapped="OnRemoveMemberTapped"/>
+                                    </Border.GestureRecognizers>
+                                    <Label Text="Remove"
+                                           FontSize="10"
+                                           FontAttributes="Bold"
+                                           TextColor="#FF3B6F"
+                                           HorizontalOptions="Center"/>
+                                </Border>
+
+                            </VerticalStackLayout>
+
+                        </Grid>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+
+                <CollectionView.Footer>
+                    <BoxView HeightRequest="80" BackgroundColor="Transparent"/>
+                </CollectionView.Footer>
+            </CollectionView>
+
+            <!-- ── PENDING REQUESTS TAB (admin only) ── -->
+            <CollectionView x:Name="PendingCollectionView"
+                SelectionMode="None"
+                VerticalScrollBarVisibility="Never"
+                IsVisible="False">
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+                        <Grid Padding="16,12" RowDefinitions="Auto,Auto"
+                  BackgroundColor="#0F0F0F">
+
+                            <!-- Row 0: main member card (mirrors Members tab) -->
+                            <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto">
+
+                                <!-- Profile Image -->
+                                <Frame CornerRadius="28"
+                           Padding="0"
+                           IsClippedToBounds="True"
+                           BackgroundColor="#1E1C1A"
+                           HasShadow="False"
+                           HeightRequest="56" WidthRequest="56"
+                           HorizontalOptions="Center" VerticalOptions="Center">
+                                    <Image Source="{Binding UserProfileImage,
+                                   Converter={StaticResource FileToImageSource}}"
+                               Aspect="AspectFill"
+                               HeightRequest="56" WidthRequest="56">
+                                        <Image.Triggers>
+                                            <DataTrigger TargetType="Image"
+                                             Binding="{Binding UserProfileImage}"
+                                             Value="{x:Null}">
+                                                <Setter Property="Source" Value="default_avatar.png"/>
+                                            </DataTrigger>
+                                            <DataTrigger TargetType="Image"
+                                             Binding="{Binding UserProfileImage,
+                                                 Converter={StaticResource StringIsNullOrEmpty}}"
+                                             Value="True">
+                                                <Setter Property="Source" Value="default_avatar.png"/>
+                                            </DataTrigger>
+                                        </Image.Triggers>
+                                    </Image>
+                                </Frame>
+
+                                <!-- User Info -->
+                                <VerticalStackLayout Grid.Column="1" Margin="12,0" Spacing="4"
+                                         VerticalOptions="Center">
+
+                                    <Label Text="{Binding UserName}"
+                               FontSize="16"
+                               FontAttributes="Bold"
+                               TextColor="#FFFFFF"
+                               LineBreakMode="TailTruncation"/>
+
+                                    <!-- Mood + Online status row -->
+                                    <HorizontalStackLayout Spacing="8">
+                                        <HorizontalStackLayout Spacing="4" IsVisible="{Binding HasMood}">
+                                            <Label Text="🌙" FontSize="10" TextColor="#008080"/>
+                                            <Label Text="{Binding UserMood}"
+                                       FontSize="11"
+                                       TextColor="#008080"
+                                       MaxLines="1"/>
+                                        </HorizontalStackLayout>
+
+                                        <HorizontalStackLayout Spacing="4">
+                                            <BoxView WidthRequest="6" HeightRequest="6"
+                                         CornerRadius="3"
+                                         Color="{Binding OnlineStatusColor}"
+                                         VerticalOptions="Center"/>
+                                            <Label Text="{Binding OnlineStatusText}"
+                                       FontSize="10"
+                                       TextColor="#666666"/>
+                                        </HorizontalStackLayout>
+                                    </HorizontalStackLayout>
+
+                                    <!-- Bio preview -->
+                                    <Label Text="{Binding UserBioPreview}"
+                               FontSize="11"
+                               TextColor="#888888"
+                               MaxLines="1"
+                               LineBreakMode="TailTruncation"
+                               IsVisible="{Binding HasBio}"/>
+
+                                    <!-- Requested time -->
+                                    <HorizontalStackLayout Spacing="4">
+                                        <Label Text="⏱" FontSize="10" TextColor="#555555"/>
+                                        <Label Text="{Binding RequestedAtDisplay}"
+                                   FontSize="10"
+                                   TextColor="#555555"/>
+                                    </HorizontalStackLayout>
+
+                                </VerticalStackLayout>
+
+                                <!-- Compatibility badge -->
+                                <VerticalStackLayout Grid.Column="2"
+                                         VerticalOptions="Center"
+                                         HorizontalOptions="End"
+                                         Spacing="6">
+                                    <Border BackgroundColor="#1E1E1E"
+                                StrokeThickness="0"
+                                Padding="8,4"
+                                HorizontalOptions="End"
+                                StrokeShape="RoundRectangle 12">
+                                        <Label Text="{Binding CompatibilityWithCurrentUser}"
+                                   FontSize="12"
+                                   FontAttributes="Bold"
+                                   TextColor="#008080"
+                                   HorizontalOptions="Center"/>
+                                    </Border>
+                                </VerticalStackLayout>
+
+                            </Grid>
+
+                            <!-- Row 1: join message (if any) + Approve/Reject buttons -->
+                            <Grid Grid.Row="1" Margin="68,8,0,0"
+                      ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+
+                                <!-- Join message -->
+                                <Border Grid.Column="0"
+                            BackgroundColor="#1A1A1A"
+                            StrokeThickness="0.5"
+                            Stroke="#2A2A2A"
+                            Padding="10,6"
+                            IsVisible="{Binding HasMessage}"
+                            StrokeShape="RoundRectangle 8"
+                            VerticalOptions="Center">
+                                    <Label Text="{Binding Message}"
+                               FontSize="11"
+                               TextColor="#AAAAAA"
+                               MaxLines="2"
+                               LineBreakMode="TailTruncation"/>
+                                </Border>
+
+                                <!-- Approve -->
+                                <Border Grid.Column="1"
+                            BackgroundColor="#0D2626"
+                            StrokeThickness="0.5"
+                            Stroke="#008080"
+                            Padding="12,7"
+                            StrokeShape="RoundRectangle 10"
+                            VerticalOptions="Center">
+                                    <Border.GestureRecognizers>
+                                        <TapGestureRecognizer
+                                CommandParameter="{Binding .}"
+                                Tapped="OnApproveRequestTapped"/>
+                                    </Border.GestureRecognizers>
+                                    <Label Text="Approve"
+                               FontSize="11"
+                               FontAttributes="Bold"
+                               TextColor="#008080"
+                               HorizontalOptions="Center"/>
+                                </Border>
+
+                                <!-- Reject -->
+                                <Border Grid.Column="2"
+                            BackgroundColor="#3A1A1A"
+                            StrokeThickness="0.5"
+                            Stroke="#FF3B6F"
+                            Padding="12,7"
+                            StrokeShape="RoundRectangle 10"
+                            VerticalOptions="Center">
+                                    <Border.GestureRecognizers>
+                                        <TapGestureRecognizer
+                                CommandParameter="{Binding .}"
+                                Tapped="OnRejectRequestTapped"/>
+                                    </Border.GestureRecognizers>
+                                    <Label Text="Reject"
+                               FontSize="11"
+                               FontAttributes="Bold"
+                               TextColor="#FF3B6F"
+                               HorizontalOptions="Center"/>
+                                </Border>
+
+                            </Grid>
+
+                        </Grid>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+
+                <CollectionView.Footer>
+                    <BoxView HeightRequest="80" BackgroundColor="Transparent"/>
+                </CollectionView.Footer>
+            </CollectionView>
+
+            <!-- ── EMPTY STATE ── -->
+            <VerticalStackLayout x:Name="EmptyState"
+                                 Spacing="12"
+                                 HorizontalOptions="Center"
+                                 VerticalOptions="Center"
+                                 IsVisible="False">
+                <Label Text="👥" FontSize="48" TextColor="#444444" HorizontalOptions="Center"/>
+                <Label Text="No Members Found"
+                       FontSize="16"
+                       FontAttributes="Bold"
+                       TextColor="#888888"
+                       HorizontalOptions="Center"/>
+                <Label Text="Try a different search term"
+                       FontSize="12"
+                       TextColor="#666666"
+                       HorizontalOptions="Center"/>
+            </VerticalStackLayout>
+
+            <!-- ── EMPTY PENDING STATE ── -->
+            <VerticalStackLayout x:Name="EmptyPendingState"
+                                 Spacing="12"
+                                 HorizontalOptions="Center"
+                                 VerticalOptions="Center"
+                                 IsVisible="False">
+                <Label Text="✅" FontSize="48" TextColor="#444444" HorizontalOptions="Center"/>
+                <Label Text="No Pending Requests"
+                       FontSize="16"
+                       FontAttributes="Bold"
+                       TextColor="#888888"
+                       HorizontalOptions="Center"/>
+                <Label Text="All join requests have been reviewed"
+                       FontSize="12"
+                       TextColor="#666666"
+                       HorizontalOptions="Center"/>
+            </VerticalStackLayout>
+
+        </Grid>
+
+    </Grid>
+</ContentPage>

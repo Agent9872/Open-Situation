@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Lock.Pages.Chat.ArchivePage"
+             Title="Archive"
+             BackgroundColor="#121214">
+    <Grid Padding="0">
+        <VerticalStackLayout Spacing="0">
+            <!-- Header -->
+            <Grid Padding="16,12" 
+                  ColumnDefinitions="Auto,*,Auto"
+                  BackgroundColor="#121214">
+
+                <!-- Back Icon - Using Unicode character instead of image -->
+                <Label Text="←"
+                       FontSize="24"
+                       TextColor="#FFFFFF"
+                       HorizontalOptions="Start"
+                       VerticalOptions="Center">
+                    <Label.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="BackButton_Clicked"/>
+                    </Label.GestureRecognizers>
+                </Label>
+
+                <!-- Title -->
+                <Label Text="Archived"
+                       FontAttributes="Bold"
+                       FontSize="18"
+                       TextColor="#FFFFFF"
+                       HorizontalOptions="Center"
+                       VerticalOptions="Center"
+                       Grid.Column="1" />
+
+                <!-- Placeholder for symmetry -->
+                <BoxView WidthRequest="24"
+                         HeightRequest="24"
+                         Color="Transparent"
+                         Grid.Column="2" />
+            </Grid>
+
+            <!-- Separator -->
+            <BoxView HeightRequest="1" 
+                     Color="#2C2C2E" 
+                     Margin="0" />
+
+            <!-- Empty State (visible when no archived conversations) -->
+            <Grid IsVisible="False"
+                  x:Name="EmptyStateGrid"
+                  HeightRequest="400"
+                  VerticalOptions="FillAndExpand">
+                <VerticalStackLayout HorizontalOptions="Center"
+                                     VerticalOptions="Center"
+                                     Spacing="16">
+                    <Label Text="📦"
+                           FontSize="48"
+                           Opacity="0.5"
+                           HorizontalOptions="Center" />
+                    <Label Text="No archived conversations"
+                           FontSize="16"
+                           TextColor="#8E8E93"
+                           HorizontalOptions="Center" />
+                    <Label Text="Archived chats will appear here"
+                           FontSize="14"
+                           TextColor="#636366"
+                           HorizontalOptions="Center" />
+                </VerticalStackLayout>
+            </Grid>
+
+            <!-- Archive List -->
+            <CollectionView x:Name="ArchiveCollectionView"
+                            SelectionMode="Single"
+                            SelectionChanged="ArchiveCollectionView_SelectionChanged"
+                            BackgroundColor="Transparent"
+                            Margin="0"
+                            ItemsUpdatingScrollMode="KeepLastItemInView">
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+                        <SwipeView>
+                            <SwipeView.RightItems>
+                                <SwipeItems Mode="Reveal">
+                                    <SwipeItem Text="Unarchive"
+                                               BackgroundColor="#C05050"
+                                               CommandParameter="{Binding Conversation}"
+                                               Invoked="UnarchiveButton_Invoked" />
+                                </SwipeItems>
+                            </SwipeView.RightItems>
+
+                            <Grid Padding="16,12" 
+                                  ColumnDefinitions="Auto,*,Auto"
+                                  BackgroundColor="Transparent">
+
+                                <!-- Profile Image -->
+                                <Image Source="{Binding OtherProfileImage}"
+                                       WidthRequest="48"
+                                       HeightRequest="48"
+                                       Aspect="AspectFill">
+                                    <Image.Clip>
+                                        <EllipseGeometry Center="24,24" RadiusX="24" RadiusY="24" />
+                                    </Image.Clip>
+                                </Image>
+
+                                <!-- Conversation Details -->
+                                <VerticalStackLayout Grid.Column="1" 
+                                                    Margin="12,0,0,0"
+                                                    VerticalOptions="Center"
+                                                    Spacing="4">
+                                    <Label Text="{Binding OtherName}"
+                                           FontAttributes="Bold"
+                                           FontSize="16"
+                                           TextColor="#FFFFFF" />
+                                    <Label Text="{Binding Conversation.LastMessagePreview}"
+                                           FontSize="14"
+                                           TextColor="#8E8E93"
+                                           LineBreakMode="TailTruncation"
+                                           MaxLines="1" />
+                                </VerticalStackLayout>
+
+                                <!-- Timestamp + unread badge + inline unarchive button -->
+                                <HorizontalStackLayout Grid.Column="2"
+                                                      VerticalOptions="Center"
+                                                      HorizontalOptions="End"
+                                                      Spacing="8">
+                                    <Label Text="{Binding Conversation.LastMessageTime, StringFormat='{0:hh:mm tt}'}"
+                                           FontSize="12"
+                                           TextColor="#636366"
+                                           VerticalOptions="Center" />
+
+                                    <!-- Unread badge for archived conversation -->
+                                    <Border BackgroundColor="#C05050"
+                                            Stroke="Transparent"
+                                            StrokeThickness="0"
+                                            HeightRequest="22"
+                                            Padding="6,0"
+                                            VerticalOptions="Center"
+                                            IsVisible="{Binding HasUnread}">
+                                        <Border.StrokeShape>
+                                            <RoundRectangle CornerRadius="6" />
+                                        </Border.StrokeShape>
+                                        <Label Text="{Binding UnreadDisplay}"
+                                               TextColor="#FFFFFF"
+                                               FontSize="12"
+                                               VerticalOptions="Center"
+                                               HorizontalOptions="Center" />
+                                    </Border>
+
+                                    <!-- Inline unarchive icon button (taps use existing handler) -->
+                                    <Button Text="⤴"
+                                            FontSize="18"
+                                            BackgroundColor="Transparent"
+                                            TextColor="#C05050"
+                                            VerticalOptions="Center"
+                                            Clicked="UnarchiveButton_Clicked"
+                                            CommandParameter="{Binding Conversation}"
+                                            SemanticProperties.Hint="Unarchive conversation" />
+                                </HorizontalStackLayout>
+                            </Grid>
+                        </SwipeView>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+        </VerticalStackLayout>
+    </Grid>
+</ContentPage>

@@ -1,0 +1,718 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:shapes="clr-namespace:Microsoft.Maui.Controls.Shapes;assembly=Microsoft.Maui.Controls"
+             x:Class="Lock.Pages.Chat.CreateGroupPage"
+             Title="Create Group"
+             BackgroundColor="{AppThemeBinding Light=#F5F6FA, Dark=#0F0F11}"
+             Shell.NavBarIsVisible="False">
+
+    <ContentPage.Resources>
+        <ResourceDictionary>
+            <Color x:Key="AppBackground">#F5F6FA</Color>
+            <Color x:Key="CardBackground">#FFFFFF</Color>
+            <Color x:Key="Primary">#008080</Color>
+            <Color x:Key="PrimaryDark">#006666</Color>
+            <Color x:Key="Danger">#FF3B6F</Color>
+            <Color x:Key="Muted">#6B6F76</Color>
+            <Color x:Key="Subtle">#9AA0A6</Color>
+            <Color x:Key="SoftBorder">#E6E9EE</Color>
+
+            <Color x:Key="DarkCard">#1F1F21</Color>
+            <Color x:Key="DarkBorder">#333333</Color>
+            <Color x:Key="DarkInput">#111111</Color>
+            <Color x:Key="DarkTextPrimary">#F5F5F5</Color>
+            <Color x:Key="DarkTextSecondary">#008080</Color>
+
+            <Style x:Key="LabelSmall" TargetType="Label">
+                <Setter Property="FontSize" Value="11" />
+                <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource Muted}, Dark=#AAAAAA}" />
+            </Style>
+
+            <Style x:Key="LabelMedium" TargetType="Label">
+                <Setter Property="FontSize" Value="14" />
+                <Setter Property="TextColor" Value="{AppThemeBinding Light=#222222, Dark=#F5F5F5}" />
+            </Style>
+
+            <Style x:Key="HintLabel" TargetType="Label">
+                <Setter Property="FontSize" Value="10" />
+                <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource Subtle}, Dark=#777777}" />
+            </Style>
+
+            <Style TargetType="Entry">
+                <Setter Property="FontSize" Value="13" />
+                <Setter Property="TextColor" Value="{AppThemeBinding Light=#222222, Dark=#F5F5F5}" />
+                <Setter Property="PlaceholderColor" Value="{AppThemeBinding Light=#9AA0A6, Dark=#AAAAAA}" />
+                <Setter Property="BackgroundColor" Value="{AppThemeBinding Light=White, Dark=#111111}" />
+            </Style>
+
+            <Style TargetType="Editor">
+                <Setter Property="FontSize" Value="13" />
+                <Setter Property="TextColor" Value="{AppThemeBinding Light=#222222, Dark=#F5F5F5}" />
+                <Setter Property="PlaceholderColor" Value="{AppThemeBinding Light=#9AA0A6, Dark=#AAAAAA}" />
+                <Setter Property="BackgroundColor" Value="{AppThemeBinding Light=White, Dark=#111111}" />
+            </Style>
+
+            <Style TargetType="Picker">
+                <Setter Property="FontSize" Value="13" />
+                <Setter Property="TextColor" Value="{AppThemeBinding Light=#222222, Dark=#F5F5F5}" />
+                <Setter Property="TitleColor" Value="{AppThemeBinding Light=#9AA0A6, Dark=#AAAAAA}" />
+                <Setter Property="BackgroundColor" Value="{AppThemeBinding Light=White, Dark=#111111}" />
+            </Style>
+
+            <Style x:Key="CardBorder" TargetType="Border">
+                <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource CardBackground}, Dark={StaticResource DarkCard}}" />
+                <Setter Property="Stroke" Value="{AppThemeBinding Light={StaticResource SoftBorder}, Dark={StaticResource DarkBorder}}" />
+                <Setter Property="StrokeThickness" Value="1" />
+                <Setter Property="StrokeShape">
+                    <RoundRectangle CornerRadius="12" />
+                </Setter>
+                <Setter Property="Padding" Value="14" />
+                <Setter Property="Shadow">
+                    <Setter.Value>
+                        <Shadow Brush="#22000000" Offset="0,2" Radius="6" />
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <Style x:Key="TagChip" TargetType="Border">
+                <Setter Property="BackgroundColor" Value="{AppThemeBinding Light=#F2F4F7, Dark=#2A2A2E}" />
+                <Setter Property="StrokeThickness" Value="0" />
+                <Setter Property="StrokeShape">
+                    <RoundRectangle CornerRadius="12" />
+                </Setter>
+                <Setter Property="Padding" Value="10,5" />
+            </Style>
+        </ResourceDictionary>
+    </ContentPage.Resources>
+
+    <Grid RowDefinitions="Auto,*,Auto">
+
+        <!-- Header -->
+        <Border Grid.Row="0"
+                BackgroundColor="{AppThemeBinding Light=#FFFFFF, Dark=#1E1E1E}"
+                Padding="16,44,16,16"
+                StrokeThickness="0">
+            <Grid ColumnDefinitions="Auto,*,Auto">
+                <Button Grid.Column="0"
+                        Text="Cancel"
+                        BackgroundColor="Transparent"
+                        TextColor="{StaticResource Muted}"
+                        FontSize="14"
+                        Clicked="OnCancelClicked" />
+                <Label Grid.Column="1"
+                       Text="Create Group"
+                       FontSize="18"
+                       FontAttributes="Bold"
+                       TextColor="{AppThemeBinding Light=#222222, Dark=#F5F5F5}"
+                       HorizontalOptions="Center"
+                       VerticalOptions="Center" />
+                <Button Grid.Column="2"
+                        Text="Create"
+                        BackgroundColor="Transparent"
+                        TextColor="{StaticResource Primary}"
+                        FontAttributes="Bold"
+                        FontSize="14"
+                        Clicked="OnCreateClicked" />
+            </Grid>
+        </Border>
+
+        <!-- Content -->
+        <ScrollView Grid.Row="1"
+                    VerticalScrollBarVisibility="Never"
+                    HorizontalScrollBarVisibility="Never">
+            <VerticalStackLayout Spacing="16" Padding="16">
+
+                <!-- Group Image Section -->
+                <Border Style="{StaticResource CardBorder}" Padding="20">
+                    <VerticalStackLayout Spacing="12" HorizontalOptions="Center">
+                        <Frame WidthRequest="100" HeightRequest="100"
+                               CornerRadius="50"
+                               BackgroundColor="{AppThemeBinding Light=#F0EDE8, Dark=#1E1C1A}"
+                               HasShadow="False"
+                               HorizontalOptions="Center"
+                               IsClippedToBounds="True">
+                            <Frame.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="OnAddImageTapped" />
+                            </Frame.GestureRecognizers>
+                            <Grid>
+                                <Image x:Name="GroupImage"
+                                       Aspect="AspectFill"
+                                       HeightRequest="100"
+                                       WidthRequest="100"
+                                       IsVisible="False" />
+                                <VerticalStackLayout x:Name="CameraIcon"
+                                                     Spacing="4"
+                                                     HorizontalOptions="Center"
+                                                     VerticalOptions="Center"
+                                                     IsVisible="True">
+                                    <Label Text="📷" FontSize="32" TextColor="{StaticResource Muted}" />
+                                    <Label Text="Add Photo" FontSize="11" TextColor="{StaticResource Muted}" />
+                                </VerticalStackLayout>
+                            </Grid>
+                        </Frame>
+                        <Label Text="Tap to add group photo"
+                               FontSize="11"
+                               TextColor="{StaticResource Subtle}"
+                               HorizontalOptions="Center" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- Group Name -->
+                <Border Style="{StaticResource CardBorder}" Padding="14,0">
+                    <Entry x:Name="GroupNameEntry"
+                           Placeholder="Group Name (required)"
+                           FontSize="14"
+                           TextColor="{AppThemeBinding Light=#222222, Dark=#F5F5F5}"
+                           PlaceholderColor="{StaticResource Subtle}"
+                           BackgroundColor="Transparent"
+                           HeightRequest="48" />
+                </Border>
+
+                <!-- Group Description -->
+                <Border Style="{StaticResource CardBorder}" Padding="14,10">
+                    <Editor x:Name="GroupDescriptionEditor"
+                            Placeholder="Group Description (optional)"
+                            FontSize="14"
+                            TextColor="{AppThemeBinding Light=#222222, Dark=#F5F5F5}"
+                            PlaceholderColor="{StaticResource Subtle}"
+                            BackgroundColor="Transparent"
+                            HeightRequest="80"
+                            AutoSize="TextChanges" />
+                </Border>
+
+                <!-- Group Type Section -->
+                <VerticalStackLayout Spacing="8">
+                    <HorizontalStackLayout Spacing="6" Margin="0,4,0,0">
+                        <BoxView WidthRequest="3" HeightRequest="14" Color="{StaticResource Primary}" 
+                                 VerticalOptions="Center" CornerRadius="2"/>
+                        <Label Text="GROUP TYPE" FontSize="9" CharacterSpacing="2" FontAttributes="Bold"
+                               TextColor="{StaticResource Muted}" VerticalOptions="Center"/>
+                    </HorizontalStackLayout>
+
+                    <Border Style="{StaticResource CardBorder}" Padding="4">
+                        <Picker x:Name="GroupTypePicker"
+                                Title="Select group type"
+                                TitleColor="{StaticResource Subtle}"
+                                TextColor="{AppThemeBinding Light=#222222, Dark=#F5F5F5}"
+                                BackgroundColor="Transparent">
+                            <Picker.Items>
+                                <x:String>Community Circle</x:String>
+                                <x:String>Interest Based</x:String>
+                                <x:String>Squad Dating</x:String>
+                                <x:String>Mood Room</x:String>
+                                <x:String>Private Group</x:String>
+                                <x:String>Event Group</x:String>
+                                <x:String>Support Circle</x:String>
+                            </Picker.Items>
+                        </Picker>
+                    </Border>
+                </VerticalStackLayout>
+
+                <!-- Mood Filter (Mood Room) -->
+                <VerticalStackLayout x:Name="MoodFilterGrid" IsVisible="False" Spacing="8">
+                    <HorizontalStackLayout Spacing="6" Margin="0,4,0,0">
+                        <BoxView WidthRequest="3" HeightRequest="14" Color="{StaticResource Primary}"
+                 VerticalOptions="Center" CornerRadius="2" />
+                        <Label Text="🌙 MOOD FILTER" FontSize="9" CharacterSpacing="2" FontAttributes="Bold"
+               TextColor="{StaticResource Muted}" VerticalOptions="Center" />
+                    </HorizontalStackLayout>
+
+                    <Border Style="{StaticResource CardBorder}" Padding="4">
+                        <Picker x:Name="MoodFilterPicker"
+                Title="Select mood filter"
+                TitleColor="{StaticResource Subtle}"
+                TextColor="{AppThemeBinding Light=#222222, Dark=#F5F5F5}"
+                BackgroundColor="Transparent"
+                SelectedIndexChanged="OnMoodFilterSelectedIndexChanged">
+                            <Picker.Items>
+                                <x:String>Serious relationship</x:String>
+                                <x:String>Long-term potential</x:String>
+                                <x:String>Marriage minded</x:String>
+                                <x:String>Life partner</x:String>
+                                <x:String>Just vibes / casual fun</x:String>
+                                <x:String>Something casual</x:String>
+                                <x:String>ENM / Open to non-monogamy</x:String>
+                                <x:String>Polyamorous</x:String>
+                                <x:String>Deep talks and connection</x:String>
+                                <x:String>Let's see where it goes</x:String>
+                                <x:String>Networking / collabs / friends first</x:String>
+                                <x:String>Friendship only</x:String>
+                                <x:String>Activity partner</x:String>
+                                <x:String>Travel buddy</x:String>
+                                <x:String>Dating but not rushing</x:String>
+                                <x:String>Figuring it out</x:String>
+                                <x:String>OS (open situationship)</x:String>
+                                <x:String>Chalance (all-in effort)</x:String>
+                                <x:String>Traditional relationship</x:String>
+                                <x:String>Short-term fun</x:String>
+                                <x:String>Texting/online connection</x:String>
+                                <x:String>Other (Add your own)</x:String>
+                            </Picker.Items>
+                        </Picker>
+                    </Border>
+
+                    <!-- Custom Mood Entry -->
+                    <Border x:Name="CustomMoodContainer" IsVisible="False" Padding="14,0" HeightRequest="48"
+            BackgroundColor="{AppThemeBinding Light=#FFFFFF, Dark=#161614}"
+            Stroke="{StaticResource Primary}" StrokeThickness="1" StrokeShape="RoundRectangle 14">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <Entry x:Name="CustomMoodEntry"
+                   Placeholder="Type your custom mood..."
+                   FontSize="13"
+                   TextColor="{AppThemeBinding Light=#222222, Dark=#F5F5F5}"
+                   PlaceholderColor="{StaticResource Subtle}"
+                   BackgroundColor="Transparent"
+                   VerticalOptions="Center" />
+                            <Button Grid.Column="1"
+                    Text="Add"
+                    BackgroundColor="{StaticResource Primary}"
+                    TextColor="White"
+                    FontSize="12"
+                    CornerRadius="8"
+                    HeightRequest="32"
+                    WidthRequest="50"
+                    Clicked="OnAddCustomMoodClicked"
+                    VerticalOptions="Center" />
+                        </Grid>
+                    </Border>
+                </VerticalStackLayout>
+
+
+                <!-- Squad Dating Info Banner -->
+                <Border x:Name="SquadInfoBanner"
+        IsVisible="False"
+        BackgroundColor="{AppThemeBinding Light=#E8F4F4, Dark=#0D2626}"
+        Stroke="{StaticResource Primary}"
+        StrokeThickness="1"
+        Padding="14,12"
+        Margin="0,0,0,8">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="10" />
+                    </Border.StrokeShape>
+                    <HorizontalStackLayout Spacing="10">
+                        <Label Text="👥" FontSize="18" VerticalOptions="Center" />
+                        <Label Text="Squad Dating lets 2–4 friends match with another squad. Add your squad members below."
+               FontSize="12"
+               TextColor="{StaticResource Primary}"
+               LineBreakMode="WordWrap"
+               VerticalOptions="Center" />
+                    </HorizontalStackLayout>
+                </Border>
+
+                <!-- Mood Room Info Banner -->
+                <Border x:Name="MoodInfoBanner"
+        IsVisible="False"
+        BackgroundColor="{AppThemeBinding Light=#E8F4F4, Dark=#0D2626}"
+        Stroke="{StaticResource Primary}"
+        StrokeThickness="1"
+        Padding="14,12"
+        Margin="0,0,0,8">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="10" />
+                    </Border.StrokeShape>
+                    <HorizontalStackLayout Spacing="10">
+                        <Label Text="🌙" FontSize="18" VerticalOptions="Center" />
+                        <Label Text="Mood Room connects people based on their current mood and relationship intentions. Select your vibe below."
+               FontSize="12"
+               TextColor="{StaticResource Primary}"
+               LineBreakMode="WordWrap"
+               VerticalOptions="Center" />
+                    </HorizontalStackLayout>
+                </Border>
+
+                <!-- Interest Based Info Banner -->
+                <Border x:Name="InterestInfoBanner"
+        IsVisible="False"
+        BackgroundColor="{AppThemeBinding Light=#E8F4F4, Dark=#0D2626}"
+        Stroke="{StaticResource Primary}"
+        StrokeThickness="1"
+        Padding="14,12"
+        Margin="0,0,0,8">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="10" />
+                    </Border.StrokeShape>
+                    <HorizontalStackLayout Spacing="10">
+                        <Label Text="🎯" FontSize="18" VerticalOptions="Center" />
+                        <Label Text="Interest Based groups bring together people who share common hobbies and passions."
+               FontSize="12"
+               TextColor="{StaticResource Primary}"
+               LineBreakMode="WordWrap"
+               VerticalOptions="Center" />
+                    </HorizontalStackLayout>
+                </Border>
+
+                <!-- Support Circle Info Banner -->
+                <Border x:Name="SupportInfoBanner"
+        IsVisible="False"
+        BackgroundColor="{AppThemeBinding Light=#E8F4F4, Dark=#0D2626}"
+        Stroke="{StaticResource Primary}"
+        StrokeThickness="1"
+        Padding="14,12"
+        Margin="0,0,0,8">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="10" />
+                    </Border.StrokeShape>
+                    <HorizontalStackLayout Spacing="10">
+                        <Label Text="💙" FontSize="18" VerticalOptions="Center" />
+                        <Label Text="Support Circle provides a safe space for anonymous sharing and emotional support."
+               FontSize="12"
+               TextColor="{StaticResource Primary}"
+               LineBreakMode="WordWrap"
+               VerticalOptions="Center" />
+                    </HorizontalStackLayout>
+                </Border>
+
+                <!-- Event Group Info Banner -->
+                <Border x:Name="EventInfoBanner"
+        IsVisible="False"
+        BackgroundColor="{AppThemeBinding Light=#E8F4F4, Dark=#0D2626}"
+        Stroke="{StaticResource Primary}"
+        StrokeThickness="1"
+        Padding="14,12"
+        Margin="0,0,0,8">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="10" />
+                    </Border.StrokeShape>
+                    <HorizontalStackLayout Spacing="10">
+                        <Label Text="🎉" FontSize="18" VerticalOptions="Center" />
+                        <Label Text="Event Group helps organize meetups, parties, and community gatherings."
+               FontSize="12"
+               TextColor="{StaticResource Primary}"
+               LineBreakMode="WordWrap"
+               VerticalOptions="Center" />
+                    </HorizontalStackLayout>
+                </Border>
+
+                <!-- Community Circle Info Banner -->
+                <Border x:Name="CommunityInfoBanner"
+        IsVisible="False"
+        BackgroundColor="{AppThemeBinding Light=#E8F4F4, Dark=#0D2626}"
+        Stroke="{StaticResource Primary}"
+        StrokeThickness="1"
+        Padding="14,12"
+        Margin="0,0,0,8">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="10" />
+                    </Border.StrokeShape>
+                    <HorizontalStackLayout Spacing="10">
+                        <Label Text="🌍" FontSize="18" VerticalOptions="Center" />
+                        <Label Text="Community Circle is a general-purpose group for local or interest-based communities."
+               FontSize="12"
+               TextColor="{StaticResource Primary}"
+               LineBreakMode="WordWrap"
+               VerticalOptions="Center" />
+                    </HorizontalStackLayout>
+                </Border>
+
+                <!-- Private Group Info Banner -->
+                <Border x:Name="PrivateInfoBanner"
+        IsVisible="False"
+        BackgroundColor="{AppThemeBinding Light=#E8F4F4, Dark=#0D2626}"
+        Stroke="{StaticResource Primary}"
+        StrokeThickness="1"
+        Padding="14,12"
+        Margin="0,0,0,8">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="10" />
+                    </Border.StrokeShape>
+                    <HorizontalStackLayout Spacing="10">
+                        <Label Text="🔒" FontSize="18" VerticalOptions="Center" />
+                        <Label Text="Private Group is invite-only and perfect for close friends or exclusive communities."
+               FontSize="12"
+               TextColor="{StaticResource Primary}"
+               LineBreakMode="WordWrap"
+               VerticalOptions="Center" />
+                    </HorizontalStackLayout>
+                </Border>
+
+                <!-- Visibility Section -->
+                <VerticalStackLayout Spacing="8">
+                    <HorizontalStackLayout Spacing="6" Margin="0,4,0,0">
+                        <BoxView WidthRequest="3" HeightRequest="14" Color="{StaticResource Primary}"
+                                 VerticalOptions="Center" CornerRadius="2" />
+                        <Label Text="VISIBILITY" FontSize="9" CharacterSpacing="2" FontAttributes="Bold"
+                               TextColor="{StaticResource Muted}" VerticalOptions="Center" />
+                    </HorizontalStackLayout>
+
+                    <Border Style="{StaticResource CardBorder}" Padding="4">
+                        <Picker x:Name="VisibilityPicker"
+                                Title="Who can see this group?"
+                                TitleColor="{StaticResource Subtle}"
+                                TextColor="{AppThemeBinding Light=#222222, Dark=#F5F5F5}"
+                                BackgroundColor="Transparent">
+                            <Picker.Items>
+                                <x:String>Public</x:String>
+                                <x:String>Private</x:String>
+                                <x:String>Secret</x:String>
+                            </Picker.Items>
+                        </Picker>
+                    </Border>
+
+                    <Label Text="🌍 Public - Anyone can find and join | 🔒 Private - Invite only | 🤫 Secret - Hidden from search"
+                           FontSize="10"
+                           TextColor="{StaticResource Subtle}"
+                           Margin="8,4,8,0" />
+                </VerticalStackLayout>
+
+                <!-- Category -->
+                <Border Style="{StaticResource CardBorder}" Padding="14,0">
+                    <Entry x:Name="CategoryEntry"
+                           Placeholder="Category (e.g., Hiking, Music, Dating)"
+                           FontSize="14"
+                           TextColor="{AppThemeBinding Light=#222222, Dark=#F5F5F5}"
+                           PlaceholderColor="{StaticResource Subtle}"
+                           BackgroundColor="Transparent"
+                           HeightRequest="48" />
+                </Border>
+
+                <!-- Interest Tags Section -->
+                <VerticalStackLayout Spacing="8">
+                    <HorizontalStackLayout Spacing="6" Margin="0,4,0,0">
+                        <BoxView WidthRequest="3" HeightRequest="14" Color="{StaticResource Primary}" 
+                                 VerticalOptions="Center" CornerRadius="2"/>
+                        <Label Text="INTEREST TAGS" FontSize="9" CharacterSpacing="2" FontAttributes="Bold"
+                               TextColor="{StaticResource Muted}" VerticalOptions="Center"/>
+                    </HorizontalStackLayout>
+
+                    <Border Style="{StaticResource CardBorder}" Padding="12">
+                        <FlexLayout x:Name="TagsContainer"
+                                    Direction="Row"
+                                    Wrap="Wrap"
+                                    JustifyContent="Start"
+                                    AlignItems="Center" />
+                    </Border>
+
+                    <!-- Predefined Tags Section -->
+                    <Label Text="POPULAR TAGS (tap to add)" FontSize="10" TextColor="{StaticResource Subtle}" Margin="12,8,12,4"/>
+                    <FlexLayout x:Name="PredefinedTagsContainer" 
+            Wrap="Wrap" 
+            JustifyContent="Start"
+            AlignItems="Center"
+            Margin="0,0,0,8"/>
+                </VerticalStackLayout>
+
+                <!-- Max Members -->
+                <Border Style="{StaticResource CardBorder}" Padding="14,0">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                        <Entry x:Name="MaxMembersEntry"
+                               Placeholder="Max Members (0 = unlimited)"
+                               FontSize="14"
+                               TextColor="{AppThemeBinding Light=#222222, Dark=#F5F5F5}"
+                               PlaceholderColor="{StaticResource Subtle}"
+                               BackgroundColor="Transparent"
+                               Keyboard="Numeric"
+                               HeightRequest="48" />
+                        <Label Grid.Column="1"
+                               Text="members"
+                               FontSize="12"
+                               TextColor="{StaticResource Subtle}"
+                               VerticalOptions="Center" />
+                    </Grid>
+                </Border>
+
+                <!-- Looking For Section (for Squad Dating) -->
+                <VerticalStackLayout x:Name="LookingForLayout" IsVisible="False" Spacing="8">
+                    <HorizontalStackLayout Spacing="6" Margin="0,4,0,0">
+                        <BoxView WidthRequest="3" HeightRequest="14" Color="{StaticResource Primary}" 
+                 VerticalOptions="Center" CornerRadius="2"/>
+                        <Label Text="💕 LOOKING FOR" FontSize="9" CharacterSpacing="2" FontAttributes="Bold"
+               TextColor="{StaticResource Muted}" VerticalOptions="Center"/>
+                    </HorizontalStackLayout>
+
+                    <Border Style="{StaticResource CardBorder}" Padding="4">
+                        <Picker x:Name="LookingForPicker"
+                Title="What are members looking for?"
+                TitleColor="{StaticResource Subtle}"
+                TextColor="{AppThemeBinding Light=#222222, Dark=#F5F5F5}"
+                BackgroundColor="Transparent"
+                SelectedIndexChanged="OnLookingForSelectedIndexChanged">
+                            <Picker.Items>
+                                <x:String>Serious relationship</x:String>
+                                <x:String>Long-term potential</x:String>
+                                <x:String>Marriage minded</x:String>
+                                <x:String>Life partner</x:String>
+                                <x:String>Just vibes / casual fun</x:String>
+                                <x:String>Something casual</x:String>
+                                <x:String>Hook-up / FWB</x:String>
+                                <x:String>ENM / Open to non-monogamy</x:String>
+                                <x:String>Polyamorous</x:String>
+                                <x:String>Deep talks and connection</x:String>
+                                <x:String>Let's see where it goes</x:String>
+                                <x:String>Networking / collabs / friends first</x:String>
+                                <x:String>Friendship only</x:String>
+                                <x:String>Activity partner</x:String>
+                                <x:String>Travel buddy</x:String>
+                                <x:String>Dating but not rushing</x:String>
+                                <x:String>Figuring it out</x:String>
+                                <x:String>OS (open situationship)</x:String>
+                                <x:String>Chalance (all-in effort)</x:String>
+                                <x:String>Traditional relationship</x:String>
+                                <x:String>Short-term fun</x:String>
+                                <x:String>Texting/online connection</x:String>
+                                <x:String>Other (Add your own)</x:String>
+                            </Picker.Items>
+                        </Picker>
+                    </Border>
+
+                    <!-- Custom Looking For Entry -->
+                    <HorizontalStackLayout x:Name="CustomLookingForLayout" Spacing="8" IsVisible="False">
+                        <Border Padding="14,0" HorizontalOptions="FillAndExpand"
+                BackgroundColor="{AppThemeBinding Light=#FFFFFF, Dark=#161614}"
+                Stroke="{StaticResource Primary}" StrokeThickness="1"
+                StrokeShape="RoundRectangle 14" HeightRequest="48">
+                            <Entry x:Name="CustomLookingForEntry" 
+                   Placeholder="Type what you're looking for" 
+                   FontSize="13"
+                   TextColor="{AppThemeBinding Light=#222222, Dark=#F5F5F5}"
+                   PlaceholderColor="{StaticResource Subtle}"
+                   BackgroundColor="Transparent"
+                   VerticalOptions="Center"/>
+                        </Border>
+                        <Border Padding="16,0" BackgroundColor="{StaticResource Primary}"
+                StrokeThickness="0" StrokeShape="RoundRectangle 14" HeightRequest="48">
+                            <Border.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="OnAddCustomLookingForClicked"/>
+                            </Border.GestureRecognizers>
+                            <Label Text="Add" FontSize="13" FontAttributes="Bold" TextColor="White" VerticalOptions="Center"/>
+                        </Border>
+                    </HorizontalStackLayout>
+                </VerticalStackLayout>
+                <!-- Anonymous Mode (Support Circle) -->
+                <VerticalStackLayout x:Name="AnonymousModeGrid" IsVisible="False" Spacing="8">
+                    <HorizontalStackLayout Spacing="6" Margin="0,4,0,0">
+                        <BoxView WidthRequest="3" HeightRequest="14" Color="{StaticResource Primary}"
+                                 VerticalOptions="Center" CornerRadius="2" />
+                        <Label Text="💙 ANONYMOUS MODE" FontSize="9" CharacterSpacing="2" FontAttributes="Bold"
+                               TextColor="{StaticResource Muted}" VerticalOptions="Center" />
+                    </HorizontalStackLayout>
+
+                    <Border Style="{StaticResource CardBorder}" Padding="16,12">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <VerticalStackLayout Grid.Column="0" Spacing="2" VerticalOptions="Center">
+                                <Label Text="Members join as anonymous 'Member #N'"
+                                       FontSize="13"
+                                       TextColor="{AppThemeBinding Light=#222222, Dark=#F5F5F5}" />
+                                <Label Text="Identity is hidden from other members"
+                                       FontSize="11"
+                                       TextColor="{StaticResource Subtle}" />
+                            </VerticalStackLayout>
+                            <Switch x:Name="AnonymousModeSwitch"
+                                    Grid.Column="1"
+                                    IsToggled="False"
+                                    ThumbColor="{StaticResource Primary}"
+                                    OnColor="{StaticResource Primary}" />
+                        </Grid>
+                    </Border>
+                </VerticalStackLayout>
+
+                <!-- E2E Encryption -->
+                <Border Style="{StaticResource CardBorder}" Padding="16,12">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <VerticalStackLayout Grid.Column="0" Spacing="2" VerticalOptions="Center">
+                            <Label Text="🔒 End-to-End Encryption"
+                                   FontSize="13" FontAttributes="Bold"
+                                   TextColor="{AppThemeBinding Light=#222222, Dark=#F5F5F5}" />
+                            <Label Text="Messages are encrypted — Lock cannot read them"
+                                   FontSize="11"
+                                   TextColor="{StaticResource Subtle}" />
+                        </VerticalStackLayout>
+                        <Switch x:Name="EncryptionSwitch"
+                                Grid.Column="1"
+                                IsToggled="True"
+                                ThumbColor="{StaticResource Primary}"
+                                OnColor="{StaticResource Primary}" />
+                    </Grid>
+                </Border>
+
+                <!-- Require Approval -->
+                <Border Style="{StaticResource CardBorder}" Padding="16,12">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <VerticalStackLayout Grid.Column="0" Spacing="2" VerticalOptions="Center">
+                            <Label Text="Require Join Approval"
+                                   FontSize="13" FontAttributes="Bold"
+                                   TextColor="{AppThemeBinding Light=#222222, Dark=#F5F5F5}" />
+                            <Label Text="Admin approves each join request"
+                                   FontSize="11"
+                                   TextColor="{StaticResource Subtle}" />
+                        </VerticalStackLayout>
+                        <Switch x:Name="RequireApprovalSwitch"
+                                Grid.Column="1"
+                                IsToggled="False"
+                                ThumbColor="{StaticResource Primary}"
+                                OnColor="{StaticResource Primary}" />
+                    </Grid>
+                </Border>
+
+                <!-- Add Members Section -->
+                <VerticalStackLayout Spacing="8">
+                    <HorizontalStackLayout Spacing="6" Margin="0,4,0,0">
+                        <BoxView WidthRequest="3" HeightRequest="14" Color="{StaticResource Primary}" 
+                                 VerticalOptions="Center" CornerRadius="2"/>
+                        <Label Text="ADD MEMBERS" FontSize="9" CharacterSpacing="2" FontAttributes="Bold"
+                               TextColor="{StaticResource Muted}" VerticalOptions="Center"/>
+                    </HorizontalStackLayout>
+
+                    <Border Style="{StaticResource CardBorder}" Padding="0">
+                        <Button Text="+ Add Participants"
+                                BackgroundColor="Transparent"
+                                TextColor="{StaticResource Primary}"
+                                FontSize="14"
+                                CornerRadius="0"
+                                HeightRequest="48"
+                                Clicked="OnAddParticipantsClicked"/>
+                    </Border>
+                </VerticalStackLayout>
+
+                <!-- Selected Members -->
+                <Border x:Name="SelectedMembersBorder"
+                        Style="{StaticResource CardBorder}"
+                        Padding="12"
+                        IsVisible="False">
+                    <VerticalStackLayout Spacing="8">
+                        <Label Text="Selected Members"
+                               FontSize="11" FontAttributes="Bold"
+                               TextColor="{StaticResource Primary}" />
+                        <CollectionView x:Name="SelectedMembersView"
+                                        HeightRequest="100"
+                                        SelectionMode="None">
+                            <CollectionView.ItemsLayout>
+                                <GridItemsLayout Orientation="Horizontal"
+                                 Span="3"
+                                 HorizontalItemSpacing="8"
+                                 VerticalItemSpacing="8" />
+                            </CollectionView.ItemsLayout>
+                            <CollectionView.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Padding="8,4"
+                                            BackgroundColor="{AppThemeBinding Light=#F2F4F7, Dark=#2A2A2E}"
+                                            StrokeThickness="0"
+                                            StrokeShape="RoundRectangle 8">
+                                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
+                                            <Label Text="{Binding Name}"
+                                                   FontSize="12"
+                                                   TextColor="{AppThemeBinding Light=#222222, Dark=#F5F5F5}"
+                                                   VerticalOptions="Center" />
+                                            <Label Grid.Column="1"
+                                                   Text="✕"
+                                                   FontSize="12"
+                                                   TextColor="{StaticResource Danger}">
+                                                <Label.GestureRecognizers>
+                                                    <TapGestureRecognizer Tapped="OnRemoveMemberTapped"
+                                                          CommandParameter="{Binding .}" />
+                                                </Label.GestureRecognizers>
+                                            </Label>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </CollectionView.ItemTemplate>
+                        </CollectionView>
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- Spacer at bottom -->
+                <BoxView HeightRequest="20"/>
+            </VerticalStackLayout>
+        </ScrollView>
+    </Grid>
+</ContentPage>

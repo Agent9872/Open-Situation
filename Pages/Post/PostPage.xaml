@@ -1,0 +1,1772 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:models="clr-namespace:Lock.Models;assembly=Lock"
+             xmlns:conv="clr-namespace:Lock.Converter.Post"
+             xmlns:local="clr-namespace:Lock.Pages.Post"
+             x:Class="Lock.Pages.Post.PostPage"
+             BackgroundColor="#0E0E12">
+
+    <ContentPage.Resources>
+        <ResourceDictionary>
+            <conv:StringNotNullOrEmptyConverter x:Key="StringNotNullOrEmptyConverter" />
+            <conv:BoolToSearchIconConverter x:Key="BoolToSearchIconConverter" />
+            <conv:BoolToResultColorConverter x:Key="BoolToResultColorConverter" />
+            <conv:BoolToResultCountColorConverter x:Key="BoolToResultCountColorConverter" />
+            <conv:BoolToTealColorConverter x:Key="BoolToTealColorConverter" />
+            <conv:ListNotEmptyConverter x:Key="ListNotEmptyConverter" />
+            <conv:GreaterThanZeroConverter x:Key="GreaterThanZeroConverter" />
+            <conv:BoolToMarginConverter x:Key="BoolToMarginConverter" />
+            <conv:InverseBoolConverter x:Key="InverseBoolConverter" />
+            <conv:CommentCountConverter x:Key="CommentCountConverter" />
+            
+            
+            <!-- ═══════════════════════════════════════════════════════════
+                 USER HEADER TEMPLATE  (Stories / Status row)
+            ═══════════════════════════════════════════════════════════ -->
+            <DataTemplate x:Key="UserHeaderTemplate">
+
+                <Grid ColumnDefinitions="44,*,Auto" 
+          ColumnSpacing="12" 
+          Padding="14,8,14,8"
+          HeightRequest="68">
+
+                    <Grid.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="UserHeaderTapped"
+                                  CommandParameter="{Binding Phone}" />
+                    </Grid.GestureRecognizers>
+
+                    <!-- Avatar with gradient ring -->
+                    <Grid Grid.Column="0" WidthRequest="42" HeightRequest="42">
+                        <Ellipse WidthRequest="42" HeightRequest="42"
+                     StrokeThickness="2.8">
+                            <Ellipse.Stroke>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                    <GradientStop Color="#FF3B6F" Offset="0" />
+                                    <GradientStop Color="#00B5B5" Offset="1" />
+                                </LinearGradientBrush>
+                            </Ellipse.Stroke>
+                        </Ellipse>
+
+                        <Frame WidthRequest="36" HeightRequest="36"
+                   CornerRadius="18" 
+                   Padding="0"
+                   IsClippedToBounds="True" 
+                   HasShadow="False"
+                   BackgroundColor="#1C1C25"
+                   BorderColor="Transparent"
+                   VerticalOptions="Center"
+                   HorizontalOptions="Center">
+                            <Image Source="{Binding ProfileImagePath}"
+                       Aspect="AspectFill"
+                       HeightRequest="36" 
+                       WidthRequest="36" />
+                        </Frame>
+                    </Grid>
+
+                    <!-- Text Content -->
+                    <VerticalStackLayout Grid.Column="1" Spacing="3" VerticalOptions="Center">
+
+                        <!-- Row 1: Author Name + Verification Badge + Time (NO mood here) -->
+                        <HorizontalStackLayout Spacing="6" VerticalOptions="Center">
+                            <Label Text="{Binding AuthorDisplayName}"
+               FontAttributes="Bold"
+               FontSize="14"
+               TextColor="#F0EDE8" />
+
+                            <!-- Verification Badge -->
+                            <Border BackgroundColor="Transparent"
+                Stroke="Transparent"
+                StrokeThickness="0"
+                Padding="0"
+                Margin="0"
+                VerticalOptions="Center"
+                IsVisible="{Binding IsAuthorVerified}">
+                                <Border.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OnPostAuthorVerificationTapped"
+                                      CommandParameter="{Binding .}" />
+                                </Border.GestureRecognizers>
+                                <Path Data="m366-126-64-108-122-26 12-126-82-94 82-94-12-126 122-26 64-108 114 48 114-48 64 108 122 26-12 126 82 94-82 94 12 126-122 26-64 108-114-48-114 48Zm12-36 102-42 102 42 58-96 110-24-10-114 74-84-74-84 10-114-110-24-58-96-102 42-102-42-58 96-110 24 10 114-74 84 74 84-10 114 110 24 58 96Zm102-318Zm-42 106 190-190-20-20-170 170-86-86-20 20 106 106Z"
+                  Fill="#00B5B5"
+                  Stroke="#00B5B5"
+                  StrokeThickness="1.5"
+                  WidthRequest="16"
+                  HeightRequest="16"
+                  Aspect="Uniform"
+                  HorizontalOptions="Center"
+                  VerticalOptions="Center" />
+                            </Border>
+
+                            <Label Text="·" FontSize="12" TextColor="#3A3A4A" />
+                            <Label Text="{Binding CreatedAtRelative}" FontSize="11" TextColor="#00B5B5" />
+                        </HorizontalStackLayout>
+
+                        <!-- Row 2: MOOD TAG - directly under author name -->
+                        <Border BackgroundColor="#2A1520" 
+            StrokeThickness="1" 
+            Stroke="#FF3B6F"
+            StrokeShape="RoundRectangle 8" 
+            Padding="7,2"
+            HorizontalOptions="Start"
+            IsVisible="{Binding AuthorMood, Converter={StaticResource StringNotNullOrEmptyConverter}}">
+                            <Label Text="{Binding AuthorMood}" 
+               FontSize="10"
+               FontAttributes="Bold" 
+               TextColor="#FF3B6F" />
+                        </Border>
+
+                        <!-- Row 3: Phone + Match info -->
+                        <HorizontalStackLayout Spacing="5" VerticalOptions="Center">
+                            <Label Text="{Binding AuthorPhone}" FontSize="11" TextColor="#008080" />
+
+                            <Label Text="·" FontSize="11" TextColor="#3A3A4A"
+               IsVisible="{Binding MatchPercent, Converter={StaticResource GreaterThanZeroConverter}}" />
+
+                            <Label FontSize="11" FontAttributes="Bold" TextColor="#22C55E"
+               IsVisible="{Binding MatchPercent, Converter={StaticResource GreaterThanZeroConverter}}">
+                                <Label.Text>
+                                    <Binding Path="MatchPercent" StringFormat="{}{0}% match" />
+                                </Label.Text>
+                            </Label>
+                        </HorizontalStackLayout>
+                    </VerticalStackLayout>
+                    <!-- FLOATING ADD STORY BUTTON (Top-Right) - Now clearly visible -->
+                    <Grid Grid.Column="2"
+              WidthRequest="32" 
+              HeightRequest="32"
+              HorizontalOptions="End"
+              VerticalOptions="Center"
+              Margin="4,0,0,0">
+
+                       
+                    </Grid>
+
+                </Grid>
+            </DataTemplate>
+            
+            
+            <!-- ═══════════════════════════════════════════════════════════
+                 FULL POST TEMPLATE
+            ═══════════════════════════════════════════════════════════ -->
+            <DataTemplate x:Key="FullPostTemplate">
+                <VerticalStackLayout Spacing="0" Padding="16,0,16,0">
+                    <Border BackgroundColor="#16161C"
+        StrokeThickness="1" Stroke="#1C1C25"
+        StrokeShape="RoundRectangle 16"
+        Padding="14,12"
+        Margin="0,6,0,0">
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="CommentButton_Tapped"
+                              CommandParameter="{Binding .}" />
+                        </Border.GestureRecognizers>
+                        <VerticalStackLayout Spacing="10">
+
+                            <!-- ── TOP ROW ── -->
+                            <Grid ColumnDefinitions="46,*,Auto" ColumnSpacing="10">
+
+                                <!-- Avatar -->
+                                <Grid Grid.Column="0" WidthRequest="42" HeightRequest="42">
+                                    <Ellipse WidthRequest="42" HeightRequest="42" StrokeThickness="2">
+                                        <Ellipse.Stroke>
+                                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                                <GradientStop Color="#FF3B6F" Offset="0" />
+                                                <GradientStop Color="#00B5B5" Offset="1" />
+                                            </LinearGradientBrush>
+                                        </Ellipse.Stroke>
+                                    </Ellipse>
+                                    <Frame WidthRequest="36" HeightRequest="36"
+                               CornerRadius="18" Padding="0"
+                               IsClippedToBounds="True" HasShadow="False"
+                               BackgroundColor="#1C1C25" BorderColor="Transparent"
+                               HorizontalOptions="Center" VerticalOptions="Center">
+                                        <Frame.GestureRecognizers>
+                                            <TapGestureRecognizer Tapped="AuthorName_Tapped"
+                                                      CommandParameter="{Binding .}" />
+                                        </Frame.GestureRecognizers>
+                                        <Grid>
+                                            <Image Source="{Binding AuthorProfileImagePath}"
+                                       Aspect="AspectFill"
+                                       HeightRequest="36" WidthRequest="36">
+                                                <Image.Triggers>
+                                                    <DataTrigger TargetType="Image"
+                                                     Binding="{Binding AuthorProfileImagePath}"
+                                                     Value="{x:Null}">
+                                                        <Setter Property="IsVisible" Value="False" />
+                                                    </DataTrigger>
+                                                    <DataTrigger TargetType="Image"
+                                                     Binding="{Binding AuthorProfileImagePath}"
+                                                     Value="">
+                                                        <Setter Property="IsVisible" Value="False" />
+                                                    </DataTrigger>
+                                                </Image.Triggers>
+                                            </Image>
+                                            <Label FontSize="14" FontAttributes="Bold"
+                                       TextColor="#00B5B5"
+                                       HorizontalOptions="Center"
+                                       VerticalOptions="Center"
+                                       IsVisible="False">
+                                                <Label.Triggers>
+                                                    <DataTrigger TargetType="Label"
+                                                     Binding="{Binding AuthorProfileImagePath}"
+                                                     Value="{x:Null}">
+                                                        <Setter Property="Text" Value="{Binding AuthorInitials}" />
+                                                        <Setter Property="IsVisible" Value="True" />
+                                                    </DataTrigger>
+                                                    <DataTrigger TargetType="Label"
+                                                     Binding="{Binding AuthorProfileImagePath}"
+                                                     Value="">
+                                                        <Setter Property="Text" Value="{Binding AuthorInitials}" />
+                                                        <Setter Property="IsVisible" Value="True" />
+                                                    </DataTrigger>
+                                                </Label.Triggers>
+                                            </Label>
+                                        </Grid>
+                                    </Frame>
+                                </Grid>
+
+                                <!-- Name + Verified + Time + Mood + Phone/Match -->
+                                <VerticalStackLayout Grid.Column="1" Spacing="3" VerticalOptions="Center">
+                                    <HorizontalStackLayout Spacing="6" VerticalOptions="Center">
+                                        <Label Text="{Binding AuthorDisplayName}"
+                                   FontAttributes="Bold" FontSize="14"
+                                   TextColor="#F0EDE8" />
+                                        <Border BackgroundColor="Transparent"
+                                    Stroke="Transparent" StrokeThickness="0"
+                                    Padding="0" VerticalOptions="Center"
+                                    IsVisible="{Binding IsAuthorVerified}">
+                                            <Border.GestureRecognizers>
+                                                <TapGestureRecognizer Tapped="OnPostAuthorVerificationTapped"
+                                                          CommandParameter="{Binding .}" />
+                                            </Border.GestureRecognizers>
+                                            <Path Data="m366-126-64-108-122-26 12-126-82-94 82-94-12-126 122-26 64-108 114 48 114-48 64 108 122 26-12 126 82 94-82 94 12 126-122 26-64 108-114-48-114 48Zm12-36 102-42 102 42 58-96 110-24-10-114 74-84-74-84 10-114-110-24-58-96-102 42-102-42-58 96-110 24 10 114-74 84 74 84-10 114 110 24 58 96Zm102-318Zm-42 106 190-190-20-20-170 170-86-86-20 20 106 106Z"
+                                      Fill="#00B5B5" Stroke="#00B5B5" StrokeThickness="1.5"
+                                      WidthRequest="14" HeightRequest="14"
+                                      Aspect="Uniform"
+                                      HorizontalOptions="Center" VerticalOptions="Center" />
+                                        </Border>
+                                        <Label Text="·" FontSize="12" TextColor="#3A3A4A" />
+                                        <Label Text="{Binding CreatedAtRelative}"
+                                   FontSize="11" TextColor="#00B5B5" />
+                                    </HorizontalStackLayout>
+
+                                    <!-- Mood tag -->
+                                    <Border BackgroundColor="#2A1520"
+                                StrokeThickness="1" Stroke="#FF3B6F"
+                                StrokeShape="RoundRectangle 8"
+                                Padding="7,2" HorizontalOptions="Start"
+                                IsVisible="{Binding AuthorMood, Converter={StaticResource StringNotNullOrEmptyConverter}}">
+                                        <Label Text="{Binding AuthorMood}"
+                                   FontSize="10" FontAttributes="Bold" TextColor="#FF3B6F" />
+                                    </Border>
+
+                                    <!-- Phone + Match -->
+                                    <HorizontalStackLayout Spacing="5" VerticalOptions="Center">
+                                        <Label Text="{Binding AuthorPhone}" FontSize="11" TextColor="#008080" />
+                                        <Label Text="·" FontSize="11" TextColor="#3A3A4A"
+                                   IsVisible="{Binding MatchPercent, Converter={StaticResource GreaterThanZeroConverter}}" />
+                                        <Label FontSize="11" FontAttributes="Bold" TextColor="#22C55E"
+                                   IsVisible="{Binding MatchPercent, Converter={StaticResource GreaterThanZeroConverter}}">
+                                            <Label.Text>
+                                                <Binding Path="MatchPercent" StringFormat="{}{0}% match" />
+                                            </Label.Text>
+                                        </Label>
+                                    </HorizontalStackLayout>
+                                </VerticalStackLayout>
+
+                                <!-- Three-dot menu -->
+                                <Grid Grid.Column="2"
+                          WidthRequest="32" HeightRequest="32"
+                          VerticalOptions="Center">
+                                    <Grid.GestureRecognizers>
+                                        <TapGestureRecognizer Tapped="PostMenuButton_Clicked"
+                                                  CommandParameter="{Binding .}" />
+                                    </Grid.GestureRecognizers>
+                                    <Path Data="M264-452q-11.55 0-19.77-8.23Q236-468.45 236-480q0-11.55 8.23-19.77Q252.45-508 264-508q11.55 0 19.77 8.23Q292-491.55 292-480q0 11.55-8.23 19.77Q275.55-452 264-452Zm216 0q-11.55 0-19.77-8.23Q452-468.45 452-480q0-11.55 8.23-19.77Q468.45-508 480-508q11.55 0 19.77 8.23Q508-491.55 508-480q0 11.55-8.23 19.77Q491.55-452 480-452Zm216 0q-11.55 0-19.78-8.23Q668-468.45 668-480q0-11.55 8.22-19.77Q684.45-508 696-508t19.78 8.23Q724-491.55 724-480q0 11.55-8.22 19.77Q707.55-452 696-452Z"
+                              Fill="#5A5A6A"
+                              HeightRequest="18" WidthRequest="18"
+                              HorizontalOptions="Center" VerticalOptions="Center"
+                              Aspect="Uniform" />
+                                </Grid>
+                            </Grid>
+
+                            <!-- Category badge -->
+                            <Border BackgroundColor="#1A0D20" StrokeThickness="1" Stroke="#FF3B6F"
+                        StrokeShape="RoundRectangle 10" Padding="9,4"
+                        HorizontalOptions="Start"
+                        IsVisible="{Binding Category, Converter={StaticResource StringNotNullOrEmptyConverter}}">
+                                <HorizontalStackLayout Spacing="4">
+                                    <Label Text="💝" FontSize="11" />
+                                    <Label Text="{Binding Category}" FontSize="11"
+                               FontAttributes="Bold" TextColor="#FF3B6F" />
+                                </HorizontalStackLayout>
+                            </Border>
+                            
+                            
+
+                            <!-- Post content -->
+                            <Label FontSize="14" LineBreakMode="WordWrap"
+       TextColor="#F0EDE8" LineHeight="1.5"
+       FormattedText="{Binding ToggleFormatted}"
+       IsVisible="{Binding NeedsToggle}" />
+
+                            <Label FontSize="14" LineBreakMode="WordWrap"
+       TextColor="#F0EDE8" LineHeight="1.5"
+       IsVisible="False">
+                                <Label.Triggers>
+                                    <DataTrigger TargetType="Label"
+                     Binding="{Binding NeedsToggle}" Value="False">
+                                        <Setter Property="IsVisible" 
+                    Value="{Binding HasTextBesideUrl}" />
+                                    </DataTrigger>
+                                </Label.Triggers>
+                                <Label.FormattedText>
+                                    <Binding Path="DisplayFormatted" />
+                                </Label.FormattedText>
+                            </Label>
+                            <!-- Read more toggle -->
+                            <Label Text="{Binding DisplayToggleText}"
+                       FontSize="12" FontAttributes="Bold"
+                       TextColor="#60A5FA"
+                       IsVisible="{Binding NeedsToggle}"
+                       HorizontalOptions="Start">
+                                <Label.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="ToggleExpand_Clicked"
+                                              CommandParameter="{Binding .}" />
+                                </Label.GestureRecognizers>
+                            </Label>
+
+                            <!-- ── RICH LINK PREVIEW CARD ── -->
+                            <Border BackgroundColor="#13131A"
+        StrokeThickness="1" Stroke="#2A2A38"
+        StrokeShape="RoundRectangle 14"
+        Padding="0"
+        IsVisible="{Binding HasLinkPreview}"
+        Margin="0,4,0,0">
+                                <Border.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="LinkPreview_Tapped"
+                              CommandParameter="{Binding FirstUrl}" />
+                                </Border.GestureRecognizers>
+                                <VerticalStackLayout Spacing="0">
+
+                                    <!-- OG Image (full-width, like Twitter) -->
+                                    <Image Source="{Binding PreviewImageUrl}"
+               Aspect="AspectFill"
+               HeightRequest="180"
+               HorizontalOptions="Fill"
+               IsVisible="{Binding PreviewHasImage}"
+               BackgroundColor="#1C1C25" />
+
+                                    <!-- Bottom info row -->
+                                    <Grid ColumnDefinitions="Auto,*,Auto"
+              ColumnSpacing="10"
+              Padding="12,10,12,10"
+              BackgroundColor="#13131A">
+
+                                        <!-- Favicon -->
+                                        <Image Grid.Column="0"
+                   Source="{Binding PreviewFaviconUrl}"
+                   WidthRequest="18" HeightRequest="18"
+                   Aspect="AspectFit"
+                   VerticalOptions="Start"
+                   Margin="0,2,0,0" />
+
+                                        <!-- Text block -->
+                                        <VerticalStackLayout Grid.Column="1" Spacing="2">
+
+                                            <!-- Site name -->
+                                            <Label Text="{Binding PreviewSiteName}"
+                       FontSize="10" FontAttributes="Bold"
+                       TextColor="#00B5B5"
+                       LineBreakMode="TailTruncation" />
+
+                                            <!-- Title -->
+                                            <Label Text="{Binding PreviewTitle}"
+                       FontSize="13" FontAttributes="Bold"
+                       TextColor="#F0EDE8"
+                       LineBreakMode="TailTruncation"
+                       MaxLines="2" />
+
+                                            <!-- Description -->
+                                            <Label Text="{Binding PreviewDescription}"
+                       FontSize="11"
+                       TextColor="#8A8A9A"
+                       LineBreakMode="TailTruncation"
+                       MaxLines="2"
+                       IsVisible="{Binding PreviewDescription,
+                           Converter={StaticResource StringNotNullOrEmptyConverter}}" />
+                                        </VerticalStackLayout>
+
+                                        <!-- External link arrow -->
+                                        <Path Grid.Column="2"
+                  Data="M216-144q-29.7 0-50.85-21.15Q144-186.3 144-216v-528q0-29.7 21.15-50.85Q186.3-816 216-816h240v72H216v528h528v-240h72v240q0 29.7-21.15 50.85Q773.7-144 744-144H216Zm171-192-51-51 357-357H576v-72h240v240h-72v-117L387-336Z"
+                  Fill="#5A5A6A"
+                  HeightRequest="14" WidthRequest="14"
+                  Aspect="Uniform"
+                  VerticalOptions="Center" />
+                                    </Grid>
+                                </VerticalStackLayout>
+                            </Border>
+                            <!-- Images horizontal scroll -->
+                            <ScrollView Orientation="Horizontal"
+                            HeightRequest="260"
+                            HorizontalScrollBarVisibility="Never"
+                            IsVisible="{Binding ImagePathsList, Converter={StaticResource ListNotEmptyConverter}}">
+                                <HorizontalStackLayout Spacing="6" Padding="0,0,4,0">
+                                    <BindableLayout.ItemsSource>
+                                        <Binding Path="ImagePathsList" />
+                                    </BindableLayout.ItemsSource>
+                                    <BindableLayout.ItemTemplate>
+                                        <DataTemplate>
+                                            <Frame WidthRequest="175" HeightRequest="250"
+                                       CornerRadius="14" Padding="0"
+                                       IsClippedToBounds="True" HasShadow="False"
+                                       BackgroundColor="#1C1C25" BorderColor="#2A2A38">
+                                                <Frame.GestureRecognizers>
+                                                    <TapGestureRecognizer Tapped="PostImage_Tapped"
+                                                              CommandParameter="{Binding .}" />
+                                                </Frame.GestureRecognizers>
+                                                <Image Source="{Binding .}" Aspect="AspectFill"
+                                           HeightRequest="250" WidthRequest="175" />
+                                            </Frame>
+                                        </DataTemplate>
+                                    </BindableLayout.ItemTemplate>
+                                </HorizontalStackLayout>
+                            </ScrollView>
+
+                            <!-- Interaction bar -->
+                            <ScrollView Orientation="Horizontal"
+                            HorizontalScrollBarVisibility="Never"
+                            Margin="0,4,0,0">
+                                <HorizontalStackLayout Spacing="6">
+
+                                    <!-- Comment — count ALWAYS visible -->
+                                    <Border BackgroundColor="#0E0E12" StrokeThickness="1" Stroke="#2A2A38"
+                                StrokeShape="RoundRectangle 20" Padding="12,7">
+                                        <Border.GestureRecognizers>
+                                            <TapGestureRecognizer Tapped="CommentButton_Tapped"
+                                                      CommandParameter="{Binding .}" />
+                                        </Border.GestureRecognizers>
+                                        <HorizontalStackLayout Spacing="5">
+                                            <Path Data="M269-428.5h422V-454H269v25.5Zm0-119h422V-573H269v25.5Zm0-119h422V-692H269v25.5Zm554 479-109-109H194.28q-24.22 0-40.75-16.53T137-353.8v-412.4q0-24.24 16.53-40.77 16.53-16.53 40.75-16.53h571.44q24.22 0 40.75 16.53T823-766.06v578.56ZM194.5-322H725l72.5 73v-517q0-12-10-22t-22-10h-571q-12 0-22 10t-10 22v412q0 12 10 22t22 10Zm-32 0v-476 476Z"
+                                      Fill="#7A7A8C" Stroke="#7A7A8C" StrokeThickness="1"
+                                      HeightRequest="14" WidthRequest="14" Aspect="Uniform" />
+                                            <!-- FIX: Always show comment count, no GreaterThanZeroConverter -->
+                                            <Label TextColor="#7A7A8C" FontSize="12" FontAttributes="Bold"
+                                       VerticalOptions="Center">
+                                                <Label.Text>
+                                                    <Binding Path="CommentCount" StringFormat="{}{0}" FallbackValue="0" />
+                                                </Label.Text>
+                                            </Label>
+                                        </HorizontalStackLayout>
+                                    </Border>
+
+                                    <!-- Love -->
+                                    <Border BackgroundColor="#0E0E12" StrokeThickness="1" Stroke="#2A2A38"
+                                StrokeShape="RoundRectangle 20" Padding="12,7">
+                                        <Border.GestureRecognizers>
+                                            <TapGestureRecognizer Tapped="LoveButton_Tapped"
+                                                      CommandParameter="{Binding .}" />
+                                        </Border.GestureRecognizers>
+                                        <HorizontalStackLayout Spacing="5">
+                                            <Path Data="M480-195.5 460-214q-96.13-88.18-159.07-150.59Q238-427 201.72-473.9q-36.29-46.9-50.5-84.48Q137-595.95 137-633.5q0-69.5 47.5-117t117-47.5q52.47 0 97.98 28.5Q445-741 480-685.5q35.5-55.5 80.75-84T658.5-798q69.5 0 117 47.44Q823-703.11 823-633.69q0 37.73-14.22 75.31-14.21 37.58-50.46 84.42-36.25 46.85-98.9 109.37Q596.77-302.07 500-214l-20 18.5Z"
+                                      Fill="{Binding LoveIconColor}" Stroke="{Binding LoveIconColor}"
+                                      StrokeThickness="1" HeightRequest="14" WidthRequest="14" Aspect="Uniform" />
+                                            <Label Text="{Binding LoveCountDisplay}"
+                                       TextColor="{Binding LoveIconColor}"
+                                       FontSize="12" FontAttributes="Bold" VerticalOptions="Center"
+                                       IsVisible="{Binding LoveCount, Converter={StaticResource GreaterThanZeroConverter}}" />
+                                        </HorizontalStackLayout>
+                                    </Border>
+
+                                    <!-- Spark -->
+                                    <Border BackgroundColor="#0E0E12" StrokeThickness="1" Stroke="#2A2A38"
+                                StrokeShape="RoundRectangle 20" Padding="12,7">
+                                        <Border.GestureRecognizers>
+                                            <TapGestureRecognizer Tapped="SparkButton_Tapped"
+                                                      CommandParameter="{Binding .}" />
+                                        </Border.GestureRecognizers>
+                                        <HorizontalStackLayout Spacing="5">
+                                            <Label Text="⚡" FontSize="14"
+                                       TextColor="{Binding SparkIconColor, FallbackValue=#7A7A8C}"
+                                       VerticalOptions="Center" />
+                                            <Label Text="{Binding SparkCountDisplay}"
+                                       TextColor="{Binding SparkIconColor, FallbackValue=#7A7A8C}"
+                                       FontSize="12" FontAttributes="Bold"
+                                       VerticalOptions="Center"
+                                       IsVisible="{Binding SparkCount, Converter={StaticResource GreaterThanZeroConverter}}" />
+                                        </HorizontalStackLayout>
+                                    </Border>
+
+                                    <!-- Share -->
+                                    <Border BackgroundColor="#0E0E12" StrokeThickness="1" Stroke="#2A2A38"
+                                StrokeShape="RoundRectangle 20" Padding="12,7">
+                                        <Border.GestureRecognizers>
+                                            <TapGestureRecognizer Tapped="ShareButton_Tapped"
+                                                      CommandParameter="{Binding .}" />
+                                        </Border.GestureRecognizers>
+                                        <Path Data="M657.35-153q-36.35 0-61.1-24.85Q571.5-202.71 571.5-239q0-10 7.5-32L302.5-424q-12 14-28.94 22t-36.3 8q-35.11 0-59.68-25.27Q153-444.54 153-479.77q0-35.23 24.65-60.73Q202.29-566 237.5-566q19.23 0 36 7.87 16.78 7.86 28.5 21.63l245-152.08q-3.5-7.42-5.5-15.73t-2-17.19q0-35.63 24.9-60.56 24.89-24.94 61-24.94 36.1 0 60.85 25.04T711-721.15q0 35.98-24.96 60.82-24.96 24.83-60.62 24.83-19.69 0-35.8-8.25-16.11-8.25-28.12-22.75L317-513.5q3 8 5.25 16.63 2.25 8.62 2.25 16.95 0 8.32-2 16.58-2 8.27-5 16.28L561.5-294q11.79-14 28.06-22.5t35.86-8.5q35.66 0 60.62 25.25T711-239q0 36.5-24.98 61.25T657.35-153Z"
+                                  Fill="#7A7A8C" Stroke="#7A7A8C" StrokeThickness="1"
+                                  HeightRequest="14" WidthRequest="14" Aspect="Uniform" />
+                                    </Border>
+
+                                    <!-- Save/Add to list -->
+                                    <Border BackgroundColor="#0E0E12" StrokeThickness="1" Stroke="#2A2A38"
+                                StrokeShape="RoundRectangle 20" Padding="12,7">
+                                        <Border.GestureRecognizers>
+                                            <TapGestureRecognizer Tapped="OnAddToListTapped"
+                                                      CommandParameter="{Binding .}" />
+                                        </Border.GestureRecognizers>
+                                        <Path Data="M480-296.33 252-198v-590h268v28H280v518l200-86 200 86v-278h28v322l-228-98.33ZM280-760h240-240Zm400 160v-80h-80v-28h80v-80h28v80h80v28h-80v80h-28Z"
+                                  Fill="#7A7A8C" Stroke="#7A7A8C" StrokeThickness="1"
+                                  HeightRequest="14" WidthRequest="14" Aspect="Uniform" />
+                                    </Border>
+
+                                </HorizontalStackLayout>
+                            </ScrollView>
+
+                        </VerticalStackLayout>
+                    </Border>
+
+                    <BoxView HeightRequest="1" Color="#1C1C25"
+                 Margin="0,10,0,0" HorizontalOptions="Fill" />
+                </VerticalStackLayout>
+            </DataTemplate>
+            <local:PostTemplateSelector x:Key="PostTemplateSelector"
+                                        FullPostTemplate="{StaticResource FullPostTemplate}" />
+            
+            
+        </ResourceDictionary>
+    </ContentPage.Resources>
+    
+    
+
+    <!-- ═══════════════════════════════════════════════════════════════════
+         ROOT GRID  (3 rows: header | feed | nav)
+    ═══════════════════════════════════════════════════════════════════ -->
+    <Grid x:Name="MainGrid"
+          RowDefinitions="Auto,*,Auto"
+          BackgroundColor="#0E0E12">
+
+       
+        <!-- ── STORIES / STATUS ROW ── -->
+        <!-- ══════════════════════════════════════════════════
+     ROW 0 · HEADER SECTION
+══════════════════════════════════════════════════ -->
+        <VerticalStackLayout Grid.Row="0" Spacing="0" BackgroundColor="#0E0E12">
+
+            <!-- ── STORIES / STATUS ROW ── -->
+            <Grid Margin="0,2,0,2">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <ScrollView Grid.Column="0"
+                    x:Name="StatusImagesScrollView"
+                    Orientation="Horizontal"
+                    HeightRequest="80"
+                    HorizontalScrollBarVisibility="Never"
+                    IsVisible="True">
+
+                    <HorizontalStackLayout x:Name="StatusImagesLayout"
+                                   Spacing="12"
+                                   Padding="10,2,10,2"
+                                   VerticalOptions="Center">
+
+                        <!-- ADD STORY BUTTON -->
+                        <VerticalStackLayout Spacing="6"
+                     WidthRequest="70"
+                     HorizontalOptions="Center"
+                     VerticalOptions="Center">
+                            <VerticalStackLayout.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="AddImageFloatingButton_Clicked" />
+                            </VerticalStackLayout.GestureRecognizers>
+
+                            <!-- Gradient Ring + Plus Icon -->
+                            <Grid WidthRequest="60"
+          HeightRequest="60"
+          HorizontalOptions="Center">
+
+                                <!-- Gradient outer ring -->
+                                <Border StrokeThickness="2.5"
+                StrokeShape="RoundRectangle 30"
+                BackgroundColor="Transparent"
+                WidthRequest="60"
+                HeightRequest="60"
+                HorizontalOptions="Center"
+                VerticalOptions="Center">
+                                    <Border.Stroke>
+                                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                            <GradientStop Color="#C667FF" Offset="0"/>
+                                            <GradientStop Color="#FF6B9D" Offset="1"/>
+                                        </LinearGradientBrush>
+                                    </Border.Stroke>
+                                    <Grid/>
+                                </Border>
+
+                                <!-- Inner dark circle with plus -->
+                                <Border StrokeThickness="0"
+                StrokeShape="RoundRectangle 24"
+                BackgroundColor="#16141F"
+                WidthRequest="50"
+                HeightRequest="50"
+                HorizontalOptions="Center"
+                VerticalOptions="Center">
+
+                                    <!-- Plus built from two rectangles with gradient background -->
+                                    <Grid WidthRequest="22"
+                  HeightRequest="22"
+                  HorizontalOptions="Center"
+                  VerticalOptions="Center">
+
+                                        <!-- Horizontal bar -->
+                                        <Border StrokeThickness="0"
+                        StrokeShape="RoundRectangle 2"
+                        HeightRequest="3"
+                        WidthRequest="22"
+                        VerticalOptions="Center"
+                        HorizontalOptions="Center">
+                                            <Border.Background>
+                                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                                    <GradientStop Color="#C667FF" Offset="0"/>
+                                                    <GradientStop Color="#FF6B9D" Offset="1"/>
+                                                </LinearGradientBrush>
+                                            </Border.Background>
+                                        </Border>
+
+                                        <!-- Vertical bar -->
+                                        <Border StrokeThickness="0"
+                        StrokeShape="RoundRectangle 2"
+                        HeightRequest="22"
+                        WidthRequest="3"
+                        VerticalOptions="Center"
+                        HorizontalOptions="Center">
+                                            <Border.Background>
+                                                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                                    <GradientStop Color="#C667FF" Offset="0"/>
+                                                    <GradientStop Color="#FF6B9D" Offset="1"/>
+                                                </LinearGradientBrush>
+                                            </Border.Background>
+                                        </Border>
+
+                                    </Grid>
+                                </Border>
+
+                            </Grid>
+
+                            <!-- Label -->
+                            <Label Text="Add Story"
+           FontSize="10"
+           FontAttributes="Bold"
+           TextColor="#7A6F8A"
+           HorizontalOptions="Center"
+           HorizontalTextAlignment="Center"
+           LineBreakMode="NoWrap"
+           CharacterSpacing="0.3"/>
+
+                        </VerticalStackLayout>
+                        <!-- Dynamic user stories added in code-behind -->
+
+                    </HorizontalStackLayout>
+                </ScrollView>
+
+                <!-- 3-DOT MENU -->
+                <Grid Grid.Column="1"
+              WidthRequest="32"
+              HeightRequest="32"
+              HorizontalOptions="End"
+              VerticalOptions="Center"
+              Margin="0,0,10,0">
+                    <Grid.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnStatusMenuTapped" />
+                    </Grid.GestureRecognizers>
+                    <Path Data="M412-172v-616h28v616h-28Zm128-179v-257l121 128-121 129Z"
+                  Fill="#7A7A8C"
+                  HeightRequest="18" WidthRequest="18"
+                  HorizontalOptions="Center" VerticalOptions="Center"
+                  Aspect="Uniform" />
+                </Grid>
+            </Grid>
+
+            <!-- Header divider -->
+            <BoxView x:Name="TopDemarcation"
+             HeightRequest="1"
+             BackgroundColor="#1C1C25"
+             HorizontalOptions="Fill" />
+
+        </VerticalStackLayout>
+        
+        
+        <!-- ══════════════════════════════════════════════════
+             ROW 1 · SCROLLABLE FEED
+        ══════════════════════════════════════════════════ -->
+        <ScrollView x:Name="MainScrollView"
+            Grid.Row="1"
+            Scrolled="MainScrollView_Scrolled"
+            BackgroundColor="#0E0E12"
+            VerticalScrollBarVisibility="Never">
+            <!-- ADD THIS LINE -->
+            <VerticalStackLayout Spacing="0">
+
+                <!-- ── COMPOSER SECTION ── -->
+                <Grid x:Name="CreatePostSection"
+                      ColumnDefinitions="*"
+                      Padding="14,10,14,0"
+                      BackgroundColor="#0E0E12">
+                    <VerticalStackLayout Grid.Column="0" Spacing="0">
+
+                        <!-- Composer card -->
+                        <Border BackgroundColor="#16161C"
+                                StrokeThickness="1"
+                                Stroke="#2A2A38"
+                                StrokeShape="RoundRectangle 16"
+                                Padding="12,10,12,6">
+                            <VerticalStackLayout Spacing="0">
+
+                                <!-- Text editor -->
+                                <Editor x:Name="ContentEditor"
+                                        AutoSize="TextChanges"
+                                        Placeholder="What's on your mind? "
+                                        PlaceholderColor="#3A3A4A"
+                                        TextColor="#F0EDE8"
+                                        BackgroundColor="Transparent"
+                                        FontSize="14"
+                                        MinimumHeightRequest="64"
+                                        SelectionLength="0"
+                                        CursorPosition="0" />
+
+                                <!-- Image previews -->
+                                <ScrollView Orientation="Horizontal"
+                                            HorizontalScrollBarVisibility="Never"
+                                            Margin="0,6,0,0">
+                                    <HorizontalStackLayout x:Name="ImagePreviewLayout"
+                                                           Spacing="6" IsVisible="False" />
+                                </ScrollView>
+
+                                <!-- Divider -->
+                                <BoxView HeightRequest="1"
+                                         BackgroundColor="#2A2A38"
+                                         HorizontalOptions="Fill"
+                                         Margin="0,8,0,6" />
+
+                                <!-- Toolbar row -->
+                                <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto"
+      VerticalOptions="Center"
+      BackgroundColor="#0E0E12"
+      HeightRequest="52"
+      Padding="0">
+
+                                    <!-- Category Picker (Column 0) -->
+                                    <Grid Grid.Column="0" 
+          WidthRequest="120" 
+          HeightRequest="52" 
+          VerticalOptions="Center">
+
+                                        <Grid x:Name="CategoryPickerContainer"
+              HeightRequest="52" 
+              WidthRequest="120"
+              BackgroundColor="#0E0E12"
+              VerticalOptions="FillAndExpand">
+                                            <Grid.Clip>
+                                                <RoundRectangleGeometry CornerRadius="10" Rect="0,0,120,52" />
+                                            </Grid.Clip>
+                                            <Picker x:Name="CategoryPicker"
+                    Title="# Category"
+                    SelectedIndexChanged="CategoryPicker_SelectedIndexChanged"
+                    FontSize="12"
+                    TextColor="#FF3B6F"
+                    TitleColor="#3A3A4A"
+                    BackgroundColor="Transparent"
+                    HorizontalOptions="Fill"
+                    VerticalOptions="Fill"
+                    HeightRequest="52" />
+                                        </Grid>
+
+                                        <!-- "Other" category input -->
+                                        <Grid x:Name="CategoryOtherContainer"
+              HeightRequest="52" 
+              WidthRequest="120"
+              BackgroundColor="#0E0E12"
+              IsVisible="False"
+              VerticalOptions="FillAndExpand">
+                                            <Grid.Clip>
+                                                <RoundRectangleGeometry CornerRadius="10" Rect="0,0,120,52" />
+                                            </Grid.Clip>
+                                            <Grid ColumnDefinitions="*,Auto" HorizontalOptions="Fill" VerticalOptions="Fill">
+                                                <Entry x:Name="CategoryOtherEntry"
+                       Grid.Column="0"
+                       Placeholder="Type..."
+                       PlaceholderColor="#3A3A4A"
+                       TextColor="#F0EDE8"
+                       BackgroundColor="Transparent"
+                       FontSize="12"
+                       HorizontalOptions="Fill"
+                       VerticalOptions="Fill"
+                       HeightRequest="52"
+                       Margin="8,0,0,0" />
+
+                                                <Label Grid.Column="1"
+                       Text="✕"
+                       FontSize="12"
+                       TextColor="#00B5B5"
+                       VerticalOptions="Center"
+                       HorizontalOptions="Center"
+                       Padding="6,0,8,0">
+                                                    <Label.GestureRecognizers>
+                                                        <TapGestureRecognizer Tapped="CategoryOtherCancel_Tapped" />
+                                                    </Label.GestureRecognizers>
+                                                </Label>
+                                            </Grid>
+                                        </Grid>
+                                    </Grid>
+
+                                    <!-- Formatting + Media Buttons (Column 1 - takes remaining space) -->
+                                    <ScrollView Grid.Column="1" 
+                Orientation="Horizontal" 
+                HorizontalScrollBarVisibility="Never"
+                VerticalScrollBarVisibility="Never"
+                HeightRequest="44"
+                Margin="6,0,0,0">
+
+                                        <HorizontalStackLayout Spacing="0"
+                               HorizontalOptions="Start"
+                               VerticalOptions="Center">
+
+                                            <!-- Bold -->
+                                            <Grid WidthRequest="36" HeightRequest="44" VerticalOptions="Center">
+                                                <Grid.GestureRecognizers>
+                                                    <TapGestureRecognizer Tapped="BoldButton_Clicked" />
+                                                </Grid.GestureRecognizers>
+                                                <Label Text="B"
+                       FontSize="15" FontAttributes="Bold"
+                       TextColor="#7A7A8C"
+                       HorizontalOptions="Center"
+                       VerticalOptions="Center" />
+                                            </Grid>
+
+                                            <!-- Italic -->
+                                            <Grid WidthRequest="36" HeightRequest="44" VerticalOptions="Center">
+                                                <Grid.GestureRecognizers>
+                                                    <TapGestureRecognizer Tapped="ItalicButton_Clicked" />
+                                                </Grid.GestureRecognizers>
+                                                <Label Text="I"
+                       FontSize="15" FontAttributes="Italic"
+                       TextColor="#7A7A8C"
+                       HorizontalOptions="Center"
+                       VerticalOptions="Center" />
+                                            </Grid>
+
+                                            <!-- Pick Image -->
+                                            <Grid x:Name="PickImageButton" WidthRequest="36" HeightRequest="44" VerticalOptions="Center">
+                                                <Grid.GestureRecognizers>
+                                                    <TapGestureRecognizer Tapped="PickImageButton_Clicked" />
+                                                </Grid.GestureRecognizers>
+                                                <Path Data="M480-480ZM233.76-176.5q-24.2 0-40.73-16.53-16.53-16.53-16.53-40.73v-492.48q0-24.2 16.53-40.73 16.53-16.53 40.73-16.53h267.5v25.5H234q-14 0-23 9t-9 23v492q0 14 9 23t23 9h492q14 0 23-9t9-23v-267.5h25.5V-234q0 24.44-16.53 40.97-16.53 16.53-40.73 16.53H233.76Zm50.24-137h392.5L556-474 437-326.5l-76-87-77 100ZM678.5-599v-79.5H599V-704h79.5v-79.5H704v79.5h79.5v25.5H704v79.5h-25.5Z"
+                      Fill="#7A7A8C"
+                      Stroke="#7A7A8C"
+                      StrokeThickness="1"
+                      HeightRequest="16" WidthRequest="16"
+                      HorizontalOptions="Center" VerticalOptions="Center"
+                      Aspect="Uniform" />
+                                            </Grid>
+
+                                            <!-- Visibility / Cloud icon -->
+                                            <Grid x:Name="CloudDriveButton" WidthRequest="36" HeightRequest="44" VerticalOptions="Center">
+                                                <Grid.GestureRecognizers>
+                                                    <TapGestureRecognizer Tapped="CloudDriveButton_Clicked" />
+                                                </Grid.GestureRecognizers>
+                                                <Path x:Name="CloudDriveIcon"
+                      Data="M480-132q-72 0-135.5-27.5T234-234q-47-47-74.5-110.5T132-480q0-72 27.5-135.5T234-726q47-47 110.5-74.5T480-828q121 0 213.5 72.5T816-572q-8-2-15-2.5t-15-.5q-21-69-69-122.5T600-778v98H440v120H320v80h271v15q-14 25-21.5 52t-7.5 56q0 52 27 99t54 86q-37 20-77.5 30T480-132Zm-40-30v-78h-80v-120L168-552q-3 18-5.5 36t-2.5 36q0 121 79.5 212T440-162Zm336 28.5q-2-1.5-3-3.5-11-34-29.5-63.5T703-258q-17-22-29-46.5T662-357q0-49 34.5-83.5T780-475q49 0 83.5 34.5T898-357q0 28-12 52.5T857-258q-21 29-40 58t-30 63q-1 2-3 3.5t-4 1.5q-2 0-4-1.5Zm4-60.5q13-22 27-42l28-40q14-18 24.5-38t10.5-43q0-38-26-64t-64-26q-38 0-64 26t-26 64q0 23 10.5 43t24.5 38q15 20 28.5 40.5T780-194Zm-18.5-141.5Q753-344 753-357t8.5-21.5Q770-387 783-387t21.5 8.5Q813-370 813-357t-8.5 21.5Q796-327 783-327t-21.5-8.5Z"
+                      Fill="#7A7A8C"
+                      Stroke="#7A7A8C"
+                      StrokeThickness="1"
+                      HeightRequest="16" WidthRequest="16"
+                      HorizontalOptions="Center" VerticalOptions="Center"
+                      Aspect="Uniform" />
+                                            </Grid>
+
+                                        </HorizontalStackLayout>
+                                    </ScrollView>
+
+                                    <!-- Update (Save Edit) Button - Column 2 -->
+                                    <Grid x:Name="UpdateButton" 
+          Grid.Column="2"
+          IsVisible="False"
+          WidthRequest="36" 
+          HeightRequest="44" 
+          VerticalOptions="Center"
+          Margin="4,0,0,0">
+                                        <Grid.GestureRecognizers>
+                                            <TapGestureRecognizer Tapped="SavePostButton_Clicked" />
+                                        </Grid.GestureRecognizers>
+                                        <Path Data="M382-254.5 187.5-449l18-18 176.5 176.5 391-391 18 18-409 409Z"
+              Fill="#60A5FA"
+              Stroke="#60A5FA"
+              StrokeThickness="1"
+              HeightRequest="16" 
+              WidthRequest="16"
+              HorizontalOptions="Center" 
+              VerticalOptions="Center"
+              Aspect="Uniform" />
+                                    </Grid>
+
+                                    <!-- Cancel Edit Button - Column 3 -->
+                                    <Grid x:Name="CancelEditButton" 
+          Grid.Column="3"
+          IsVisible="False"
+          WidthRequest="36" 
+          HeightRequest="44" 
+          VerticalOptions="Center"
+          Margin="0,0,4,0">
+                                        <Grid.GestureRecognizers>
+                                            <TapGestureRecognizer Tapped="CancelEditButton_Clicked" />
+                                        </Grid.GestureRecognizers>
+                                        <Path Data="M480-444.5 270.5-235l-17-17L463-461.5 253.5-671l17-17L480-478l209.5-209.5 17 17L497-461.5l209.5 209.5-17 17L480-444.5Z"
+              Fill="#FF3B6F"
+              Stroke="#FF3B6F"
+              StrokeThickness="1"
+              HeightRequest="16" 
+              WidthRequest="16"
+              HorizontalOptions="Center" 
+              VerticalOptions="Center"
+              Aspect="Uniform" />
+                                    </Grid>
+
+                                    <!-- POST Button - Column 4 -->
+                                    <Border x:Name="PostButton"
+            Grid.Column="4"
+            StrokeThickness="0"
+            Stroke="Transparent"
+            StrokeShape="RoundRectangle 16"
+            Padding="0"
+            VerticalOptions="Center"
+            HorizontalOptions="End"
+            IsVisible="True"
+            HeightRequest="36"
+            WidthRequest="78">
+                                        <Border.Background>
+                                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                                <GradientStop Color="#FF3B6F" Offset="0" />
+                                                <GradientStop Color="#CC2F59" Offset="1" />
+                                            </LinearGradientBrush>
+                                        </Border.Background>
+                                        <Border.GestureRecognizers>
+                                            <TapGestureRecognizer Tapped="SavePostButton_Clicked" />
+                                        </Border.GestureRecognizers>
+                                        <Label Text="Post"
+               Padding="18,7"
+               FontSize="13"
+               FontAttributes="Bold"
+               TextColor="White"
+               HorizontalOptions="Center"
+               VerticalOptions="Center" />
+                                    </Border>
+                                </Grid>
+                            </VerticalStackLayout>
+                        </Border>
+                    </VerticalStackLayout>
+                </Grid>
+
+                <!-- Section spacer -->
+                <BoxView HeightRequest="8"
+                         BackgroundColor="#0A0A0E"
+                         HorizontalOptions="Fill"
+                         Margin="0,10,0,0" />
+
+                <!-- ── DISCOVER + HIDDEN ROW ── -->
+                <Grid Margin="14,0,14,0"
+                      Padding="0,8,0,8"
+                      HorizontalOptions="Fill">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Discover button -->
+                    <Border Grid.Column="0"
+                            BackgroundColor="#0D1F1F"
+                            StrokeThickness="1"
+                            Stroke="#1A3A3A"
+                            StrokeShape="RoundRectangle 20"
+                            Padding="12,6">
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnDiscoverTapped" />
+                        </Border.GestureRecognizers>
+                        <HorizontalStackLayout Spacing="6" VerticalOptions="Center">
+                            <Grid WidthRequest="18" HeightRequest="18">
+                                <Path x:Name="DiscoverIcon"
+                                      Data="M344.98-160.7q-63.27-27.19-110.07-74.03-46.81-46.83-74.11-110.14-27.3-63.31-27.3-134.97t27.29-135.05q27.29-63.38 74.06-110.27 46.78-46.89 110.06-74.36Q408.18-827 479.84-827t135.05 27.38q63.38 27.38 110.27 74.32 46.89 46.93 74.36 110.21Q827-551.82 827-480.16t-27.38 135.05q-27.38 63.38-74.32 110.27-46.93 46.89-110.13 74.11-63.2 27.23-135.06 27.23-71.85 0-135.13-27.2Z"
+                                      Fill="#00B5B5"
+                                      Stroke="#00B5B5"
+                                      StrokeThickness="1"
+                                      HeightRequest="16" WidthRequest="16"
+                                      HorizontalOptions="Center" VerticalOptions="Center"
+                                      Aspect="Uniform" />
+                                <!-- Live blinking dot -->
+                                <Border x:Name="DiscoverLiveDot"
+                                        WidthRequest="8" HeightRequest="8"
+                                        BackgroundColor="#4CAF50"
+                                        StrokeThickness="1.5" Stroke="#0E0E12"
+                                        StrokeShape="RoundRectangle 4"
+                                        HorizontalOptions="End" VerticalOptions="Start"
+                                        TranslationX="6" TranslationY="-3"
+                                        IsVisible="False" />
+                            </Grid>
+                            <Label Text="Discover"
+                                   FontSize="12" FontAttributes="Bold"
+                                   TextColor="#00B5B5"
+                                   VerticalOptions="Center" />
+                        </HorizontalStackLayout>
+                    </Border>
+
+
+                    <!-- Hidden posts button -->
+                    <Border Grid.Column="2"
+                            BackgroundColor="#1A0D1A"
+                            StrokeThickness="1"
+                            Stroke="#3A1A3A"
+                            StrokeShape="RoundRectangle 20"
+                            Padding="12,6">
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnHiddenPostsButtonClicked" />
+                        </Border.GestureRecognizers>
+                        <HorizontalStackLayout Spacing="6" VerticalOptions="Center">
+                            <Path Data="M410.5-144q-58.78-12.04-108.89-42.27-50.11-30.23-86.91-74.47-36.79-44.23-57.25-100.2Q137-416.91 137-480q0-72 26.46-134.51 26.46-62.5 73-109Q283-770 345.55-796.5 408.09-823 480-823q72 0 134.54 26.45 62.53 26.44 109.05 72.96 46.52 46.52 72.96 109.05Q823-552 823-480v10q-5.5-3.5-12.75-5.75T798-481q-1-131.5-93.5-224T480-797.5q-66 0-120.5 24t-95 60l254 254q-6.5 3.5-12 6.75t-10.43 6.25l-249.57-249q-36 37.5-60 95t-24 120.5q0 106 61.25 187.75T380.5-178q6 7.5 14.5 17t15.5 17Z"
+                                  Fill="#FF3B6F"
+                                  Stroke="#FF3B6F"
+                                  StrokeThickness="1"
+                                  HeightRequest="14" WidthRequest="14"
+                                  HorizontalOptions="Center" VerticalOptions="Center"
+                                  Aspect="Uniform" />
+                            <Label Text="Hidden"
+                                   FontSize="12" FontAttributes="Bold"
+                                   TextColor="#FF3B6F"
+                                   VerticalOptions="Center" />
+                        </HorizontalStackLayout>
+                    </Border>
+                </Grid>
+
+                <!-- ── PEOPLE NEAR YOU ── HORIZONTAL PROFILE CARDS ── -->
+                <VerticalStackLayout x:Name="PeopleNearYouSection" 
+                     Spacing="0" 
+                     IsVisible="True"
+                     Margin="0,10,0,0">
+
+                    <!-- Section header -->
+                    <Grid ColumnDefinitions="*,Auto" Padding="16,8,16,8">
+                        <HorizontalStackLayout Spacing="8" VerticalOptions="Center">
+                            <Path Data="M480-480q-66 0-113-47t-47-113q0-66 47-113t113-47q66 0 113 47t47 113q0 66-47 113t-113 47ZM160-160v-112q0-34 17.5-62.5T224-378q62-31 126-46.5T480-440q66 0 130 15.5T736-378q29 15 46.5 43.5T800-272v112H160Z"
+                  Fill="#F0EDE8"
+                  HeightRequest="14" WidthRequest="14"
+                  VerticalOptions="Center" Aspect="Uniform" />
+                            <Label Text="People Near You"
+                   FontSize="16" FontAttributes="Bold"
+                   TextColor="#F0EDE8" VerticalOptions="Center" />
+                        </HorizontalStackLayout>
+
+                        <!-- View All button -->
+                        <Border Grid.Column="1"
+                BackgroundColor="#0D1F1F"
+                StrokeThickness="1"
+                Stroke="#1A3A3A"
+                StrokeShape="RoundRectangle 12"
+                Padding="10,5">
+                            <Border.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="OnViewAllPeopleTapped" />
+                            </Border.GestureRecognizers>
+                            <Label Text="View all"
+                   FontSize="11" FontAttributes="Bold"
+                   TextColor="#00B5B5" />
+                        </Border>
+                    </Grid>
+
+                    <!-- Horizontal scrolling profile cards -->
+                    <ScrollView Orientation="Horizontal"
+                HorizontalScrollBarVisibility="Never"
+                VerticalScrollBarVisibility="Never"
+                HeightRequest="380">
+                        <HorizontalStackLayout x:Name="PeopleNearYouStackLayout"
+                               Spacing="12"
+                               Padding="16,4,16,16"
+                               VerticalOptions="Fill" />
+                    </ScrollView>
+
+                    <!-- Divider -->
+                    <BoxView HeightRequest="8"
+             BackgroundColor="#0A0A0E"
+             HorizontalOptions="Fill"
+             Margin="0,10,0,10" />
+                </VerticalStackLayout>
+
+                <!-- ── LIVE NOW SECTION ── -->
+                <VerticalStackLayout x:Name="LiveNowSection" 
+                     Spacing="0" 
+                     IsVisible="True"
+                     Margin="0,10,0,0">
+
+                    <!-- Section header -->
+                    <Grid ColumnDefinitions="*,Auto" Padding="16,8,16,8">
+                        <HorizontalStackLayout Spacing="8" VerticalOptions="Center">
+                            <BoxView WidthRequest="8" HeightRequest="8"
+                     BackgroundColor="#22C55E"
+                     CornerRadius="4"
+                     VerticalOptions="Center" />
+                            <Label Text="Live Now"
+                   FontSize="16" FontAttributes="Bold"
+                   TextColor="#F0EDE8" VerticalOptions="Center" />
+                            <Label x:Name="PostPageLiveCountLabel"
+                   Text=""
+                   FontSize="11"
+                   TextColor="#5A5A6A"
+                   VerticalOptions="Center" />
+                        </HorizontalStackLayout>
+
+                        <!-- View All button -->
+                        <Border Grid.Column="1"
+                BackgroundColor="#0D1F1F"
+                StrokeThickness="1"
+                Stroke="#1A3A3A"
+                StrokeShape="RoundRectangle 12"
+                Padding="10,5">
+                            <Border.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="OnViewAllLiveTapped" />
+                            </Border.GestureRecognizers>
+                            <Label Text="View all"
+                   FontSize="11" FontAttributes="Bold"
+                   TextColor="#00B5B5" />
+                        </Border>
+                    </Grid>
+
+                    <!-- Horizontal scrolling live cards -->
+                    <ScrollView Orientation="Horizontal"
+                HorizontalScrollBarVisibility="Never"
+                VerticalScrollBarVisibility="Never"
+                HeightRequest="500">
+                        <HorizontalStackLayout x:Name="PostPageLiveStackLayout"
+                               Spacing="12"
+                               Padding="16,4,16,16"
+                               VerticalOptions="Fill" />
+                    </ScrollView>
+
+                    <!-- Divider -->
+                    <BoxView HeightRequest="8"
+             BackgroundColor="#0A0A0E"
+             HorizontalOptions="Fill"
+             Margin="0,10,0,10" />
+                </VerticalStackLayout>
+
+                <!-- Thin accent line under filter row -->
+                <BoxView HeightRequest="1"
+                         BackgroundColor="#1C1C25"
+                         HorizontalOptions="Fill" />
+
+                <!-- ── POSTS FEED ── -->
+                <CollectionView x:Name="PostsCollectionView"
+                                ItemsLayout="VerticalList"
+                                SelectionMode="None"
+                                BackgroundColor="#0E0E12"
+                                ItemTemplate="{StaticResource PostTemplateSelector}">
+                    <CollectionView.Margin>
+                        <Thickness Left="0" Top="0" Right="0" Bottom="0" />
+                    </CollectionView.Margin>
+                </CollectionView>
+
+                <!-- ── SKELETON LOADING VIEW ── -->
+                <CollectionView x:Name="SkeletonCollectionView"
+                                IsVisible="False"
+                                BackgroundColor="#0E0E12"
+                                ItemsLayout="VerticalList"
+                                SelectionMode="None">
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate>
+                            <VerticalStackLayout Spacing="0" Padding="14,12,14,0">
+                                <!-- Shimmer card -->
+                                <Border BackgroundColor="#16161C"
+                                        StrokeThickness="1"
+                                        Stroke="#1C1C25"
+                                        StrokeShape="RoundRectangle 14"
+                                        Padding="12,10">
+                                    <VerticalStackLayout Spacing="10">
+                                        <!-- Header -->
+                                        <Grid ColumnDefinitions="44,*,36" ColumnSpacing="10">
+                                            <BoxView Grid.Column="0"
+                                                     WidthRequest="38" HeightRequest="38"
+                                                     CornerRadius="19"
+                                                     BackgroundColor="#2A2A38" />
+                                            <VerticalStackLayout Grid.Column="1" Spacing="5" VerticalOptions="Center">
+                                                <BoxView HeightRequest="13" WidthRequest="110"
+                                                         CornerRadius="6"
+                                                         BackgroundColor="#2A2A38"
+                                                         HorizontalOptions="Start" />
+                                                <BoxView HeightRequest="10" WidthRequest="80"
+                                                         CornerRadius="5"
+                                                         BackgroundColor="#2A2A38"
+                                                         HorizontalOptions="Start" />
+                                            </VerticalStackLayout>
+                                            <BoxView Grid.Column="2"
+                                                     WidthRequest="28" HeightRequest="28"
+                                                     CornerRadius="14"
+                                                     BackgroundColor="#2A2A38" />
+                                        </Grid>
+                                        <!-- Badge -->
+                                        <BoxView HeightRequest="22" WidthRequest="90"
+                                                 CornerRadius="11"
+                                                 BackgroundColor="#2A2A38"
+                                                 HorizontalOptions="Start" />
+                                        <!-- Text lines -->
+                                        <BoxView HeightRequest="14" CornerRadius="7" BackgroundColor="#2A2A38" />
+                                        <BoxView HeightRequest="14" WidthRequest="240" CornerRadius="7"
+                                                 BackgroundColor="#2A2A38" HorizontalOptions="Start" />
+                                        <BoxView HeightRequest="14" WidthRequest="190" CornerRadius="7"
+                                                 BackgroundColor="#2A2A38" HorizontalOptions="Start" />
+                                        <!-- Image placeholder -->
+                                        <BoxView HeightRequest="180" CornerRadius="12"
+                                                 BackgroundColor="#2A2A38" Margin="0,4,0,0" />
+                                        <!-- Action bar -->
+                                        <Grid ColumnDefinitions="*,*,*,*,*" Margin="0,4,0,0">
+                                            <BoxView Grid.Column="0" HeightRequest="30" CornerRadius="15"
+                                                     BackgroundColor="#2A2A38" Margin="4" />
+                                            <BoxView Grid.Column="1" HeightRequest="30" CornerRadius="15"
+                                                     BackgroundColor="#2A2A38" Margin="4" />
+                                            <BoxView Grid.Column="2" HeightRequest="30" CornerRadius="15"
+                                                     BackgroundColor="#2A2A38" Margin="4" />
+                                            <BoxView Grid.Column="3" HeightRequest="30" CornerRadius="15"
+                                                     BackgroundColor="#2A2A38" Margin="4" />
+                                            <BoxView Grid.Column="4" HeightRequest="30" CornerRadius="15"
+                                                     BackgroundColor="#2A2A38" Margin="4" />
+                                        </Grid>
+                                    </VerticalStackLayout>
+                                </Border>
+
+                                <!-- Insert People Near You section after 10th post -->
+                                <VerticalStackLayout x:Name="InlinePeopleNearYouSection" 
+                                     Spacing="0" 
+                                     Margin="0,10,0,0">
+
+                                    <Grid ColumnDefinitions="*,Auto" Padding="16,8,16,8">
+                                        <HorizontalStackLayout Spacing="8" VerticalOptions="Center">
+                                            <Path Data="M480-480q-66 0-113-47t-47-113q0-66 47-113t113-47q66 0 113 47t47 113q0 66-47 113t-113 47ZM160-160v-112q0-34 17.5-62.5T224-378q62-31 126-46.5T480-440q66 0 130 15.5T736-378q29 15 46.5 43.5T800-272v112H160Z"
+                                  Fill="#F0EDE8"
+                                  HeightRequest="14" WidthRequest="14"
+                                  VerticalOptions="Center" Aspect="Uniform" />
+                                            <Label Text="People Near You"
+                                   FontSize="16" FontAttributes="Bold"
+                                   TextColor="#F0EDE8" VerticalOptions="Center" />
+                                        </HorizontalStackLayout>
+
+                                        <Border Grid.Column="1"
+                                BackgroundColor="#0D1F1F"
+                                StrokeThickness="1"
+                                Stroke="#1A3A3A"
+                                StrokeShape="RoundRectangle 12"
+                                Padding="10,5">
+                                            <Border.GestureRecognizers>
+                                                <TapGestureRecognizer Tapped="OnViewAllPeopleTapped" />
+                                            </Border.GestureRecognizers>
+                                            <Label Text="View all"
+                                   FontSize="11" FontAttributes="Bold"
+                                   TextColor="#00B5B5" />
+                                        </Border>
+                                    </Grid>
+
+                                    <ScrollView Orientation="Horizontal"
+                                HorizontalScrollBarVisibility="Never"
+                                VerticalScrollBarVisibility="Never"
+                                HeightRequest="380">
+                                        <HorizontalStackLayout x:Name="InlinePeopleNearYouStackLayout"
+                                               Spacing="12"
+                                               Padding="16,4,16,16"
+                                               VerticalOptions="Fill" />
+                                    </ScrollView>
+
+                                    <BoxView HeightRequest="8"
+                             BackgroundColor="#0A0A0E"
+                             HorizontalOptions="Fill"
+                             Margin="0,10,0,10" />
+                                </VerticalStackLayout>
+
+                                <!-- Insert Live Now section after 15th post (or after People Near You) -->
+                                <VerticalStackLayout x:Name="InlineLiveNowSection" 
+                                     Spacing="0" 
+                                     Margin="0,10,0,0"
+                                     IsVisible="False">
+
+                                    <Grid ColumnDefinitions="*,Auto" Padding="16,8,16,8">
+                                        <HorizontalStackLayout Spacing="8" VerticalOptions="Center">
+                                            <BoxView WidthRequest="8" HeightRequest="8"
+                                     BackgroundColor="#22C55E"
+                                     CornerRadius="4"
+                                     VerticalOptions="Center" />
+                                            <Label Text="Live Now"
+                                   FontSize="16" FontAttributes="Bold"
+                                   TextColor="#F0EDE8" VerticalOptions="Center" />
+                                            <Label x:Name="InlineLiveCountLabel"
+                                   Text=""
+                                   FontSize="11"
+                                   TextColor="#5A5A6A"
+                                   VerticalOptions="Center" />
+                                        </HorizontalStackLayout>
+
+                                        <Border Grid.Column="1"
+                                BackgroundColor="#0D1F1F"
+                                StrokeThickness="1"
+                                Stroke="#1A3A3A"
+                                StrokeShape="RoundRectangle 12"
+                                Padding="10,5">
+                                            <Border.GestureRecognizers>
+                                                <TapGestureRecognizer Tapped="OnViewAllLiveTapped" />
+                                            </Border.GestureRecognizers>
+                                            <Label Text="View all"
+                                   FontSize="11" FontAttributes="Bold"
+                                   TextColor="#00B5B5" />
+                                        </Border>
+                                    </Grid>
+
+                                    <ScrollView Orientation="Horizontal"
+                                HorizontalScrollBarVisibility="Never"
+                                VerticalScrollBarVisibility="Never"
+                                HeightRequest="500">
+                                        <HorizontalStackLayout x:Name="InlineLiveStackLayout"
+                                               Spacing="12"
+                                               Padding="16,4,16,16"
+                                               VerticalOptions="Fill" />
+                                    </ScrollView>
+
+                                    <BoxView HeightRequest="8"
+                             BackgroundColor="#0A0A0E"
+                             HorizontalOptions="Fill"
+                             Margin="0,10,0,10" />
+                                </VerticalStackLayout>
+                                <BoxView HeightRequest="8" BackgroundColor="Transparent" />
+                            </VerticalStackLayout>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
+
+            </VerticalStackLayout>
+        </ScrollView>
+
+        <!-- ══════════════════════════════════════════════════
+     NEW POSTS PILL OVERLAY
+══════════════════════════════════════════════════ -->
+        <Border x:Name="NewPostsPill"
+        Grid.Row="1"
+        IsVisible="False"
+        StrokeThickness="0"
+        StrokeShape="RoundRectangle 24"
+        Padding="10,8,16,8"
+        HorizontalOptions="Center"
+        VerticalOptions="Start"
+        Margin="0,12,0,0"
+        ZIndex="100">
+            <Border.Background>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                    <GradientStop Color="#FF3B6F" Offset="0" />
+                    <GradientStop Color="#00B5B5" Offset="1" />
+                </LinearGradientBrush>
+            </Border.Background>
+            <Border.GestureRecognizers>
+                <TapGestureRecognizer Tapped="NewPostsPill_Tapped" />
+            </Border.GestureRecognizers>
+
+            <HorizontalStackLayout Spacing="8" VerticalOptions="Center">
+
+                <!-- Stacked avatars Twitter-style -->
+                <Grid WidthRequest="64" HeightRequest="28" VerticalOptions="Center">
+
+                    <!-- Avatar 3 (back) -->
+                    <Border x:Name="PillAvatar3"
+            HeightRequest="28" WidthRequest="28"
+            StrokeThickness="1.5" Stroke="White"
+            StrokeShape="RoundRectangle 14"
+            BackgroundColor="#555"
+            HorizontalOptions="Start"
+            VerticalOptions="Center"
+            TranslationX="20"
+            IsVisible="False"
+            Padding="0">
+                        <Grid HeightRequest="28" WidthRequest="28" IsClippedToBounds="True">
+                            <Image x:Name="PillAvatarImage3"
+                   Aspect="AspectFill"
+                   HeightRequest="28"
+                   WidthRequest="28"
+                   HorizontalOptions="Fill"
+                   VerticalOptions="Fill">
+                                <Image.Clip>
+                                    <EllipseGeometry Center="14,14" RadiusX="14" RadiusY="14" />
+                                </Image.Clip>
+                            </Image>
+                        </Grid>
+                    </Border>
+
+                    <!-- Avatar 2 (middle) -->
+                    <Border x:Name="PillAvatar2"
+            HeightRequest="28" WidthRequest="28"
+            StrokeThickness="1.5" Stroke="White"
+            StrokeShape="RoundRectangle 14"
+            BackgroundColor="#555"
+            HorizontalOptions="Start"
+            VerticalOptions="Center"
+            TranslationX="10"
+            IsVisible="False"
+            Padding="0">
+                        <Grid HeightRequest="28" WidthRequest="28" IsClippedToBounds="True">
+                            <Image x:Name="PillAvatarImage2"
+                   Aspect="AspectFill"
+                   HeightRequest="28"
+                   WidthRequest="28"
+                   HorizontalOptions="Fill"
+                   VerticalOptions="Fill">
+                                <Image.Clip>
+                                    <EllipseGeometry Center="14,14" RadiusX="14" RadiusY="14" />
+                                </Image.Clip>
+                            </Image>
+                        </Grid>
+                    </Border>
+
+                    <!-- Avatar 1 (front) -->
+                    <Border x:Name="PillAvatar1"
+            HeightRequest="28" WidthRequest="28"
+            StrokeThickness="1.5" Stroke="White"
+            StrokeShape="RoundRectangle 14"
+            BackgroundColor="#777"
+            HorizontalOptions="Start"
+            VerticalOptions="Center"
+            TranslationX="0"
+            Padding="0">
+                        <Grid HeightRequest="28" WidthRequest="28" IsClippedToBounds="True">
+                            <Image x:Name="PillAvatarImage1"
+                   Aspect="AspectFill"
+                   HeightRequest="28"
+                   WidthRequest="28"
+                   HorizontalOptions="Fill"
+                   VerticalOptions="Fill">
+                                <Image.Clip>
+                                    <EllipseGeometry Center="14,14" RadiusX="14" RadiusY="14" />
+                                </Image.Clip>
+                            </Image>
+                        </Grid>
+                    </Border>
+
+                </Grid>
+
+                <!-- Label -->
+                <Label x:Name="NewPostsPillLabel"
+               Text="new posts"
+               TextColor="White"
+               FontSize="13"
+               FontAttributes="Bold"
+               VerticalOptions="Center" />
+
+                <!-- Arrow up icon -->
+                <Label Text="↑"
+               TextColor="White"
+               FontSize="13"
+               FontAttributes="Bold"
+               VerticalOptions="Center" />
+
+            </HorizontalStackLayout>
+        </Border>
+
+        <!-- ══════════════════════════════════════════════════
+             FLOATING ACTION BUTTON  (+)
+        ══════════════════════════════════════════════════ --><!--
+        <Border Grid.Row="1"
+        StrokeThickness="0"
+        StrokeShape="RoundRectangle 28"
+        WidthRequest="56" HeightRequest="56"
+        VerticalOptions="End" HorizontalOptions="End"
+        Margin="0,0,16,16"
+        ZIndex="10">
+            <Border.Background>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                    <GradientStop Color="#FF3B6F" Offset="0" />
+                    <GradientStop Color="#CC2F59" Offset="1" />
+                </LinearGradientBrush>
+            </Border.Background>
+            <Border.GestureRecognizers>
+                <TapGestureRecognizer Tapped="AddImageFloatingButton_Clicked" />
+            </Border.GestureRecognizers>
+            <Grid>
+                <Label Text="+" 
+               FontSize="28" 
+               FontAttributes="Bold"
+               TextColor="White"
+               HorizontalOptions="Center"
+               VerticalOptions="Center"
+               HorizontalTextAlignment="Center"
+               VerticalTextAlignment="Center" />
+            </Grid>
+        </Border>-->
+
+
+        <!-- ══════════════════════════════════════════════════
+             ROW 2 · BOTTOM NAVIGATION BAR
+        ══════════════════════════════════════════════════ -->
+        <Border x:Name="BottomNavBar"
+                Grid.Row="2"
+                Padding="0" StrokeThickness="0"
+                HorizontalOptions="Fill"
+                BackgroundColor="#0E0E12">
+            <Border.StrokeShape>
+                <RoundRectangle CornerRadius="0" />
+            </Border.StrokeShape>
+
+            <!-- Top accent line -->
+            <Grid>
+                <BoxView HeightRequest="1"
+                         BackgroundColor="#1C1C25"
+                         VerticalOptions="Start"
+                         HorizontalOptions="Fill" />
+
+                <Grid HeightRequest="56"
+                      ColumnSpacing="0"
+                      HorizontalOptions="Fill"
+                      BackgroundColor="Transparent">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <!-- HOME -->
+                    <Grid Grid.Column="0" BackgroundColor="Transparent"
+                          HorizontalOptions="Fill" VerticalOptions="Fill">
+                        <Grid.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnHomeTapped" NumberOfTapsRequired="1" />
+                        </Grid.GestureRecognizers>
+                        <VerticalStackLayout HorizontalOptions="Center" VerticalOptions="Center" Spacing="2">
+                            <Path Data="M240-200h156v-234h168v234h156v-360L480-742 240-560v360Zm-28 28v-402l268-203 268 203v402H536v-234H424v234H212Zm268-299Z"
+                                  Fill="#00B5B5"
+                                  Stroke="#00B5B5"
+                                  StrokeThickness="1"
+                                  HeightRequest="20" WidthRequest="20"
+                                  HorizontalOptions="Center" Aspect="Uniform" />
+                            <Label Text="Home" FontSize="9" FontAttributes="Bold"
+                                   TextColor="#00B5B5"
+                                   HorizontalOptions="Center" HorizontalTextAlignment="Center" />
+                        </VerticalStackLayout>
+                    </Grid>
+
+                    <!-- EXPLORE / SEARCH -->
+                    <Grid Grid.Column="1" BackgroundColor="Transparent"
+                          HorizontalOptions="Fill" VerticalOptions="Fill">
+                        <Grid.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnSearchTapped" NumberOfTapsRequired="1" />
+                        </Grid.GestureRecognizers>
+                        <VerticalStackLayout HorizontalOptions="Center" VerticalOptions="Center" Spacing="2">
+                            <Path Data="m775.5-168.5-247.77-248Q498-390.5 459-376.75T383.16-363q-91.13 0-153.9-62.98-62.76-62.97-62.76-153.5 0-90.52 62.7-153.52 62.71-63 153.5-63 90.8 0 153.8 63.01 63 63 63 153.57 0 40.42-15 79.42T546-434.29L794-187l-18.5 18.5Z"
+                                  Fill="#5A5A6A"
+                                  Stroke="#5A5A6A"
+                                  StrokeThickness="1"
+                                  HeightRequest="20" WidthRequest="20"
+                                  HorizontalOptions="Center" Aspect="Uniform" />
+                            <Label Text="Explore" FontSize="9"
+                                   TextColor="#5A5A6A"
+                                   HorizontalOptions="Center" HorizontalTextAlignment="Center" />
+                        </VerticalStackLayout>
+                    </Grid>
+
+                    <!-- CHAT -->
+                    <Grid Grid.Column="2" BackgroundColor="Transparent"
+                          HorizontalOptions="Fill" VerticalOptions="Fill">
+                        <Grid.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnChatsTapped" NumberOfTapsRequired="1" />
+                        </Grid.GestureRecognizers>
+                        <VerticalStackLayout HorizontalOptions="Center" VerticalOptions="Center" Spacing="2">
+                            <Grid WidthRequest="22" HeightRequest="22" HorizontalOptions="Center">
+                                <Path Data="M266-426h268v-28H266v28Zm0-120h428v-28H266v28Zm0-120h428v-28H266v28ZM132-180v-588q0-26 17-43t43-17h576q26 0 43 17t17 43v416q0 26-17 43t-43 17H244L132-180Zm100-140h536q12 0 22-10t10-22v-416q0-12-10-22t-22-10H192q-12 0-22 10t-10 22v520l72-72Zm-72 0v-480 480Z"
+                                      Fill="#5A5A6A"
+                                      Stroke="#5A5A6A"
+                                      StrokeThickness="1"
+                                      HeightRequest="20" WidthRequest="20"
+                                      HorizontalOptions="Center" VerticalOptions="Center"
+                                      Aspect="Uniform" />
+                                <Border x:Name="ChatNavBadge"
+                                        BackgroundColor="#FF3B6F" StrokeThickness="0"
+                                        MinimumHeightRequest="14" MinimumWidthRequest="14"
+                                        Padding="3,0"
+                                        HorizontalOptions="End" VerticalOptions="Start"
+                                        TranslationX="5" TranslationY="-5"
+                                        IsVisible="False">
+                                    <Label x:Name="ChatNavBadgeLabel" Text="0"
+                                           FontSize="8" FontAttributes="Bold"
+                                           TextColor="White"
+                                           HorizontalTextAlignment="Center"
+                                           VerticalTextAlignment="Center"
+                                           LineBreakMode="NoWrap" />
+                                </Border>
+                            </Grid>
+                            <Label Text="Chat" FontSize="9"
+                                   TextColor="#5A5A6A"
+                                   HorizontalOptions="Center" HorizontalTextAlignment="Center" />
+                        </VerticalStackLayout>
+                    </Grid>
+
+                    <!-- NOTIFICATIONS / ALERTS -->
+                    <Grid Grid.Column="3" BackgroundColor="Transparent"
+                          HorizontalOptions="Fill" VerticalOptions="Fill">
+                        <Grid.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnNotificationsTapped" NumberOfTapsRequired="1" />
+                        </Grid.GestureRecognizers>
+                        <VerticalStackLayout HorizontalOptions="Center" VerticalOptions="Center" Spacing="2">
+                            <Grid WidthRequest="22" HeightRequest="22" HorizontalOptions="Center">
+                                <Path Data="M215.5-216v-25.5H273V-565q0-76.5 49.61-134.5T447-771v-19.06q0-14.07 9.26-23.5 9.27-9.44 23.5-9.44 14.24 0 23.74 9.44 9.5 9.43 9.5 23.5V-771q75 13.5 124.75 71.5T687.5-565v323.5H745v25.5H215.5ZM480-494Zm-.18 376q-24.32 0-41.57-17.38Q421-152.75 421-177h118q0 24.5-17.43 41.75Q504.15-118 479.82-118ZM298.5-241.5H662V-565q0-75.62-53.29-128.56T479.84-746.5q-75.59 0-128.46 52.94Q298.5-640.62 298.5-565v323.5Z"
+                                      Fill="#5A5A6A"
+                                      Stroke="#5A5A6A"
+                                      StrokeThickness="1"
+                                      HeightRequest="20" WidthRequest="20"
+                                      HorizontalOptions="Center" VerticalOptions="Center"
+                                      Aspect="Uniform" />
+                                <Border x:Name="NotificationBadge"
+                                        BackgroundColor="#FF3B6F" StrokeThickness="0"
+                                        MinimumHeightRequest="14" MinimumWidthRequest="14"
+                                        Padding="3,0"
+                                        HorizontalOptions="End" VerticalOptions="Start"
+                                        TranslationX="5" TranslationY="-5"
+                                        IsVisible="False">
+                                    <Label x:Name="NotificationBadgeLabel" Text="0"
+                                           FontSize="8" FontAttributes="Bold"
+                                           TextColor="White"
+                                           HorizontalTextAlignment="Center"
+                                           VerticalTextAlignment="Center"
+                                           LineBreakMode="NoWrap" />
+                                </Border>
+                            </Grid>
+                            <Label Text="Alerts" FontSize="9"
+                                   TextColor="#5A5A6A"
+                                   HorizontalOptions="Center" HorizontalTextAlignment="Center" />
+                        </VerticalStackLayout>
+                    </Grid>
+
+                    <!-- PROFILE -->
+                    <Grid Grid.Column="4" BackgroundColor="Transparent"
+                          HorizontalOptions="Fill" VerticalOptions="Fill">
+                        <Grid.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnProfileTapped" NumberOfTapsRequired="1" />
+                        </Grid.GestureRecognizers>
+                        <VerticalStackLayout HorizontalOptions="Center" VerticalOptions="Center" Spacing="2">
+                            <Path Data="M252-256q51-36 106.5-57T480-334q66 0 121.5 21T708-256q41-41 66.5-98T800-480q0-133-93.5-226.5T480-800q-133 0-226.5 93.5T160-480q0 69 25.5 126t66.5 98Zm147-243q-33-33-33-81t33-81q33-33 81-33t81 33q33 33 33 81t-33 81q-33 33-81 33t-81-33Zm81 367q-73 0-136.5-27T233-233q-47-47-74-110.5T132-480q0-73 27-136.5T233-727q47-47 110.5-74T480-828q73 0 136.5 27T727-727q47 47 74 110.5T828-480q0 73-27 136.5T727-233q-47 47-110.5 74T480-132Z"
+                                  Fill="#5A5A6A"
+                                  Stroke="#5A5A6A"
+                                  StrokeThickness="1"
+                                  HeightRequest="20" WidthRequest="20"
+                                  HorizontalOptions="Center" Aspect="Uniform" />
+                            <Label Text="Profile" FontSize="9"
+                                   TextColor="#5A5A6A"
+                                   HorizontalOptions="Center" HorizontalTextAlignment="Center" />
+                        </VerticalStackLayout>
+                    </Grid>
+
+                </Grid>
+            </Grid>
+        </Border>
+
+
+        <!-- ── Loading Overlay ── -->
+        <Grid x:Name="LoadingOverlay"
+      Grid.Row="0"
+      Grid.RowSpan="3"
+      BackgroundColor="#0B0B10"
+      ZIndex="9999"
+      IsVisible="True">
+
+            <!-- Ambient glow -->
+            <Ellipse
+        WidthRequest="260"
+        HeightRequest="260"
+        HorizontalOptions="Center"
+        VerticalOptions="Center">
+                <Ellipse.Fill>
+                    <RadialGradientBrush Center="0.5,0.5" Radius="0.5">
+                        <GradientStop Color="#1AFF3B6F" Offset="0.0"/>
+                        <GradientStop Color="#00FF3B6F" Offset="1.0"/>
+                    </RadialGradientBrush>
+                </Ellipse.Fill>
+            </Ellipse>
+
+            <VerticalStackLayout
+        HorizontalOptions="Center"
+        VerticalOptions="Center"
+        Spacing="0">
+
+                <Grid
+            WidthRequest="80"
+            HeightRequest="80"
+            HorizontalOptions="Center"
+            Margin="0,0,0,24">
+
+                    <Ellipse
+                x:Name="PostPageSpinRing"
+                WidthRequest="80"
+                HeightRequest="80"
+                Stroke="#33FF3B6F"
+                StrokeThickness="1.5"
+                HorizontalOptions="Center"
+                VerticalOptions="Center"/>
+
+                    <Ellipse
+                x:Name="PostPageRingDot"
+                WidthRequest="7"
+                HeightRequest="7"
+                Fill="#FF3B6F"
+                HorizontalOptions="Center"
+                VerticalOptions="Start"
+                Margin="0,0,0,0"/>
+
+                    <Image
+                Source="heart_solid.png"
+                WidthRequest="28"
+                HeightRequest="28"
+                HorizontalOptions="Center"
+                VerticalOptions="Center"
+                x:Name="PostPageHeartIcon"/>
+                </Grid>
+
+                <Label
+            Text="OS"
+            FontFamily="CormorantGaramond-Light"
+            FontSize="32"
+            TextColor="#F5F0FF"
+            CharacterSpacing="2"
+            HorizontalOptions="Center"
+            Margin="0,0,0,4"/>
+
+                <Label
+            Text="FIND YOUR PERSON"
+            FontFamily="DMSans-Regular"
+            FontSize="10"
+            TextColor="#5A5A72"
+            CharacterSpacing="4"
+            HorizontalOptions="Center"
+            Margin="0,0,0,44"/>
+
+                <HorizontalStackLayout
+            x:Name="PostPageDotBar"
+            HorizontalOptions="Center"
+            Spacing="8">
+                    <Ellipse x:Name="PostDot1" WidthRequest="6" HeightRequest="6" Fill="#3A3A4C"/>
+                    <Ellipse x:Name="PostDot2" WidthRequest="6" HeightRequest="6" Fill="#3A3A4C"/>
+                    <Ellipse x:Name="PostDot3" WidthRequest="6" HeightRequest="6" Fill="#3A3A4C"/>
+                    <Ellipse x:Name="PostDot4" WidthRequest="6" HeightRequest="6" Fill="#3A3A4C"/>
+                    <Ellipse x:Name="PostDot5" WidthRequest="6" HeightRequest="6" Fill="#3A3A4C"/>
+                </HorizontalStackLayout>
+            </VerticalStackLayout>
+
+            <Label
+        Text="Loading your feed"
+        FontFamily="DMSans-Regular"
+        FontSize="10"
+        TextColor="#3A3A4C"
+        CharacterSpacing="3"
+        HorizontalOptions="Center"
+        VerticalOptions="End"
+        Margin="0,0,0,52"/>
+        </Grid>
+
+
+    </Grid>
+</ContentPage>

@@ -1,0 +1,287 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Lock.Pages.Chat.GroupInfoPage"
+             BackgroundColor="#0F0F0F"
+             Shell.NavBarIsVisible="False"
+             NavigationPage.HasNavigationBar="False">
+
+    <Grid RowDefinitions="Auto,*">
+
+        <!-- ══ HEADER (same pattern as MatchPage) ══ -->
+        <Grid Grid.Row="0" Padding="16,8,16,8" BackgroundColor="#0F0F0F"
+              ColumnDefinitions="Auto,*,Auto">
+
+            <!-- Back -->
+            <Grid Grid.Column="0" WidthRequest="40" HeightRequest="40" VerticalOptions="Center">
+                <Grid.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnBackTapped"/>
+                </Grid.GestureRecognizers>
+                <Label Text="←" FontSize="22" TextColor="#888888"
+                       HorizontalOptions="Center" VerticalOptions="Center"/>
+            </Grid>
+
+            <!-- Title -->
+            <VerticalStackLayout Grid.Column="1" Spacing="2" Margin="8,0">
+                <Label Text="Group Info" FontSize="26" FontAttributes="Bold" TextColor="#FFFFFF"/>
+                <Label x:Name="GroupTypeChipLabel" Text="Loading…"
+                       FontSize="12" TextColor="#666666"/>
+            </VerticalStackLayout>
+
+            <!-- Share / placeholder -->
+            <Grid Grid.Column="2" WidthRequest="40" HeightRequest="40" VerticalOptions="Center">
+                <Label Text="⋯" FontSize="22" TextColor="#888888"
+                       HorizontalOptions="Center" VerticalOptions="Center"/>
+            </Grid>
+        </Grid>
+
+        <!-- ══ SCROLL BODY ══ -->
+        <ScrollView Grid.Row="1" BackgroundColor="#0F0F0F">
+            <VerticalStackLayout Padding="16,4,16,40" Spacing="10">
+
+                <!-- ── Cover image (same rounded card as MatchPage) ── -->
+                <Frame x:Name="CoverImageFrame"
+                       CornerRadius="18"
+                       HasShadow="False"
+                       BorderColor="#252525"
+                       BackgroundColor="#161616"
+                       Padding="0"
+                       HeightRequest="200"
+                       IsClippedToBounds="True">
+                    <Image x:Name="GroupCoverImage"
+                           Aspect="AspectFill"
+                           HeightRequest="200"/>
+                </Frame>
+
+                <!-- ── Name + Description card ── -->
+                <Frame CornerRadius="18"
+                       HasShadow="False"
+                       BorderColor="#252525"
+                       BackgroundColor="#161616"
+                       Padding="16">
+                    <VerticalStackLayout Spacing="8">
+
+                        <!-- Group name -->
+                        <Label x:Name="GroupNameLabel"
+                               FontSize="22"
+                               FontAttributes="Bold"
+                               TextColor="#FFFFFF"/>
+
+                        <!-- Type pill (like mood badge in MatchPage) -->
+                        <HorizontalStackLayout Spacing="8">
+                            <Frame Padding="8,3" CornerRadius="8"
+                                   BackgroundColor="#1E1E1E" HasShadow="False">
+                                <Label x:Name="GroupTypePillLabel"
+                                       FontSize="12" TextColor="#008080"
+                                       FontAttributes="Bold"/>
+                            </Frame>
+                            <Frame x:Name="VisibilityPill"
+                                   Padding="8,3" CornerRadius="8"
+                                   BackgroundColor="#1E1E1E" HasShadow="False">
+                                <Label x:Name="VisibilityLabel"
+                                       FontSize="12" TextColor="#AAAAAA"/>
+                            </Frame>
+                        </HorizontalStackLayout>
+
+                        <!-- Divider -->
+                        <BoxView HeightRequest="1" Color="#252525" Margin="0,4"/>
+
+                        <!-- Description -->
+                        <Label x:Name="GroupDescLabel"
+                               FontSize="13"
+                               TextColor="#AAAAAA"
+                               LineBreakMode="WordWrap"/>
+                    </VerticalStackLayout>
+                </Frame>
+
+                <!-- ── Stats row (like score bar summary) ── -->
+                <Frame CornerRadius="18"
+                       HasShadow="False"
+                       BorderColor="#252525"
+                       BackgroundColor="#161616"
+                       Padding="16">
+                    <Grid ColumnDefinitions="*,Auto,*,Auto,*" ColumnSpacing="0">
+
+                        <!-- Members -->
+                        <VerticalStackLayout Grid.Column="0" HorizontalOptions="Center" Spacing="3">
+                            <Label x:Name="MemberCountLabel"
+                                   FontSize="20" FontAttributes="Bold"
+                                   TextColor="#FFFFFF" HorizontalOptions="Center"/>
+                            <Label Text="members" FontSize="10"
+                                   TextColor="#666666" HorizontalOptions="Center"/>
+                        </VerticalStackLayout>
+
+                        <BoxView Grid.Column="1" WidthRequest="1"
+                                 BackgroundColor="#2C2C2C" Margin="0,4"/>
+
+                        <!-- Created -->
+                        <VerticalStackLayout Grid.Column="2" HorizontalOptions="Center" Spacing="3">
+                            <Label x:Name="GroupCreatedLabel"
+                                   FontSize="14" FontAttributes="Bold"
+                                   TextColor="#FFFFFF" HorizontalOptions="Center"/>
+                            <Label Text="created" FontSize="10"
+                                   TextColor="#666666" HorizontalOptions="Center"/>
+                        </VerticalStackLayout>
+
+                        <BoxView Grid.Column="3" WidthRequest="1"
+                                 BackgroundColor="#2C2C2C" Margin="0,4"/>
+
+                        <!-- Max members -->
+                        <VerticalStackLayout Grid.Column="4" HorizontalOptions="Center" Spacing="3">
+                            <Label x:Name="MaxMembersStatLabel"
+                                   FontSize="14" FontAttributes="Bold"
+                                   TextColor="#FFFFFF" HorizontalOptions="Center"
+                                   Text="∞"/>
+                            <Label Text="max slots" FontSize="10"
+                                   TextColor="#666666" HorizontalOptions="Center"/>
+                        </VerticalStackLayout>
+
+                    </Grid>
+                </Frame>
+
+                <!-- ── Details card (rows same as MatchPage score legend rows) ── -->
+                <Frame CornerRadius="18"
+                       HasShadow="False"
+                       BorderColor="#252525"
+                       BackgroundColor="#161616"
+                       Padding="16">
+                    <VerticalStackLayout Spacing="0">
+
+                        <!-- Section heading -->
+                        <Label Text="GROUP DETAILS"
+                               FontSize="10" FontAttributes="Bold"
+                               TextColor="#444444" CharacterSpacing="1.5"
+                               Margin="0,0,0,12"/>
+
+                        <!-- Category -->
+                        <Grid x:Name="CategoryRow" ColumnDefinitions="*,Auto"
+                              IsVisible="False" Padding="0,10">
+                            <Label Text="Category" FontSize="14"
+                                   TextColor="#AAAAAA" VerticalOptions="Center"/>
+                            <Label x:Name="CategoryLabel" Grid.Column="1"
+                                   FontSize="14" TextColor="#FFFFFF"
+                                   FontAttributes="Bold" VerticalOptions="Center"/>
+                        </Grid>
+                        <BoxView x:Name="CategoryDivider" HeightRequest="1"
+                                 Color="#1E1E1E" IsVisible="False"/>
+
+                        <!-- Mood Filter -->
+                        <Grid x:Name="MoodRow" ColumnDefinitions="*,Auto"
+                              IsVisible="False" Padding="0,10">
+                            <Label Text="Mood Filter" FontSize="14"
+                                   TextColor="#AAAAAA" VerticalOptions="Center"/>
+                            <Label x:Name="MoodLabel" Grid.Column="1"
+                                   FontSize="14" TextColor="#008080"
+                                   FontAttributes="Bold" VerticalOptions="Center"/>
+                        </Grid>
+                        <BoxView x:Name="MoodDivider" HeightRequest="1"
+                                 Color="#1E1E1E" IsVisible="False"/>
+
+                        <!-- Encryption -->
+                        <Grid ColumnDefinitions="*,Auto" Padding="0,10">
+                            <Label Text="End-to-End Encryption" FontSize="14"
+                                   TextColor="#AAAAAA" VerticalOptions="Center"/>
+                            <Label x:Name="EncryptionLabel" Grid.Column="1"
+                                   FontSize="14" TextColor="#FFFFFF"
+                                   FontAttributes="Bold" VerticalOptions="Center"/>
+                        </Grid>
+                        <BoxView HeightRequest="1" Color="#1E1E1E"/>
+
+                        <!-- Join Approval -->
+                        <Grid ColumnDefinitions="*,Auto" Padding="0,10">
+                            <Label Text="Join Approval" FontSize="14"
+                                   TextColor="#AAAAAA" VerticalOptions="Center"/>
+                            <Label x:Name="ApprovalLabel" Grid.Column="1"
+                                   FontSize="14" TextColor="#FFFFFF"
+                                   FontAttributes="Bold" VerticalOptions="Center"/>
+                        </Grid>
+                        <BoxView HeightRequest="1" Color="#1E1E1E"/>
+
+                        <!-- Anonymous Mode -->
+                        <Grid x:Name="AnonymousRow" ColumnDefinitions="*,Auto"
+                              IsVisible="False" Padding="0,10">
+                            <Label Text="Anonymous Mode" FontSize="14"
+                                   TextColor="#AAAAAA" VerticalOptions="Center"/>
+                            <Label x:Name="AnonymousLabel" Grid.Column="1"
+                                   FontSize="14" TextColor="#FFFFFF"
+                                   FontAttributes="Bold" VerticalOptions="Center"/>
+                        </Grid>
+                        <BoxView x:Name="AnonymousDivider" HeightRequest="1"
+                                 Color="#1E1E1E" IsVisible="False"/>
+
+                        <!-- Max Members detail -->
+                        <Grid x:Name="MaxMembersRow" ColumnDefinitions="*,Auto"
+                              IsVisible="False" Padding="0,10">
+                            <Label Text="Max Members" FontSize="14"
+                                   TextColor="#AAAAAA" VerticalOptions="Center"/>
+                            <Label x:Name="MaxMembersLabel" Grid.Column="1"
+                                   FontSize="14" TextColor="#FFFFFF"
+                                   FontAttributes="Bold" VerticalOptions="Center"/>
+                        </Grid>
+
+                    </VerticalStackLayout>
+                </Frame>
+
+                <!-- ── Interest Tags card (same teal pill style as MatchPage CommonInterests) ── -->
+                <Frame x:Name="TagsCard"
+                       IsVisible="False"
+                       CornerRadius="18"
+                       HasShadow="False"
+                       BorderColor="#252525"
+                       BackgroundColor="#161616"
+                       Padding="16">
+                    <VerticalStackLayout Spacing="12">
+
+                        <Label Text="INTEREST TAGS"
+                               FontSize="10" FontAttributes="Bold"
+                               TextColor="#444444" CharacterSpacing="1.5"/>
+
+                        <!-- Tags injected from code-behind -->
+                        <FlexLayout x:Name="TagsContainer"
+                                    Direction="Row"
+                                    Wrap="Wrap"
+                                    JustifyContent="Start"
+                                    AlignItems="Center"/>
+                    </VerticalStackLayout>
+                </Frame>
+
+                <!-- ── 4-segment visual bar (same as MatchPage score bar) ── -->
+                <Frame CornerRadius="18"
+                       HasShadow="False"
+                       BorderColor="#252525"
+                       BackgroundColor="#161616"
+                       Padding="16">
+                    <VerticalStackLayout Spacing="10">
+
+                        <Label Text="GROUP HEALTH"
+                               FontSize="10" FontAttributes="Bold"
+                               TextColor="#444444" CharacterSpacing="1.5"/>
+
+                        <!-- 4-segment bar -->
+                        <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="3" HeightRequest="5">
+                            <BoxView Grid.Column="0" CornerRadius="3" HeightRequest="5"
+                                     Color="#008080" VerticalOptions="Center"/>
+                            <BoxView Grid.Column="1" CornerRadius="3" HeightRequest="5"
+                                     Color="#FF3B6F" VerticalOptions="Center"/>
+                            <BoxView Grid.Column="2" CornerRadius="3" HeightRequest="5"
+                                     Color="#008080" VerticalOptions="Center" Opacity="0.5"/>
+                            <BoxView Grid.Column="3" CornerRadius="3" HeightRequest="5"
+                                     Color="#2A2A2A" VerticalOptions="Center"/>
+                        </Grid>
+
+                        <!-- Legend -->
+                        <Grid ColumnDefinitions="*,*,*,*">
+                            <Label Grid.Column="0" Text="Active"   FontSize="9" TextColor="#555555" HorizontalOptions="Center"/>
+                            <Label Grid.Column="1" Text="Engaged"  FontSize="9" TextColor="#555555" HorizontalOptions="Center"/>
+                            <Label Grid.Column="2" Text="Growing"  FontSize="9" TextColor="#555555" HorizontalOptions="Center"/>
+                            <Label Grid.Column="3" Text="New"      FontSize="9" TextColor="#555555" HorizontalOptions="Center"/>
+                        </Grid>
+
+                    </VerticalStackLayout>
+                </Frame>
+
+            </VerticalStackLayout>
+        </ScrollView>
+
+    </Grid>
+</ContentPage>

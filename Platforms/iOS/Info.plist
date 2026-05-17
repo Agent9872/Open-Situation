@@ -1,0 +1,193 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+	<dict>
+		<!-- App Identification -->
+		<key>CFBundleDisplayName</key>
+		<string>Lock</string>
+		<key>CFBundleName</key>
+		<string>Lock</string>
+		<key>CFBundleIdentifier</key>
+		<string>com.lock.chatapp</string>
+		<key>CFBundleVersion</key>
+		<string>1.0.0</string>
+		<key>CFBundleShortVersionString</key>
+		<string>1.0</string>
+
+		<!-- Device Requirements -->
+		<key>LSRequiresIPhoneOS</key>
+		<true/>
+		<key>UIDeviceFamily</key>
+		<array>
+			<integer>1</integer>
+			<integer>2</integer>
+		</array>
+		<key>UIRequiredDeviceCapabilities</key>
+		<array>
+			<string>arm64</string>
+		</array>
+
+		<!-- Interface Orientations - iPhone -->
+		<key>UISupportedInterfaceOrientations</key>
+		<array>
+			<string>UIInterfaceOrientationPortrait</string>
+			<string>UIInterfaceOrientationLandscapeLeft</string>
+			<string>UIInterfaceOrientationLandscapeRight</string>
+		</array>
+
+		<!-- Interface Orientations - iPad -->
+		<key>UISupportedInterfaceOrientations~ipad</key>
+		<array>
+			<string>UIInterfaceOrientationPortrait</string>
+			<string>UIInterfaceOrientationPortraitUpsideDown</string>
+			<string>UIInterfaceOrientationLandscapeLeft</string>
+			<string>UIInterfaceOrientationLandscapeRight</string>
+		</array>
+
+		<!-- App Icon -->
+		<key>XSAppIconAssets</key>
+		<string>Assets.xcassets/appicon.appiconset</string>
+
+		<!-- URL Schemes for Third-Party Apps -->
+		<key>LSApplicationQueriesSchemes</key>
+		<array>
+			<string>tel</string>
+			<string>telprompt</string>
+			<string>sms</string>
+			<string>whatsapp</string>
+			<string>tg</string>
+			<string>twitter</string>
+			<string>instagram</string>
+			<string>fb</string>
+			<string>facebook</string>
+		</array>
+
+		<!-- ========== NOTIFICATION SETTINGS ========== -->
+
+		<!-- Background Modes for Push and Fetch Notifications -->
+		<key>UIBackgroundModes</key>
+		<array>
+			<string>remote-notification</string>
+			<string>fetch</string>
+		</array>
+
+		<!-- Apple Push Notification Service Environment -->
+		<key>aps-environment</key>
+		<string>development</string>
+
+		<!-- Request User Permission for Notifications -->
+		<key>NSUserNotificationUsageDescription</key>
+		<string>Lock sends notifications when you receive new messages, matches, and friend requests.</string>
+
+		<!-- ========== AUDIO & MEDIA PERMISSIONS ========== -->
+
+		<!-- Microphone for Voice Messages -->
+		<key>NSMicrophoneUsageDescription</key>
+		<string>Lock needs access to the microphone to record voice messages that you can send to other users.</string>
+
+		<!-- Camera for Photos and Video -->
+		<key>NSCameraUsageDescription</key>
+		<string>Lock needs camera access to take photos for your profile, posts, and chat images.</string>
+
+		<!-- Photo Library Access -->
+		<key>NSPhotoLibraryUsageDescription</key>
+		<string>Lock needs access to your photo library to select images for your profile, posts, and chat messages.</string>
+
+		<!-- Photo Library Additions -->
+		<key>NSPhotoLibraryAddUsageDescription</key>
+		<string>Lock needs permission to save images to your photo library.</string>
+
+		<!-- ========== CONTACTS PERMISSION ========== -->
+
+		<!-- Contacts for Finding Friends -->
+		<key>NSContactsUsageDescription</key>
+		<string>Lock needs access to your contacts to help you find friends who are already using the app and invite others to join.</string>
+
+		<!-- ========== SOS & EMERGENCY PERMISSIONS ========== -->
+
+		<!-- Location for SOS Alerts (When In Use) -->
+		<key>NSLocationWhenInUseUsageDescription</key>
+		<string>Lock needs your location to share it with your emergency contacts when you trigger an SOS alert. Your location helps contacts find you quickly in an emergency.</string>
+
+		<!-- Location for SOS Alerts (Always - for background monitoring) -->
+		<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+		<string>Lock needs your location to share it with your emergency contacts when you trigger an SOS alert. Your location helps contacts find you quickly in an emergency.</string>
+
+		<!-- Location Always Usage (Legacy - for older iOS versions) -->
+		<key>NSLocationAlwaysUsageDescription</key>
+		<string>Lock needs background location access to detect falls and automatically trigger SOS alerts for your safety.</string>
+
+		<!-- SMS/Message Permission for Emergency Alerts -->
+		<key>NSMessageUsageDescription</key>
+		<string>Lock needs to send SMS messages to your emergency contacts when you trigger an SOS alert.</string>
+
+		<!-- Motion & Fitness for Fall Detection -->
+		<key>NSMotionUsageDescription</key>
+		<string>Lock uses motion data to detect falls and automatically trigger SOS alerts for your safety.</string>
+
+		<!-- ========== ADDITIONAL PERMISSIONS ========== -->
+
+		<!-- Face ID / Touch ID for App Lock -->
+		<key>NSFaceIDUsageDescription</key>
+		<string>Lock uses Face ID / Touch ID to securely lock your private chats and keep your conversations safe.</string>
+
+		<!-- Siri Integration (Optional) -->
+		<key>NSSiriUsageDescription</key>
+		<string>Lock can use Siri to send messages and read notifications hands-free.</string>
+
+		<!-- ========== NETWORK & SECURITY SETTINGS ========== -->
+
+		<!-- Allow Arbitrary Loads for Development (Remove for Production) -->
+		<key>NSAppTransportSecurity</key>
+		<dict>
+			<key>NSAllowsArbitraryLoads</key>
+			<true/>
+			<key>NSAllowsArbitraryLoadsForMedia</key>
+			<true/>
+			<key>NSAllowsArbitraryLoadsInWebContent</key>
+			<true/>
+		</dict>
+
+		<!-- ========== APP APPEARANCE ========== -->
+
+		<!-- Status Bar Style -->
+		<key>UIStatusBarStyle</key>
+		<string>UIStatusBarStyleLightContent</string>
+
+		<!-- View Controller-Based Status Bar Appearance -->
+		<key>UIViewControllerBasedStatusBarAppearance</key>
+		<false/>
+
+		<!-- Launch Screen Storyboard -->
+		<key>UILaunchStoryboardName</key>
+		<string>LaunchScreen</string>
+
+		<!-- Main Storyboard (if used) -->
+		<key>UIMainStoryboardFile</key>
+		<string>LaunchScreen</string>
+
+		<key>NSFaceIDUsageDescription</key>
+		<string>We need Face ID to secure your locked chats</string>
+
+		<!-- ========== APP TRANSPORT SECURITY EXCEPTIONS ========== -->
+
+		<!-- Local Development Server (For SignalR/API during development) -->
+		<key>NSExceptionDomains</key>
+		<dict>
+			<key>localhost</key>
+			<dict>
+				<key>NSExceptionAllowsInsecureHTTPLoads</key>
+				<true/>
+				<key>NSIncludesSubdomains</key>
+				<true/>
+			</dict>
+			<key>127.0.0.1</key>
+			<dict>
+				<key>NSExceptionAllowsInsecureHTTPLoads</key>
+				<true/>
+				<key>NSIncludesSubdomains</key>
+				<true/>
+			</dict>
+		</dict>
+	</dict>
+</plist>
