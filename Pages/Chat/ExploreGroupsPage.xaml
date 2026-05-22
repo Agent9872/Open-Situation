@@ -95,7 +95,6 @@
 
                 <Picker Grid.Column="4"
         x:Name="MoodFilterPicker"
-        Title="All Moods"
         TitleColor="#555555"
         TextColor="#F0F0F0"
         BackgroundColor="Transparent"

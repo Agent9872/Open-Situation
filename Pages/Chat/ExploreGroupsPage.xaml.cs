@@ -784,9 +784,9 @@ namespace Lock.Pages.Chat
         /// "Join"      ? not a member yet  (teal, tap = send request)
         /// </summary>
         public string JoinButtonText =>
-            IsMember ? "Joined ?" :
-            IsPendingJoin ? "Pending…" :
-                            "Join";
+     IsMember ? "Joined" :
+     IsPendingJoin ? "Pending…" :
+                     "Join";
 
         public Color JoinButtonColor =>
             IsMember ? Color.FromArgb("#2A2A2A") :  // grey  — joined

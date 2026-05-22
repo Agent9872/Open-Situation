@@ -1817,10 +1817,17 @@ namespace Lock.Pages.Profile
 
             MainThread.BeginInvokeOnMainThread(() =>
             {
-                // Update media tab with photos
                 UpdatePhotosDisplay();
+
+                if (_currentUser != null)
+                {
+                    var postsCv = this.FindByName<CollectionView>("UserPostsCollectionView");
+                    var allPosts = postsCv?.ItemsSource as IEnumerable<Lock.Models.Post>;
+                    PopulateMediaTab(_currentUser, allPosts);
+                }
             });
         }
+
 
         private async Task LoadUserPromptsAsync(int userId)
         {
@@ -2288,9 +2295,10 @@ namespace Lock.Pages.Profile
             if (mediaPicker.Items.Count > 0)
             {
                 mediaPicker.SelectedIndex = 0;
+                ShowMediaForCategory("All");  // ← already there but ensure it's called AFTER layout
 
-                // FORCE the images to display immediately - don't wait for SelectedIndexChanged
-                ShowMediaForCategory("All");
+                // Force layout pass then show
+                MainThread.BeginInvokeOnMainThread(() => ShowMediaForCategory("All"));
             }
         }
 

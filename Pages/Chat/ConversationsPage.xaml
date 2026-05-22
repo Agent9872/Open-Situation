@@ -360,17 +360,7 @@
                                     </Ellipse.IsVisible>
                                 </Ellipse>
 
-                                <!-- Group G badge -->
-                                <Border IsVisible="{Binding IsGroupChat}"
-                                        WidthRequest="18" HeightRequest="18"
-                                        BackgroundColor="#008080"
-                                        StrokeThickness="1.5" Stroke="#0A0A0C"
-                                        StrokeShape="RoundRectangle 9"
-                                        HorizontalOptions="End" VerticalOptions="End">
-                                    <Label Text="G" FontSize="9" FontAttributes="Bold"
-                                           TextColor="White"
-                                           HorizontalOptions="Center" VerticalOptions="Center"/>
-                                </Border>
+                                
                             </Grid>
 
                             <!-- ── CONTENT ── -->
@@ -385,19 +375,47 @@
                                 <!-- Name + icons -->
                                 <HorizontalStackLayout Spacing="6" VerticalOptions="Center">
                                     <Label Text="{Binding OtherName}"
-                                           FontAttributes="Bold" FontSize="15"
-                                           TextColor="#F0F0F5"
-                                           LineBreakMode="TailTruncation" MaxLines="1"/>
+           FontAttributes="Bold" FontSize="15"
+           TextColor="#F0F0F5"
+           LineBreakMode="TailTruncation" MaxLines="1"/>
+
+                                    <!-- LIVE badge blinking -->
+                                    <Border StrokeThickness="1"
+        Stroke="#22C55E"
+        StrokeShape="RoundRectangle 5"
+        Padding="5,2"
+        VerticalOptions="Center"
+        IsVisible="{Binding IsLive}"
+        Opacity="{Binding LiveBadgeOpacity}">
+                                        <Border.Background>
+                                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                                <GradientStop Color="#0D2218" Offset="0"/>
+                                                <GradientStop Color="#0A1F14" Offset="1"/>
+                                            </LinearGradientBrush>
+                                        </Border.Background>
+                                        <HorizontalStackLayout Spacing="4" VerticalOptions="Center">
+                                            <Ellipse WidthRequest="5" HeightRequest="5"
+                 Fill="#22C55E"
+                 VerticalOptions="Center"/>
+                                            <Label Text="LIVE"
+               FontSize="9"
+               FontAttributes="Bold"
+               TextColor="#22C55E"
+               CharacterSpacing="1"
+               VerticalOptions="Center"/>
+                                        </HorizontalStackLayout>
+                                    </Border>
+
                                     <Path Data="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
-                                          Fill="#FFD24D" Stroke="#FFD24D" StrokeThickness="1.2"
-                                          WidthRequest="12" HeightRequest="12" Aspect="Uniform"
-                                          VerticalOptions="Center"
-                                          IsVisible="{Binding Conversation.IsStarred}"/>
+          Fill="#FFD24D" Stroke="#FFD24D" StrokeThickness="1.2"
+          WidthRequest="12" HeightRequest="12" Aspect="Uniform"
+          VerticalOptions="Center"
+          IsVisible="{Binding Conversation.IsStarred}"/>
                                     <Path Data="M6,2 L10,2 L10,6 L12,8 L10,10 L10,14 L6,14 L6,10 L4,8 L6,6 L6,2 Z"
-                                          Fill="#888888" Stroke="#888888" StrokeThickness="1.2"
-                                          WidthRequest="10" HeightRequest="12" Aspect="Uniform"
-                                          VerticalOptions="Center"
-                                          IsVisible="{Binding Conversation.IsPinned}"/>
+          Fill="#888888" Stroke="#888888" StrokeThickness="1.2"
+          WidthRequest="10" HeightRequest="12" Aspect="Uniform"
+          VerticalOptions="Center"
+          IsVisible="{Binding Conversation.IsPinned}"/>
                                 </HorizontalStackLayout>
 
                                 <!-- Mood + match -->

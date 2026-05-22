@@ -300,41 +300,39 @@
                                FontAttributes="Bold" TextColor="#FF3B6F" />
                                 </HorizontalStackLayout>
                             </Border>
-                            
-                            
 
-                            <!-- Post content -->
+
+
+                            <!-- Post content - Long posts with toggle -->
                             <Label FontSize="14" LineBreakMode="WordWrap"
        TextColor="#F0EDE8" LineHeight="1.5"
        FormattedText="{Binding ToggleFormatted}"
        IsVisible="{Binding NeedsToggle}" />
 
+                            <!-- Post content - Short posts (no toggle needed) -->
                             <Label FontSize="14" LineBreakMode="WordWrap"
        TextColor="#F0EDE8" LineHeight="1.5"
+       FormattedText="{Binding DisplayFormatted}"
        IsVisible="False">
                                 <Label.Triggers>
                                     <DataTrigger TargetType="Label"
                      Binding="{Binding NeedsToggle}" Value="False">
-                                        <Setter Property="IsVisible" 
-                    Value="{Binding HasTextBesideUrl}" />
+                                        <Setter Property="IsVisible" Value="True" />
                                     </DataTrigger>
                                 </Label.Triggers>
-                                <Label.FormattedText>
-                                    <Binding Path="DisplayFormatted" />
-                                </Label.FormattedText>
-                            </Label>
-                            <!-- Read more toggle -->
-                            <Label Text="{Binding DisplayToggleText}"
-                       FontSize="12" FontAttributes="Bold"
-                       TextColor="#60A5FA"
-                       IsVisible="{Binding NeedsToggle}"
-                       HorizontalOptions="Start">
-                                <Label.GestureRecognizers>
-                                    <TapGestureRecognizer Tapped="ToggleExpand_Clicked"
-                                              CommandParameter="{Binding .}" />
-                                </Label.GestureRecognizers>
                             </Label>
 
+                            <!-- Read more toggle -->
+                            <Label Text="{Binding DisplayToggleText}"
+       FontSize="12" FontAttributes="Bold"
+       TextColor="#60A5FA"
+       IsVisible="{Binding NeedsToggle}"
+       HorizontalOptions="Start">
+                                <Label.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="ToggleExpand_Clicked"
+                              CommandParameter="{Binding .}" />
+                                </Label.GestureRecognizers>
+                            </Label>
                             <!-- ── RICH LINK PREVIEW CARD ── -->
                             <Border BackgroundColor="#13131A"
         StrokeThickness="1" Stroke="#2A2A38"

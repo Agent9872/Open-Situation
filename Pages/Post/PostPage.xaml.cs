@@ -50,7 +50,7 @@ namespace Lock.Pages.Post
         public string UserPhone { get; set; }
     }
 
-   
+
 
     // UserHeader class remains unchanged
     public class UserHeader
@@ -2403,7 +2403,7 @@ namespace Lock.Pages.Post
         }
 
 
-      
+
 
         #region Match Percentage Methods
 
