@@ -1,16 +1,14 @@
 using System;
-using SQLite;
 using System.Diagnostics;
 
 namespace Lock.Models.Chat
 {
-    [Table("Conversations")]
     public class Conversation
     {
-        [PrimaryKey, AutoIncrement]
+        // Primary key - Supabase will handle this
         public int Id { get; set; }
 
-        [Unique]
+        // Unique constraint will be handled at database level in Supabase
         public string ConversationId { get; set; } = Guid.NewGuid().ToString();
 
         public string ParticipantA { get; set; } = string.Empty;
@@ -33,25 +31,11 @@ namespace Lock.Models.Chat
 
         public string? LastMessageType { get; set; }
 
-       
-        [Ignore]
+        // Runtime/computed properties (not persisted to database)
         public string OtherParticipant { get; set; } = string.Empty;
-
-        [Ignore]
         public int UnreadCount { get; set; }
 
-        // ADD THIS METHOD HERE
-        public string GetOtherParticipant(string currentUserPhone)
-        {
-            if (string.IsNullOrEmpty(currentUserPhone))
-                return string.Empty;
-
-            if (ParticipantA == currentUserPhone)
-                return ParticipantB;
-            return ParticipantA;
-        }
-
-        [Ignore]
+        // Computed properties for UI
         public string FormattedDisappearingSetting
         {
             get
@@ -72,14 +56,23 @@ namespace Lock.Models.Chat
             }
         }
 
-        // ADD THIS PROPERTY
-        [Ignore]
         public bool HasDisappearingMessages
         {
             get
             {
                 return DisappearingMessagesEnabled && DisappearingMessagesTimer > 0;
             }
+        }
+
+        // Methods
+        public string GetOtherParticipant(string currentUserPhone)
+        {
+            if (string.IsNullOrEmpty(currentUserPhone))
+                return string.Empty;
+
+            if (ParticipantA == currentUserPhone)
+                return ParticipantB;
+            return ParticipantA;
         }
 
         public void UpdateDisappearingSetting(string setting, string changedBy)
@@ -90,12 +83,30 @@ namespace Lock.Models.Chat
 
             switch (setting)
             {
-                case "5 seconds": DisappearingMessagesEnabled = true; DisappearingMessagesTimer = 5; break;
-                case "5 minutes": DisappearingMessagesEnabled = true; DisappearingMessagesTimer = 300; break;
-                case "15 minutes": DisappearingMessagesEnabled = true; DisappearingMessagesTimer = 900; break;
-                case "1 hour": DisappearingMessagesEnabled = true; DisappearingMessagesTimer = 3600; break;
-                case "24 hours": DisappearingMessagesEnabled = true; DisappearingMessagesTimer = 86400; break;
-                case "1 week": DisappearingMessagesEnabled = true; DisappearingMessagesTimer = 604800; break;
+                case "5 seconds":
+                    DisappearingMessagesEnabled = true;
+                    DisappearingMessagesTimer = 5;
+                    break;
+                case "5 minutes":
+                    DisappearingMessagesEnabled = true;
+                    DisappearingMessagesTimer = 300;
+                    break;
+                case "15 minutes":
+                    DisappearingMessagesEnabled = true;
+                    DisappearingMessagesTimer = 900;
+                    break;
+                case "1 hour":
+                    DisappearingMessagesEnabled = true;
+                    DisappearingMessagesTimer = 3600;
+                    break;
+                case "24 hours":
+                    DisappearingMessagesEnabled = true;
+                    DisappearingMessagesTimer = 86400;
+                    break;
+                case "1 week":
+                    DisappearingMessagesEnabled = true;
+                    DisappearingMessagesTimer = 604800;
+                    break;
                 case "Off":
                 default:
                     DisappearingMessagesEnabled = false;
@@ -107,7 +118,8 @@ namespace Lock.Models.Chat
 
         public string GetDisappearingDescription()
         {
-            if (!DisappearingMessagesEnabled || DisappearingMessagesTimer <= 0) return "Off";
+            if (!DisappearingMessagesEnabled || DisappearingMessagesTimer <= 0)
+                return "Off";
 
             return DisappearingMessagesTimer switch
             {

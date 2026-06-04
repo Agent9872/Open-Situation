@@ -41,20 +41,25 @@ namespace Lock.Pages.Admin
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
+                // Remove these lines:
+                // await DatabaseService.InitializeAsync();
+                // var db = DatabaseService.GetConnection();
 
-                // Fetch reported user
+                // Fetch reported user - using Supabase
                 if (!string.IsNullOrEmpty(_report.ReportedUserPhone))
-                    _reportedUser = await db.Table<Lock.Models.User>()
-                        .Where(u => u.PhoneNumber == _report.ReportedUserPhone)
-                        .FirstOrDefaultAsync();
+                {
+                    var reportedUsers = await SupabaseService.GetAsync<Lock.Models.User>("Users",
+                        $"PhoneNumber=eq.{Uri.EscapeDataString(_report.ReportedUserPhone)}&limit=1");
+                    _reportedUser = reportedUsers.FirstOrDefault();
+                }
 
-                // Fetch reporter
+                // Fetch reporter - using Supabase
                 if (!string.IsNullOrEmpty(_report.ReporterPhone))
-                    _reporter = await db.Table<Lock.Models.User>()
-                        .Where(u => u.PhoneNumber == _report.ReporterPhone)
-                        .FirstOrDefaultAsync();
+                {
+                    var reporters = await SupabaseService.GetAsync<Lock.Models.User>("Users",
+                        $"PhoneNumber=eq.{Uri.EscapeDataString(_report.ReporterPhone)}&limit=1");
+                    _reporter = reporters.FirstOrDefault();
+                }
 
                 PopulateHeader();
                 PopulateReportedUserCard();

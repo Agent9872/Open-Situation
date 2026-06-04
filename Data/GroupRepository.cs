@@ -7,43 +7,42 @@ using System.Diagnostics;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using System.Threading.Tasks;
 
 namespace Lock.Services
 {
     public static class GroupRepository
     {
+        // ═══════════════════════════════════════════════════════════════
+        // INITIALIZATION
+        // ═══════════════════════════════════════════════════════════════
 
         public static async Task InitializeAsync()
         {
-            await GroupDatabaseService.InitializeAsync();
+            // Supabase is already initialized in App.xaml.cs
+            await Task.CompletedTask;
         }
 
         // ═══════════════════════════════════════════════════════════════
         // GROUP CRUD
         // ═══════════════════════════════════════════════════════════════
 
-        // ═══════════════════════════════════════════════════════════════
-        // GROUP CRUD - FIXED VERSION
-        // ═══════════════════════════════════════════════════════════════
         public static async Task<Group> CreateGroupAsync(
-     string name,
-     string description,
-     GroupType groupType,
-     GroupVisibility visibility,
-     string createdByPhone,
-     string coverImagePath = "",
-     string category = "",
-     List<string>? interestTags = null,
-     int maxMembers = 0,
-     string moodFilter = "",
-     bool isAnonymousAllowed = false,
-     bool isEncrypted = true,
-     bool requireApproval = false)
+            string name,
+            string description,
+            GroupType groupType,
+            GroupVisibility visibility,
+            string createdByPhone,
+            string coverImagePath = "",
+            string category = "",
+            List<string>? interestTags = null,
+            int maxMembers = 0,
+            string moodFilter = "",
+            bool isAnonymousAllowed = false,
+            bool isEncrypted = true,
+            bool requireApproval = false)
         {
-            await GroupDatabaseService.InitializeAsync();
-            var db = GroupDatabaseService.GetConnection();
-
             if (string.IsNullOrWhiteSpace(name))
                 throw new ArgumentException("Group name cannot be empty.");
 
@@ -52,17 +51,13 @@ namespace Lock.Services
 
             // Prevent recent duplicate group creation
             var fiveMinutesAgo = DateTime.UtcNow.AddMinutes(-5);
+            var allGroups = await SupabaseService.GetAsync<Group>("Groups",
+                $"Name=eq.{Uri.EscapeDataString(name)}&CreatedByPhone=eq.{Uri.EscapeDataString(createdByPhone)}&CreatedAt=gt.{fiveMinutesAgo:yyyy-MM-ddTHH:mm:ssZ}");
 
-            var existingGroup = await db.Table<Group>()
-                .Where(g => g.Name == name
-                         && g.CreatedByPhone == createdByPhone
-                         && g.CreatedAt > fiveMinutesAgo)
-                .FirstOrDefaultAsync();
-
-            if (existingGroup != null)
+            if (allGroups.Any())
             {
                 Debug.WriteLine($"Duplicate group creation attempt detected for '{name}'. Returning existing.");
-                return existingGroup;
+                return allGroups.First();
             }
 
             // Create the group
@@ -89,7 +84,8 @@ namespace Lock.Services
                 MemberCount = 1
             };
 
-            await db.InsertAsync(group);
+            var insertedGroup = await SupabaseService.InsertAndReturnAsync<Group>("Groups", group);
+            if (insertedGroup == null) throw new Exception("Failed to create group");
 
             // Auto-add creator as owner
             var creatorName = await GetUserNameAsync(createdByPhone);
@@ -98,7 +94,7 @@ namespace Lock.Services
             var creatorMember = new GroupMember
             {
                 Id = Guid.NewGuid().ToString(),
-                GroupId = group.Id,
+                GroupId = insertedGroup.Id,
                 UserPhone = createdByPhone,
                 UserName = creatorName,
                 UserProfileImagePath = creatorImg,
@@ -110,60 +106,47 @@ namespace Lock.Services
                 IsBanned = false
             };
 
-            await db.InsertAsync(creatorMember);
+            await SupabaseService.InsertAsync("GroupMembers", creatorMember);
 
-            // FIXED: Check for duplicate creation message
+            // Check for duplicate creation message
             var thirtySecondsAgo = DateTime.UtcNow.AddSeconds(-30);
-            var existingCreationCount = await db.Table<GroupMessage>()
-                .Where(m => m.GroupId == group.Id &&
-                            m.IsSystemMessage &&
-                            m.Content.Contains("created this group") &&
-                            m.SentAt > thirtySecondsAgo)
-                .CountAsync();
+            var existingCreationMessages = await SupabaseService.GetAsync<GroupMessage>("GroupMessages",
+                $"GroupId=eq.{Uri.EscapeDataString(insertedGroup.Id)}&IsSystemMessage=eq.true&SentAt=gt.{thirtySecondsAgo:yyyy-MM-ddTHH:mm:ssZ}&limit=10");
 
-            if (existingCreationCount == 0)
+            if (!existingCreationMessages.Any(m => m.Content.Contains("created this group")))
             {
-                await PostSystemMessageAsync(group.Id, $"👋 {creatorName} created this group");
-                Debug.WriteLine($"System creation message posted for group {group.Id}");
+                await PostSystemMessageAsync(insertedGroup.Id, $"👋 {creatorName} created this group");
+                Debug.WriteLine($"System creation message posted for group {insertedGroup.Id}");
             }
             else
             {
                 Debug.WriteLine($"Creation message already exists — skipping duplicate.");
             }
 
-            return group;
+            return insertedGroup;
         }
-
 
         public static async Task<Group?> GetGroupAsync(string groupId)
         {
-            await GroupDatabaseService.InitializeAsync();
-            var db = GroupDatabaseService.GetConnection();
-            return await db.Table<Group>()
-                .Where(g => g.Id == groupId)
-                .FirstOrDefaultAsync();
+            var groups = await SupabaseService.GetAsync<Group>("Groups", $"Id=eq.{Uri.EscapeDataString(groupId)}&limit=1");
+            return groups.FirstOrDefault();
         }
 
         public static async Task UpdateGroupAsync(Group group)
         {
-            await GroupDatabaseService.InitializeAsync();
-            var db = GroupDatabaseService.GetConnection();
             group.LastActiveAt = DateTime.UtcNow;
-            await db.UpdateAsync(group);
+            await SupabaseService.UpdateAsync("Groups", $"Id=eq.{Uri.EscapeDataString(group.Id)}", group);
         }
 
         public static async Task DeleteGroupAsync(string groupId)
         {
-            await GroupDatabaseService.InitializeAsync();
-            var db = GroupDatabaseService.GetConnection();
-
-            await db.ExecuteAsync("DELETE FROM Groups WHERE Id = ?", groupId);
-            await db.ExecuteAsync("DELETE FROM GroupMembers WHERE GroupId = ?", groupId);
-            await db.ExecuteAsync("DELETE FROM GroupMessages WHERE GroupId = ?", groupId);
-            await db.ExecuteAsync("DELETE FROM GroupInvites WHERE GroupId = ?", groupId);
-            await db.ExecuteAsync("DELETE FROM GroupJoinRequests WHERE GroupId = ?", groupId);
-            await db.ExecuteAsync("DELETE FROM GroupEvents WHERE GroupId = ?", groupId);
-            await db.ExecuteAsync("DELETE FROM GroupPinnedMessages WHERE GroupId = ?", groupId);
+            await SupabaseService.DeleteAsync("Groups", $"Id=eq.{Uri.EscapeDataString(groupId)}");
+            await SupabaseService.DeleteAsync("GroupMembers", $"GroupId=eq.{Uri.EscapeDataString(groupId)}");
+            await SupabaseService.DeleteAsync("GroupMessages", $"GroupId=eq.{Uri.EscapeDataString(groupId)}");
+            await SupabaseService.DeleteAsync("GroupInvites", $"GroupId=eq.{Uri.EscapeDataString(groupId)}");
+            await SupabaseService.DeleteAsync("GroupJoinRequests", $"GroupId=eq.{Uri.EscapeDataString(groupId)}");
+            await SupabaseService.DeleteAsync("GroupEvents", $"GroupId=eq.{Uri.EscapeDataString(groupId)}");
+            await SupabaseService.DeleteAsync("GroupPinnedMessages", $"GroupId=eq.{Uri.EscapeDataString(groupId)}");
         }
 
         // ═══════════════════════════════════════════════════════════════
@@ -176,13 +159,8 @@ namespace Lock.Services
             GroupType? filterType = null,
             string? filterMood = null)
         {
-            await GroupDatabaseService.InitializeAsync();
-            var db = GroupDatabaseService.GetConnection();
-
-            var query = await db.Table<Group>()
-                .Where(g => g.IsActive &&
-                            (int)g.Visibility == (int)GroupVisibility.Public)
-                .ToListAsync();
+            var query = await SupabaseService.GetAsync<Group>("Groups",
+                $"IsActive=eq.true&Visibility=eq.Public&order=LastActiveAt.desc");
 
             if (!string.IsNullOrWhiteSpace(searchQuery))
             {
@@ -190,8 +168,7 @@ namespace Lock.Services
                 query = query.Where(g =>
                     g.Name.ToLower().Contains(q) ||
                     g.Description.ToLower().Contains(q) ||
-                    g.Category.ToLower().Contains(q))
-                    .ToList();
+                    g.Category.ToLower().Contains(q)).ToList();
             }
 
             if (filterType.HasValue)
@@ -200,16 +177,12 @@ namespace Lock.Services
             if (!string.IsNullOrEmpty(filterMood))
                 query = query.Where(g =>
                     string.IsNullOrEmpty(g.MoodFilter) ||
-                    string.Equals(g.MoodFilter, filterMood,
-                        StringComparison.OrdinalIgnoreCase))
-                    .ToList();
+                    string.Equals(g.MoodFilter, filterMood, StringComparison.OrdinalIgnoreCase)).ToList();
 
             // Mark membership status
-            var memberGroupIds = (await db.Table<GroupMember>()
-                .Where(m => m.UserPhone == currentUserPhone && !m.IsBanned)
-                .ToListAsync())
-                .Select(m => m.GroupId)
-                .ToHashSet();
+            var memberships = await SupabaseService.GetAsync<GroupMember>("GroupMembers",
+                $"UserPhone=eq.{Uri.EscapeDataString(currentUserPhone)}&IsBanned=eq.false");
+            var memberGroupIds = memberships.Select(m => m.GroupId).ToHashSet();
 
             foreach (var g in query)
             {
@@ -221,23 +194,14 @@ namespace Lock.Services
 
         public static async Task<List<Group>> GetMyGroupsAsync(string userPhone)
         {
-            await GroupDatabaseService.InitializeAsync();
-            var db = GroupDatabaseService.GetConnection();
-
-            var memberships = await db.Table<GroupMember>()
-                .Where(m => m.UserPhone == userPhone && !m.IsBanned)
-                .ToListAsync();
+            var memberships = await SupabaseService.GetAsync<GroupMember>("GroupMembers",
+                $"UserPhone=eq.{Uri.EscapeDataString(userPhone)}&IsBanned=eq.false");
 
             var groupIds = memberships.Select(m => m.GroupId).ToList();
             if (!groupIds.Any()) return new List<Group>();
 
-            var groups = await db.Table<Group>()
-                .Where(g => g.IsActive)
-                .ToListAsync();
-
-            var myGroups = groups
-                .Where(g => groupIds.Contains(g.Id))
-                .ToList();
+            var allGroups = await SupabaseService.GetAsync<Group>("Groups", $"IsActive=eq.true");
+            var myGroups = allGroups.Where(g => groupIds.Contains(g.Id)).ToList();
 
             // Attach unread counts and role info
             foreach (var g in myGroups)
@@ -245,15 +209,11 @@ namespace Lock.Services
                 var membership = memberships.First(m => m.GroupId == g.Id);
                 g.IsMember = true;
                 g.IsCreator = membership.Role == GroupMemberRole.Creator;
-                g.IsAdmin = membership.Role == GroupMemberRole.Creator ||
-                               membership.Role == GroupMemberRole.Admin;
+                g.IsAdmin = membership.Role == GroupMemberRole.Creator || membership.Role == GroupMemberRole.Admin;
 
-                var unread = await db.Table<GroupMessage>()
-                    .Where(msg => msg.GroupId == g.Id &&
-                                  msg.SentAt > membership.LastReadAt &&
-                                  msg.SenderPhone != userPhone &&
-                                  !msg.IsDeleted)
-                    .CountAsync();
+                var messages = await SupabaseService.GetAsync<GroupMessage>("GroupMessages",
+                    $"GroupId=eq.{Uri.EscapeDataString(g.Id)}&IsDeleted=eq.false");
+                var unread = messages.Count(msg => msg.SentAt > membership.LastReadAt && msg.SenderPhone != userPhone);
                 g.UnreadCount = unread;
             }
 
@@ -264,26 +224,21 @@ namespace Lock.Services
         // MEMBERSHIP
         // ═══════════════════════════════════════════════════════════════
 
-        // FIXED JoinGroupAsync - prevent duplicate system messages
         public static async Task<(bool success, string message)> JoinGroupAsync(
-      string groupId,
-      string userPhone,
-      bool anonymous = false)
+            string groupId,
+            string userPhone,
+            bool anonymous = false)
         {
-            await GroupDatabaseService.InitializeAsync();
-            var db = GroupDatabaseService.GetConnection();
-
             var group = await GetGroupAsync(groupId);
             if (group == null) return (false, "Group not found");
             if (!group.IsActive) return (false, "This group is no longer active");
 
-            var existing = await db.Table<GroupMember>()
-                .Where(m => m.GroupId == groupId && m.UserPhone == userPhone)
-                .FirstOrDefaultAsync();
+            var existing = await SupabaseService.GetAsync<GroupMember>("GroupMembers",
+                $"GroupId=eq.{Uri.EscapeDataString(groupId)}&UserPhone=eq.{Uri.EscapeDataString(userPhone)}&limit=1");
 
-            if (existing != null)
+            if (existing.Any())
             {
-                if (existing.IsBanned) return (false, "You have been banned from this group");
+                if (existing.First().IsBanned) return (false, "You have been banned from this group");
                 return (false, "You are already a member");
             }
 
@@ -296,16 +251,17 @@ namespace Lock.Services
             }
 
             // Capacity check
-            if (group.MaxMembers > 0 && group.MemberCount >= group.MaxMembers)
+            var members = await SupabaseService.GetAsync<GroupMember>("GroupMembers",
+                $"GroupId=eq.{Uri.EscapeDataString(groupId)}&IsBanned=eq.false");
+            if (group.MaxMembers > 0 && members.Count >= group.MaxMembers)
                 return (false, "This group is full");
 
             if (group.RequireApproval)
             {
-                var existingRequest = await db.Table<GroupJoinRequest>()
-                    .Where(r => r.GroupId == groupId && r.UserPhone == userPhone && r.Status == "pending")
-                    .FirstOrDefaultAsync();
+                var existingRequest = await SupabaseService.GetAsync<GroupJoinRequest>("GroupJoinRequests",
+                    $"GroupId=eq.{Uri.EscapeDataString(groupId)}&UserPhone=eq.{Uri.EscapeDataString(userPhone)}&Status=eq.pending&limit=1");
 
-                if (existingRequest != null)
+                if (existingRequest.Any())
                     return (false, "Join request already pending");
 
                 var pending = new GroupJoinRequest
@@ -318,14 +274,14 @@ namespace Lock.Services
                     RequestedAt = DateTime.UtcNow,
                     Status = "pending"
                 };
-                await db.InsertAsync(pending);
+                await SupabaseService.InsertAsync("GroupJoinRequests", pending);
                 return (true, "Join request sent — waiting for admin approval");
             }
 
             var userName = await GetUserNameAsync(userPhone);
             var userImg = await GetUserProfileImageAsync(userPhone);
+            int anonNumber = members.Count + 1;
 
-            int anonNumber = group.MemberCount + 1;
             var member = new GroupMember
             {
                 Id = Guid.NewGuid().ToString(),
@@ -342,21 +298,18 @@ namespace Lock.Services
                 IsBanned = false
             };
 
-            await db.InsertAsync(member);
+            await SupabaseService.InsertAsync("GroupMembers", member);
 
-            group.MemberCount++;
-            await db.UpdateAsync(group);
+            group.MemberCount = members.Count + 1;
+            await SupabaseService.UpdateAsync("Groups", $"Id=eq.{Uri.EscapeDataString(groupId)}", new { MemberCount = group.MemberCount });
 
             var displayName = anonymous ? $"Member #{anonNumber}" : userName;
 
-            // FIXED: Check for duplicate join messages - look in last 10 seconds only
-            var recentJoinMessage = await db.Table<GroupMessage>()
-       .Where(m => m.GroupId == groupId &&
-                   m.IsSystemMessage &&
-                   m.Content == $"✨ {displayName} joined the group")
-       .FirstOrDefaultAsync();
+            // Check for duplicate join messages
+            var recentJoinMessage = await SupabaseService.GetAsync<GroupMessage>("GroupMessages",
+                $"GroupId=eq.{Uri.EscapeDataString(groupId)}&IsSystemMessage=eq.true&Content=eq.{Uri.EscapeDataString($"✨ {displayName} joined the group")}&limit=1");
 
-            if (recentJoinMessage == null)
+            if (!recentJoinMessage.Any())
             {
                 await PostSystemMessageAsync(groupId, $"✨ {displayName} joined the group");
             }
@@ -368,18 +321,11 @@ namespace Lock.Services
             return (true, "Joined successfully");
         }
 
-        // FIXED LeaveGroupAsync - prevent duplicate system messages
         public static async Task<bool> LeaveGroupAsync(string groupId, string userPhone)
         {
             try
             {
-                await GroupDatabaseService.InitializeAsync();
-                var db = GroupDatabaseService.GetConnection();
-
-                var member = await db.Table<GroupMember>()
-                    .Where(m => m.GroupId == groupId && m.UserPhone == userPhone)
-                    .FirstOrDefaultAsync();
-
+                var member = await GetMemberAsync(groupId, userPhone);
                 if (member == null) return false;
 
                 // BLOCK: Creator cannot leave the group
@@ -388,42 +334,17 @@ namespace Lock.Services
                     return false; // Silently block — UI should handle the message
                 }
 
-                // If creator is leaving, transfer or dissolve
-                if (member.Role == GroupMemberRole.Creator)
-                {
-                    var nextAdmin = await db.Table<GroupMember>()
-                        .Where(m => m.GroupId == groupId &&
-                                    m.UserPhone != userPhone &&
-                                    !m.IsBanned)
-                        .FirstOrDefaultAsync();
-
-                    if (nextAdmin != null)
-                    {
-                        nextAdmin.Role = GroupMemberRole.Creator;
-                        await db.UpdateAsync(nextAdmin);
-                        await PostSystemMessageAsync(groupId,
-                            $"👑 {nextAdmin.UserName} is now the group creator");
-                    }
-                    else
-                    {
-                        // No members left — archive group
-                        var group2 = await GetGroupAsync(groupId);
-                        if (group2 != null)
-                        {
-                            group2.IsActive = false;
-                            await db.UpdateAsync(group2);
-                        }
-                    }
-                }
-
-                // Delete the member first to prevent any further operations
-                await db.DeleteAsync(member);
+                // Delete the member first
+                await SupabaseService.DeleteAsync("GroupMembers",
+                    $"GroupId=eq.{Uri.EscapeDataString(groupId)}&UserPhone=eq.{Uri.EscapeDataString(userPhone)}");
 
                 var group = await GetGroupAsync(groupId);
                 if (group != null)
                 {
-                    group.MemberCount = Math.Max(0, group.MemberCount - 1);
-                    await db.UpdateAsync(group);
+                    var currentMembers = await SupabaseService.GetAsync<GroupMember>("GroupMembers",
+                        $"GroupId=eq.{Uri.EscapeDataString(groupId)}&IsBanned=eq.false");
+                    group.MemberCount = currentMembers.Count;
+                    await UpdateGroupAsync(group);
                 }
 
                 var displayName = member.IsAnonymous && !string.IsNullOrEmpty(member.AnonymousAlias)
@@ -431,13 +352,10 @@ namespace Lock.Services
                     : member.UserName;
 
                 // Check for duplicate leave messages
-                var recentLeaveMessage = await db.Table<GroupMessage>()
-      .Where(m => m.GroupId == groupId &&
-                  m.IsSystemMessage &&
-                  m.Content == $"👋 {displayName} left the group")
-      .FirstOrDefaultAsync();
+                var recentLeaveMessage = await SupabaseService.GetAsync<GroupMessage>("GroupMessages",
+                    $"GroupId=eq.{Uri.EscapeDataString(groupId)}&IsSystemMessage=eq.true&Content=eq.{Uri.EscapeDataString($"👋 {displayName} left the group")}&limit=1");
 
-                if (recentLeaveMessage == null)
+                if (!recentLeaveMessage.Any())
                 {
                     await PostSystemMessageAsync(groupId, $"👋 {displayName} left the group");
                 }
@@ -450,40 +368,35 @@ namespace Lock.Services
                 return false;
             }
         }
+
         public static async Task<bool> RemoveMemberAsync(
             string groupId,
             string adminPhone,
             string targetPhone)
         {
-            await GroupDatabaseService.InitializeAsync();
-            var db = GroupDatabaseService.GetConnection();
-
-            var adminMember = await db.Table<GroupMember>()
-                .Where(m => m.GroupId == groupId && m.UserPhone == adminPhone)
-                .FirstOrDefaultAsync();
-
+            var adminMember = await GetMemberAsync(groupId, adminPhone);
             if (adminMember == null || !adminMember.IsPrivileged)
                 return false;
 
-            var target = await db.Table<GroupMember>()
-                .Where(m => m.GroupId == groupId && m.UserPhone == targetPhone)
-                .FirstOrDefaultAsync();
-
+            var target = await GetMemberAsync(groupId, targetPhone);
             if (target == null) return false;
             if (target.Role == GroupMemberRole.Creator) return false;
 
             target.IsBanned = true;
-            await db.UpdateAsync(target);
+            await SupabaseService.UpdateAsync("GroupMembers",
+                $"GroupId=eq.{Uri.EscapeDataString(groupId)}&UserPhone=eq.{Uri.EscapeDataString(targetPhone)}",
+                target);
 
             var group = await GetGroupAsync(groupId);
             if (group != null)
             {
-                group.MemberCount = Math.Max(0, group.MemberCount - 1);
-                await db.UpdateAsync(group);
+                var members = await SupabaseService.GetAsync<GroupMember>("GroupMembers",
+                    $"GroupId=eq.{Uri.EscapeDataString(groupId)}&IsBanned=eq.false");
+                group.MemberCount = members.Count;
+                await UpdateGroupAsync(group);
             }
 
-            await PostSystemMessageAsync(groupId,
-                $"🚫 {target.UserName} was removed by an admin");
+            await PostSystemMessageAsync(groupId, $"🚫 {target.UserName} was removed by an admin");
             return true;
         }
 
@@ -493,62 +406,41 @@ namespace Lock.Services
             string targetPhone,
             GroupMemberRole newRole)
         {
-            await GroupDatabaseService.InitializeAsync();
-            var db = GroupDatabaseService.GetConnection();
-
-            var admin = await db.Table<GroupMember>()
-                .Where(m => m.GroupId == groupId && m.UserPhone == adminPhone)
-                .FirstOrDefaultAsync();
-
-            if (admin == null ||
-                (admin.Role != GroupMemberRole.Creator && admin.Role != GroupMemberRole.Admin))
+            var admin = await GetMemberAsync(groupId, adminPhone);
+            if (admin == null || (admin.Role != GroupMemberRole.Creator && admin.Role != GroupMemberRole.Admin))
                 return false;
 
-            var target = await db.Table<GroupMember>()
-                .Where(m => m.GroupId == groupId && m.UserPhone == targetPhone)
-                .FirstOrDefaultAsync();
-
+            var target = await GetMemberAsync(groupId, targetPhone);
             if (target == null) return false;
 
             target.Role = newRole;
-            await db.UpdateAsync(target);
+            await SupabaseService.UpdateAsync("GroupMembers",
+                $"GroupId=eq.{Uri.EscapeDataString(groupId)}&UserPhone=eq.{Uri.EscapeDataString(targetPhone)}",
+                target);
 
             string roleLabel = newRole == GroupMemberRole.Admin ? "Admin" : "Moderator";
-            await PostSystemMessageAsync(groupId,
-                $"⭐ {target.UserName} is now a {roleLabel}");
+            await PostSystemMessageAsync(groupId, $"⭐ {target.UserName} is now a {roleLabel}");
             return true;
         }
 
         public static async Task<List<GroupMember>> GetMembersAsync(string groupId)
         {
-            await GroupDatabaseService.InitializeAsync();
-            var db = GroupDatabaseService.GetConnection();
-
-            return await db.Table<GroupMember>()
-                .Where(m => m.GroupId == groupId && !m.IsBanned)
-                .ToListAsync();
+            return await SupabaseService.GetAsync<GroupMember>("GroupMembers",
+                $"GroupId=eq.{Uri.EscapeDataString(groupId)}&IsBanned=eq.false&order=JoinedAt.asc");
         }
 
         public static async Task<bool> IsMemberAsync(string groupId, string userPhone)
         {
-            await GroupDatabaseService.InitializeAsync();
-            var db = GroupDatabaseService.GetConnection();
-
-            var m = await db.Table<GroupMember>()
-                .Where(m => m.GroupId == groupId &&
-                            m.UserPhone == userPhone &&
-                            !m.IsBanned)
-                .FirstOrDefaultAsync();
-            return m != null;
+            var members = await SupabaseService.GetAsync<GroupMember>("GroupMembers",
+                $"GroupId=eq.{Uri.EscapeDataString(groupId)}&UserPhone=eq.{Uri.EscapeDataString(userPhone)}&IsBanned=eq.false&limit=1");
+            return members.Any();
         }
 
         public static async Task<GroupMember?> GetMemberAsync(string groupId, string userPhone)
         {
-            await GroupDatabaseService.InitializeAsync();
-            var db = GroupDatabaseService.GetConnection();
-            return await db.Table<GroupMember>()
-                .Where(m => m.GroupId == groupId && m.UserPhone == userPhone)
-                .FirstOrDefaultAsync();
+            var members = await SupabaseService.GetAsync<GroupMember>("GroupMembers",
+                $"GroupId=eq.{Uri.EscapeDataString(groupId)}&UserPhone=eq.{Uri.EscapeDataString(userPhone)}&limit=1");
+            return members.FirstOrDefault();
         }
 
         // ═══════════════════════════════════════════════════════════════
@@ -556,29 +448,23 @@ namespace Lock.Services
         // ═══════════════════════════════════════════════════════════════
 
         public static async Task<GroupMessage> SendMessageAsync(
-     string groupId,
-     string senderPhone,
-     string content,
-     GroupMessageType type = GroupMessageType.Text,
-     List<string>? mediaPaths = null,
-     int replyToMessageId = 0,
-     string voiceAudioPath = "",
-     double voiceDurationSeconds = 0,
-     string pollJson = "")
+            string groupId,
+            string senderPhone,
+            string content,
+            GroupMessageType type = GroupMessageType.Text,
+            List<string>? mediaPaths = null,
+            string? replyToMessageId = null,
+            string voiceAudioPath = "",
+            double voiceDurationSeconds = 0,
+            string pollJson = "")
         {
-            await GroupDatabaseService.InitializeAsync();
-            var db = GroupDatabaseService.GetConnection();
-
-            var member = await db.Table<GroupMember>()
-                .Where(m => m.GroupId == groupId && m.UserPhone == senderPhone && !m.IsBanned)
-                .FirstOrDefaultAsync();
-
+            var member = await GetMemberAsync(groupId, senderPhone);
             if (member == null)
                 throw new UnauthorizedAccessException("Not a member of this group");
 
             var group = await GetGroupAsync(groupId);
 
-            // === Handle Encryption ===
+            // Handle Encryption
             string encryptedContent = string.Empty;
             string storeContent = content;
 
@@ -588,23 +474,18 @@ namespace Lock.Services
                 storeContent = encryptedContent;
             }
 
-            // === FIXED: Better Reply Preview with DECRYPTED content ===
+            // Reply preview with decrypted content
             string replyToSenderName = string.Empty;
             string replyToPreview = string.Empty;
 
-            if (replyToMessageId > 0)
+            if (!string.IsNullOrEmpty(replyToMessageId))
             {
-                var replyMsg = await db.Table<GroupMessage>()
-                    .Where(m => m.Id == replyToMessageId)
-                    .FirstOrDefaultAsync();
-
+                var replyMsg = await GetMessageAsync(replyToMessageId);
                 if (replyMsg != null)
                 {
                     replyToSenderName = replyMsg.DisplaySenderName ?? "Someone";
 
-                    // FIX: Get DECRYPTED content for preview
                     string previewText = "";
-
                     switch (replyMsg.MessageType)
                     {
                         case GroupMessageType.Image:
@@ -623,7 +504,6 @@ namespace Lock.Services
                             previewText = replyMsg.Content ?? "System message";
                             break;
                         default:
-                            // For text messages, get the decrypted content
                             if (replyMsg.IsEncrypted && !string.IsNullOrEmpty(replyMsg.EncryptedContent))
                             {
                                 try
@@ -653,12 +533,12 @@ namespace Lock.Services
                 }
             }
 
-            // === Disappearing messages ===
+            // Disappearing messages
             DateTime? disappearAt = group?.DisappearingMessageSeconds > 0
                 ? DateTime.UtcNow.AddSeconds(group.DisappearingMessageSeconds)
                 : null;
 
-            // === Normalize media paths for MAUI (important fix) ===
+            // Normalize media paths
             var normalizedMediaPaths = new List<string>();
             if (mediaPaths != null)
             {
@@ -667,7 +547,6 @@ namespace Lock.Services
                     if (!string.IsNullOrWhiteSpace(path))
                     {
                         string cleanPath = path.Trim();
-                        // Ensure it's a proper file path (add file:// if needed on some platforms)
                         if (!cleanPath.StartsWith("file://", StringComparison.OrdinalIgnoreCase) &&
                             !cleanPath.StartsWith("http", StringComparison.OrdinalIgnoreCase))
                         {
@@ -680,6 +559,7 @@ namespace Lock.Services
 
             var message = new GroupMessage
             {
+                Id = Guid.NewGuid().ToString(),
                 GroupId = groupId,
                 SenderPhone = senderPhone,
                 SenderName = member.UserName,
@@ -695,7 +575,7 @@ namespace Lock.Services
                 PollJson = pollJson,
                 ReplyToMessageId = replyToMessageId,
                 ReplyToSenderName = replyToSenderName,
-                ReplyToPreview = replyToPreview,  // ← Now uses DECRYPTED content
+                ReplyToPreview = replyToPreview,
                 SentAt = DateTime.UtcNow,
                 DisappearAt = disappearAt,
                 IsDeleted = false,
@@ -703,7 +583,7 @@ namespace Lock.Services
                 ReadByCount = 1
             };
 
-            await db.InsertAsync(message);
+            var inserted = await SupabaseService.InsertAndReturnAsync<GroupMessage>("GroupMessages", message);
 
             // Update group last activity
             if (group != null)
@@ -712,26 +592,20 @@ namespace Lock.Services
                 group.LastMessageSenderName = message.DisplaySenderName;
                 group.LastMessageAt = DateTime.UtcNow;
                 group.LastActiveAt = DateTime.UtcNow;
-                await db.UpdateAsync(group);
+                await UpdateGroupAsync(group);
             }
 
             Debug.WriteLine($"Message sent: Type={type}, MediaCount={normalizedMediaPaths.Count}");
-            return message;
+            return inserted ?? message;
         }
+
         public static async Task<List<GroupMessage>> GetMessagesAsync(
             string groupId,
             int take = 50,
             int skip = 0)
         {
-            await GroupDatabaseService.InitializeAsync();
-            var db = GroupDatabaseService.GetConnection();
-
-            var msgs = await db.Table<GroupMessage>()
-                .Where(m => m.GroupId == groupId && !m.IsDeleted)
-                .OrderByDescending(m => m.SentAt)
-                .Skip(skip)
-                .Take(take)
-                .ToListAsync();
+            var msgs = await SupabaseService.GetAsync<GroupMessage>("GroupMessages",
+                $"GroupId=eq.{Uri.EscapeDataString(groupId)}&IsDeleted=eq.false&order=SentAt.desc&limit={take}&offset={skip}");
 
             msgs.Reverse(); // chronological order
 
@@ -751,45 +625,40 @@ namespace Lock.Services
             return msgs;
         }
 
+        public static async Task<GroupMessage?> GetMessageAsync(string messageId)
+        {
+            var messages = await SupabaseService.GetAsync<GroupMessage>("GroupMessages",
+                $"Id=eq.{Uri.EscapeDataString(messageId)}&limit=1");
+            return messages.FirstOrDefault();
+        }
+
         public static async Task<bool> DeleteMessageAsync(
             string groupId,
-            int messageId,
+            string messageId,
             string requestorPhone)
         {
-            await GroupDatabaseService.InitializeAsync();
-            var db = GroupDatabaseService.GetConnection();
-
-            var msg = await db.Table<GroupMessage>()
-                .Where(m => m.Id == messageId)
-                .FirstOrDefaultAsync();
+            var msg = await GetMessageAsync(messageId);
             if (msg == null) return false;
 
-            var member = await db.Table<GroupMember>()
-                .Where(m => m.GroupId == groupId && m.UserPhone == requestorPhone)
-                .FirstOrDefaultAsync();
+            var member = await GetMemberAsync(groupId, requestorPhone);
 
-            bool canDelete = msg.SenderPhone == requestorPhone ||
-                             (member?.IsPrivileged == true);
+            bool canDelete = msg.SenderPhone == requestorPhone || (member?.IsPrivileged == true);
             if (!canDelete) return false;
 
             msg.IsDeleted = true;
             msg.Content = string.Empty;
-            await db.UpdateAsync(msg);
+            msg.EncryptedContent = string.Empty;
+            await SupabaseService.UpdateAsync("GroupMessages", $"Id=eq.{Uri.EscapeDataString(messageId)}", msg);
             return true;
         }
 
         public static async Task<bool> EditMessageAsync(
-       int messageId,
-       string requestorPhone,
-       string newContent)
+            string messageId,
+            string requestorPhone,
+            string newContent)
         {
-            await GroupDatabaseService.InitializeAsync();
-            var db = GroupDatabaseService.GetConnection();
-
-            var msg = await db.Table<GroupMessage>()
-                .Where(m => m.Id == messageId && m.SenderPhone == requestorPhone)
-                .FirstOrDefaultAsync();
-            if (msg == null) return false;
+            var msg = await GetMessageAsync(messageId);
+            if (msg == null || msg.SenderPhone != requestorPhone) return false;
 
             // Get the group for encryption
             var group = await GetGroupAsync(msg.GroupId);
@@ -809,21 +678,17 @@ namespace Lock.Services
             }
 
             msg.IsEdited = true;
-            await db.UpdateAsync(msg);
-
+            msg.EditedAt = DateTime.UtcNow;
+            await SupabaseService.UpdateAsync("GroupMessages", $"Id=eq.{Uri.EscapeDataString(messageId)}", msg);
             return true;
         }
+
         public static async Task AddReactionAsync(
-            int messageId,
+            string messageId,
             string userPhone,
             string emoji)
         {
-            await GroupDatabaseService.InitializeAsync();
-            var db = GroupDatabaseService.GetConnection();
-
-            var msg = await db.Table<GroupMessage>()
-                .Where(m => m.Id == messageId)
-                .FirstOrDefaultAsync();
+            var msg = await GetMessageAsync(messageId);
             if (msg == null) return;
 
             var reactions = msg.Reactions;
@@ -838,61 +703,50 @@ namespace Lock.Services
             reactions[emoji].Add(userPhone);
 
             msg.Reactions = reactions;
-            await db.UpdateAsync(msg);
+            await SupabaseService.UpdateAsync("GroupMessages", $"Id=eq.{Uri.EscapeDataString(messageId)}", msg);
         }
 
         public static async Task MarkAsReadAsync(string groupId, string userPhone)
         {
-            await GroupDatabaseService.InitializeAsync();
-            var db = GroupDatabaseService.GetConnection();
-
-            var member = await db.Table<GroupMember>()
-                .Where(m => m.GroupId == groupId && m.UserPhone == userPhone)
-                .FirstOrDefaultAsync();
-
+            var member = await GetMemberAsync(groupId, userPhone);
             if (member == null) return;
 
             member.LastReadAt = DateTime.UtcNow;
             member.LastSeenAt = DateTime.UtcNow;
-            await db.UpdateAsync(member);
+            await SupabaseService.UpdateAsync("GroupMembers",
+                $"GroupId=eq.{Uri.EscapeDataString(groupId)}&UserPhone=eq.{Uri.EscapeDataString(userPhone)}",
+                member);
         }
 
         public static async Task<bool> PinMessageAsync(
             string groupId,
-            int messageId,
+            string messageId,
             string adminPhone)
         {
-            await GroupDatabaseService.InitializeAsync();
-            var db = GroupDatabaseService.GetConnection();
-
-            var admin = await db.Table<GroupMember>()
-                .Where(m => m.GroupId == groupId && m.UserPhone == adminPhone)
-                .FirstOrDefaultAsync();
+            var admin = await GetMemberAsync(groupId, adminPhone);
             if (admin == null || !admin.IsPrivileged) return false;
 
             // Max 3 pinned messages
-            var pinCount = await db.Table<GroupPinnedMessage>()
-                .Where(p => p.GroupId == groupId)
-                .CountAsync();
-            if (pinCount >= 3) return false;
+            var pinnedMessages = await SupabaseService.GetAsync<GroupPinnedMessage>("GroupPinnedMessages",
+                $"GroupId=eq.{Uri.EscapeDataString(groupId)}");
+            if (pinnedMessages.Count >= 3) return false;
 
-            var msg = await db.Table<GroupMessage>()
-                .Where(m => m.Id == messageId)
-                .FirstOrDefaultAsync();
+            var msg = await GetMessageAsync(messageId);
             if (msg == null) return false;
 
             msg.IsPinned = true;
-            await db.UpdateAsync(msg);
+            await SupabaseService.UpdateAsync("GroupMessages", $"Id=eq.{Uri.EscapeDataString(messageId)}", msg);
 
             var pin = new GroupPinnedMessage
             {
+                Id = Guid.NewGuid().ToString(),
                 GroupId = groupId,
                 MessageId = messageId,
                 PinnedByPhone = adminPhone,
                 PinnedAt = DateTime.UtcNow,
                 MessagePreview = msg.ContentPreview
             };
-            await db.InsertAsync(pin);
+            await SupabaseService.InsertAsync("GroupPinnedMessages", pin);
 
             await PostSystemMessageAsync(groupId, "📌 A message was pinned");
             return true;
@@ -900,12 +754,8 @@ namespace Lock.Services
 
         public static async Task<List<GroupPinnedMessage>> GetPinnedMessagesAsync(string groupId)
         {
-            await GroupDatabaseService.InitializeAsync();
-            var db = GroupDatabaseService.GetConnection();
-            return await db.Table<GroupPinnedMessage>()
-                .Where(p => p.GroupId == groupId)
-                .OrderByDescending(p => p.PinnedAt)
-                .ToListAsync();
+            return await SupabaseService.GetAsync<GroupPinnedMessage>("GroupPinnedMessages",
+                $"GroupId=eq.{Uri.EscapeDataString(groupId)}&order=PinnedAt.desc");
         }
 
         // ═══════════════════════════════════════════════════════════════
@@ -918,9 +768,6 @@ namespace Lock.Services
             DateTime? expiresAt = null,
             int maxUses = 0)
         {
-            await GroupDatabaseService.InitializeAsync();
-            var db = GroupDatabaseService.GetConnection();
-
             var code = GenerateInviteCode();
             var invite = new GroupInvite
             {
@@ -935,21 +782,19 @@ namespace Lock.Services
                 IsActive = true
             };
 
-            await db.InsertAsync(invite);
-            return invite;
+            var inserted = await SupabaseService.InsertAndReturnAsync<GroupInvite>("GroupInvites", invite);
+            return inserted ?? invite;
         }
 
         public static async Task<(bool success, string message, Group? group)>
             JoinByInviteCodeAsync(string code, string userPhone)
         {
-            await GroupDatabaseService.InitializeAsync();
-            var db = GroupDatabaseService.GetConnection();
+            var invites = await SupabaseService.GetAsync<GroupInvite>("GroupInvites",
+                $"InviteCode=eq.{Uri.EscapeDataString(code)}&IsActive=eq.true&limit=1");
 
-            var invite = await db.Table<GroupInvite>()
-                .Where(i => i.InviteCode == code && i.IsActive)
-                .FirstOrDefaultAsync();
-
+            var invite = invites.FirstOrDefault();
             if (invite == null) return (false, "Invalid invite link", null);
+            
             if (!invite.IsUsable) return (false, "This invite link has expired or reached its limit", null);
 
             var group = await GetGroupAsync(invite.GroupId);
@@ -960,7 +805,7 @@ namespace Lock.Services
             if (success)
             {
                 invite.UseCount++;
-                await db.UpdateAsync(invite);
+                await SupabaseService.UpdateAsync("GroupInvites", $"Id=eq.{Uri.EscapeDataString(invite.Id)}", invite);
             }
 
             return (success, msg, group);
@@ -968,41 +813,32 @@ namespace Lock.Services
 
         public static async Task<bool> RevokeInviteAsync(string inviteId, string adminPhone)
         {
-            await GroupDatabaseService.InitializeAsync();
-            var db = GroupDatabaseService.GetConnection();
-
-            var invite = await db.Table<GroupInvite>()
-                .Where(i => i.Id == inviteId)
-                .FirstOrDefaultAsync();
+            var invites = await SupabaseService.GetAsync<GroupInvite>("GroupInvites",
+                $"Id=eq.{Uri.EscapeDataString(inviteId)}&limit=1");
+            
+            var invite = invites.FirstOrDefault();
             if (invite == null) return false;
 
             invite.IsActive = false;
-            await db.UpdateAsync(invite);
+            await SupabaseService.UpdateAsync("GroupInvites", $"Id=eq.{Uri.EscapeDataString(inviteId)}", invite);
             return true;
         }
 
         public static async Task<(bool success, string message)> CancelJoinRequestAsync(
-    string requestId,
-    string userPhone)
+            string requestId,
+            string userPhone)
         {
             try
             {
-                await GroupDatabaseService.InitializeAsync();
-                var db = GroupDatabaseService.GetConnection();
+                var requests = await SupabaseService.GetAsync<GroupJoinRequest>("GroupJoinRequests",
+                    $"Id=eq.{Uri.EscapeDataString(requestId)}&UserPhone=eq.{Uri.EscapeDataString(userPhone)}&Status=eq.pending&limit=1");
 
-                var req = await db.Table<GroupJoinRequest>()
-                    .Where(r => r.Id == requestId &&
-                                r.UserPhone == userPhone &&
-                                r.Status == "pending")
-                    .FirstOrDefaultAsync();
-
+                var req = requests.FirstOrDefault();
                 if (req == null)
                     return (false, "Request not found or already processed.");
 
-                // Mark as cancelled — keeps a record for audit; admins won't see it
-                // because GetPendingJoinRequestsAsync filters Status == "pending"
                 req.Status = "cancelled";
-                await db.UpdateAsync(req);
+                await SupabaseService.UpdateAsync("GroupJoinRequests", $"Id=eq.{Uri.EscapeDataString(requestId)}", req);
 
                 Debug.WriteLine($"CancelJoinRequestAsync: request {requestId} cancelled by {userPhone}");
                 return (true, "Join request cancelled.");
@@ -1020,54 +856,46 @@ namespace Lock.Services
 
         public static async Task<List<GroupJoinRequest>> GetPendingJoinRequestsAsync(string groupId)
         {
-            await GroupDatabaseService.InitializeAsync();
-            var db = GroupDatabaseService.GetConnection();
-            return await db.Table<GroupJoinRequest>()
-                .Where(r => r.GroupId == groupId && r.Status == "pending")
-                .OrderBy(r => r.RequestedAt)
-                .ToListAsync();
+            return await SupabaseService.GetAsync<GroupJoinRequest>("GroupJoinRequests",
+                $"GroupId=eq.{Uri.EscapeDataString(groupId)}&Status=eq.pending&order=RequestedAt.asc");
         }
 
         public static async Task<bool> ApproveJoinRequestAsync(
-     string requestId,
-     string adminPhone)
+            string requestId,
+            string adminPhone)
         {
-            await GroupDatabaseService.InitializeAsync();
-            var db = GroupDatabaseService.GetConnection();
+            var requests = await SupabaseService.GetAsync<GroupJoinRequest>("GroupJoinRequests",
+                $"Id=eq.{Uri.EscapeDataString(requestId)}&limit=1");
 
-            var req = await db.Table<GroupJoinRequest>()
-                .Where(r => r.Id == requestId)
-                .FirstOrDefaultAsync();
+            var req = requests.FirstOrDefault();
             if (req == null) return false;
 
-            var admin = await db.Table<GroupMember>()
-                .Where(m => m.GroupId == req.GroupId && m.UserPhone == adminPhone)
-                .FirstOrDefaultAsync();
+            var admin = await GetMemberAsync(req.GroupId, adminPhone);
             if (admin == null || !admin.IsPrivileged) return false;
 
             // Mark request approved
             req.Status = "approved";
-            await db.UpdateAsync(req);
+            await SupabaseService.UpdateAsync("GroupJoinRequests", $"Id=eq.{Uri.EscapeDataString(requestId)}", req);
 
-            // Check if already a member (guard against double-approval)
-            var existing = await db.Table<GroupMember>()
-                .Where(m => m.GroupId == req.GroupId && m.UserPhone == req.UserPhone)
-                .FirstOrDefaultAsync();
+            // Check if already a member
+            var existing = await GetMemberAsync(req.GroupId, req.UserPhone);
 
             if (existing != null)
             {
-                // Already exists — just unban if banned
                 if (existing.IsBanned)
                 {
                     existing.IsBanned = false;
-                    await db.UpdateAsync(existing);
+                    await SupabaseService.UpdateAsync("GroupMembers",
+                        $"GroupId=eq.{Uri.EscapeDataString(req.GroupId)}&UserPhone=eq.{Uri.EscapeDataString(req.UserPhone)}",
+                        existing);
                 }
             }
             else
             {
-                // Directly insert member — bypass RequireApproval logic in JoinGroupAsync
                 var group = await GetGroupAsync(req.GroupId);
-                int anonNumber = (group?.MemberCount ?? 0) + 1;
+                var members = await SupabaseService.GetAsync<GroupMember>("GroupMembers",
+                    $"GroupId=eq.{Uri.EscapeDataString(req.GroupId)}&IsBanned=eq.false");
+                int anonNumber = members.Count + 1;
 
                 var member = new GroupMember
                 {
@@ -1085,16 +913,15 @@ namespace Lock.Services
                     IsBanned = false
                 };
 
-                await db.InsertAsync(member);
+                await SupabaseService.InsertAsync("GroupMembers", member);
 
                 if (group != null)
                 {
-                    group.MemberCount++;
+                    group.MemberCount = members.Count + 1;
                     group.LastActiveAt = DateTime.UtcNow;
-                    await db.UpdateAsync(group);
+                    await UpdateGroupAsync(group);
                 }
 
-                // Post system message (PostSystemMessageAsync deduplicates internally)
                 await PostSystemMessageAsync(req.GroupId, $"✨ {req.UserName} joined the group");
             }
 
@@ -1104,17 +931,138 @@ namespace Lock.Services
 
         public static async Task<bool> RejectJoinRequestAsync(string requestId, string adminPhone)
         {
-            await GroupDatabaseService.InitializeAsync();
-            var db = GroupDatabaseService.GetConnection();
+            var requests = await SupabaseService.GetAsync<GroupJoinRequest>("GroupJoinRequests",
+                $"Id=eq.{Uri.EscapeDataString(requestId)}&limit=1");
 
-            var req = await db.Table<GroupJoinRequest>()
-                .Where(r => r.Id == requestId)
-                .FirstOrDefaultAsync();
+            var req = requests.FirstOrDefault();
             if (req == null) return false;
 
             req.Status = "rejected";
-            await db.UpdateAsync(req);
+            await SupabaseService.UpdateAsync("GroupJoinRequests", $"Id=eq.{Uri.EscapeDataString(requestId)}", req);
             return true;
+        }
+
+        // Add these methods to your GroupRepository class:
+
+        // ═══════════════════════════════════════════════════════════════
+        // NEWER MESSAGES
+        // ═══════════════════════════════════════════════════════════════
+
+        public static async Task<List<GroupMessage>> GetNewerMessagesAsync(string groupId, string afterMessageId, string currentUserPhone)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(afterMessageId))
+                {
+                    return await GetMessagesAsync(groupId, 60);
+                }
+
+                var lastMessage = await GetMessageAsync(afterMessageId);
+                if (lastMessage == null)
+                {
+                    return await GetMessagesAsync(groupId, 60);
+                }
+
+                var newerMessages = await SupabaseService.GetAsync<GroupMessage>("GroupMessages",
+                    $"GroupId=eq.{Uri.EscapeDataString(groupId)}&IsDeleted=eq.false&SentAt=gt.{lastMessage.SentAt:yyyy-MM-ddTHH:mm:ssZ}&order=SentAt.asc");
+
+                // Decrypt if encrypted
+                foreach (var msg in newerMessages.Where(m => m.IsEncrypted && !string.IsNullOrEmpty(m.EncryptedContent)))
+                {
+                    try
+                    {
+                        msg.Content = DecryptMessage(msg.EncryptedContent, groupId);
+                    }
+                    catch
+                    {
+                        msg.Content = "🔒 Encrypted message";
+                    }
+                }
+
+                return newerMessages;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"GetNewerMessagesAsync error: {ex}");
+                return new List<GroupMessage>();
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // DELETE MESSAGE FOR SELF
+        // ═══════════════════════════════════════════════════════════════
+
+        public static async Task<bool> DeleteMessageForSelfAsync(string groupId, string messageId, string userPhone)
+        {
+            try
+            {
+                var msg = await GetMessageAsync(messageId);
+                if (msg == null) return false;
+
+                // For "Delete for me", we mark it as deleted for this user
+                // Since we don't have per-user deletion, we'll mark it as deleted but keep a flag
+                // You might want to add a "DeletedForUsers" JSON field for this, but for now:
+                msg.IsDeleted = true;
+                msg.Content = string.Empty;
+                msg.EncryptedContent = string.Empty;
+
+                await SupabaseService.UpdateAsync("GroupMessages", $"Id=eq.{Uri.EscapeDataString(messageId)}", msg);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"DeleteMessageForSelfAsync error: {ex}");
+                return false;
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // DELETE MESSAGE FOR EVERYONE
+        // ═══════════════════════════════════════════════════════════════
+
+        public static async Task<bool> DeleteMessageForEveryoneAsync(string groupId, string messageId, string userPhone)
+        {
+            try
+            {
+                var msg = await GetMessageAsync(messageId);
+                if (msg == null) return false;
+
+                var member = await GetMemberAsync(groupId, userPhone);
+                bool canDelete = msg.SenderPhone == userPhone || (member?.IsPrivileged == true);
+
+                if (!canDelete) return false;
+
+                msg.IsDeleted = true;
+                msg.Content = string.Empty;
+                msg.EncryptedContent = string.Empty;
+
+                await SupabaseService.UpdateAsync("GroupMessages", $"Id=eq.{Uri.EscapeDataString(messageId)}", msg);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"DeleteMessageForEveryoneAsync error: {ex}");
+                return false;
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // UPDATE MEMBER
+        // ═══════════════════════════════════════════════════════════════
+
+        public static async Task<bool> UpdateMemberAsync(GroupMember member)
+        {
+            try
+            {
+                return await SupabaseService.UpdateAsync("GroupMembers",
+                    $"GroupId=eq.{Uri.EscapeDataString(member.GroupId)}&UserPhone=eq.{Uri.EscapeDataString(member.UserPhone)}",
+                    member);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"UpdateMemberAsync error: {ex}");
+                return false;
+            }
         }
 
         // ═══════════════════════════════════════════════════════════════
@@ -1130,9 +1078,6 @@ namespace Lock.Services
             DateTime eventDate,
             int maxAttendees = 0)
         {
-            await GroupDatabaseService.InitializeAsync();
-            var db = GroupDatabaseService.GetConnection();
-
             var ev = new GroupEvent
             {
                 Id = Guid.NewGuid().ToString(),
@@ -1147,14 +1092,12 @@ namespace Lock.Services
                 AttendeePhones = new List<string> { createdByPhone }
             };
 
-            await db.InsertAsync(ev);
+            var inserted = await SupabaseService.InsertAndReturnAsync<GroupEvent>("GroupEvents", ev);
 
             var creatorName = await GetUserNameAsync(createdByPhone);
-            await PostSystemMessageAsync(groupId,
-                $"📅 {creatorName} created an event: {title}",
-                GroupMessageType.Event);
+            await PostSystemMessageAsync(groupId, $"📅 {creatorName} created an event: {title}", GroupMessageType.Event);
 
-            return ev;
+            return inserted ?? ev;
         }
 
         public static async Task<bool> RsvpGroupEventAsync(
@@ -1162,12 +1105,10 @@ namespace Lock.Services
             string userPhone,
             bool attending)
         {
-            await GroupDatabaseService.InitializeAsync();
-            var db = GroupDatabaseService.GetConnection();
+            var events = await SupabaseService.GetAsync<GroupEvent>("GroupEvents",
+                $"Id=eq.{Uri.EscapeDataString(eventId)}&limit=1");
 
-            var ev = await db.Table<GroupEvent>()
-                .Where(e => e.Id == eventId)
-                .FirstOrDefaultAsync();
+            var ev = events.FirstOrDefault();
             if (ev == null) return false;
 
             var phones = ev.AttendeePhones;
@@ -1183,18 +1124,14 @@ namespace Lock.Services
             }
 
             ev.AttendeePhones = phones;
-            await db.UpdateAsync(ev);
+            await SupabaseService.UpdateAsync("GroupEvents", $"Id=eq.{Uri.EscapeDataString(eventId)}", ev);
             return true;
         }
 
         public static async Task<List<GroupEvent>> GetGroupEventsAsync(string groupId)
         {
-            await GroupDatabaseService.InitializeAsync();
-            var db = GroupDatabaseService.GetConnection();
-            return await db.Table<GroupEvent>()
-                .Where(e => e.GroupId == groupId)
-                .OrderBy(e => e.EventDate)
-                .ToListAsync();
+            return await SupabaseService.GetAsync<GroupEvent>("GroupEvents",
+                $"GroupId=eq.{Uri.EscapeDataString(groupId)}&order=EventDate.asc");
         }
 
         // ═══════════════════════════════════════════════════════════════
@@ -1217,7 +1154,7 @@ namespace Lock.Services
                 Options = options.Select(o => new GroupPollOption { Text = o }).ToList()
             };
 
-            var pollJson = System.Text.Json.JsonSerializer.Serialize(poll);
+            var pollJson = JsonSerializer.Serialize(poll);
 
             return await SendMessageAsync(
                 groupId,
@@ -1228,19 +1165,14 @@ namespace Lock.Services
         }
 
         public static async Task<bool> VoteOnPollAsync(
-            int messageId,
+            string messageId,
             string userPhone,
             int optionIndex)
         {
-            await GroupDatabaseService.InitializeAsync();
-            var db = GroupDatabaseService.GetConnection();
-
-            var msg = await db.Table<GroupMessage>()
-                .Where(m => m.Id == messageId)
-                .FirstOrDefaultAsync();
+            var msg = await GetMessageAsync(messageId);
             if (msg == null || string.IsNullOrEmpty(msg.PollJson)) return false;
 
-            var poll = System.Text.Json.JsonSerializer.Deserialize<GroupPoll>(msg.PollJson);
+            var poll = JsonSerializer.Deserialize<GroupPoll>(msg.PollJson);
             if (poll == null || optionIndex >= poll.Options.Count) return false;
             if (poll.IsExpired) return false;
 
@@ -1253,8 +1185,8 @@ namespace Lock.Services
             if (!poll.Options[optionIndex].VoterPhones.Contains(userPhone))
                 poll.Options[optionIndex].VoterPhones.Add(userPhone);
 
-            msg.PollJson = System.Text.Json.JsonSerializer.Serialize(poll);
-            await db.UpdateAsync(msg);
+            msg.PollJson = JsonSerializer.Serialize(poll);
+            await SupabaseService.UpdateAsync("GroupMessages", $"Id=eq.{Uri.EscapeDataString(messageId)}", msg);
             return true;
         }
 
@@ -1262,21 +1194,18 @@ namespace Lock.Services
         // POLL EDIT & DELETE
         // ═══════════════════════════════════════════════════════════════
 
-        public static async Task<bool> EditPollAsync(int messageId, string groupId, string newQuestion, List<string> newOptions)
+        public static async Task<bool> EditPollAsync(string messageId, string groupId, string newQuestion, List<string> newOptions)
         {
             try
             {
-                await GroupDatabaseService.InitializeAsync();
-                var db = GroupDatabaseService.GetConnection();
-
-                var message = await db.Table<GroupMessage>().Where(m => m.Id == messageId).FirstOrDefaultAsync();
+                var message = await GetMessageAsync(messageId);
                 if (message == null) return false;
 
                 // Update the poll question in the message content
                 message.Content = $"📊 Poll: {newQuestion}";
 
                 // Get existing poll to preserve voter data
-                var existingPoll = System.Text.Json.JsonSerializer.Deserialize<GroupPoll>(message.PollJson);
+                var existingPoll = JsonSerializer.Deserialize<GroupPoll>(message.PollJson);
 
                 // Create updated poll with preserved voter data where possible
                 var updatedPoll = new GroupPoll
@@ -1298,10 +1227,10 @@ namespace Lock.Services
                     });
                 }
 
-                message.PollJson = System.Text.Json.JsonSerializer.Serialize(updatedPoll);
+                message.PollJson = JsonSerializer.Serialize(updatedPoll);
                 message.IsEdited = true;
 
-                await db.UpdateAsync(message);
+                await SupabaseService.UpdateAsync("GroupMessages", $"Id=eq.{Uri.EscapeDataString(messageId)}", message);
                 return true;
             }
             catch (Exception ex)
@@ -1311,18 +1240,15 @@ namespace Lock.Services
             }
         }
 
-        public static async Task<bool> DeletePollAsync(int messageId, string groupId)
+        public static async Task<bool> DeletePollAsync(string messageId, string groupId)
         {
             try
             {
-                await GroupDatabaseService.InitializeAsync();
-                var db = GroupDatabaseService.GetConnection();
-
-                var message = await db.Table<GroupMessage>().Where(m => m.Id == messageId).FirstOrDefaultAsync();
+                var message = await GetMessageAsync(messageId);
                 if (message == null) return false;
 
                 message.IsDeleted = true;
-                await db.UpdateAsync(message);
+                await SupabaseService.UpdateAsync("GroupMessages", $"Id=eq.{Uri.EscapeDataString(messageId)}", message);
                 return true;
             }
             catch (Exception ex)
@@ -1340,22 +1266,19 @@ namespace Lock.Services
         {
             try
             {
-                await GroupDatabaseService.InitializeAsync();
-                var db = GroupDatabaseService.GetConnection();
-
                 var now = DateTime.UtcNow;
-                var expired = await db.Table<GroupMessage>()
-                    .Where(m => m.DisappearAt != null && !m.IsDeleted)
-                    .ToListAsync();
+                var messages = await SupabaseService.GetAsync<GroupMessage>("GroupMessages",
+                    $"DisappearAt=lt.{now:yyyy-MM-ddTHH:mm:ssZ}&IsDeleted=eq.false");
 
-                foreach (var msg in expired.Where(m => m.DisappearAt < now))
+                foreach (var msg in messages)
                 {
                     msg.IsDeleted = true;
                     msg.Content = string.Empty;
-                    await db.UpdateAsync(msg);
+                    msg.EncryptedContent = string.Empty;
+                    await SupabaseService.UpdateAsync("GroupMessages", $"Id=eq.{Uri.EscapeDataString(msg.Id)}", msg);
                 }
 
-                Debug.WriteLine($"Cleaned up {expired.Count(m => m.DisappearAt < now)} disappearing messages");
+                Debug.WriteLine($"Cleaned up {messages.Count} disappearing messages");
             }
             catch (Exception ex)
             {
@@ -1364,83 +1287,21 @@ namespace Lock.Services
         }
 
         // ═══════════════════════════════════════════════════════════════
-        // COMPATIBILITY SCORE FOR GROUPS
-        // ═══════════════════════════════════════════════════════════════
-
-        public static async Task<int> CalculateGroupCompatibilityAsync(
-            string groupId, string userPhone)
-        {
-            try
-            {
-                var members = await GetMembersAsync(groupId);
-                if (!members.Any()) return 0;
-
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
-                var currentUser = await db.Table<User>()
-                    .Where(u => u.PhoneNumber == userPhone)
-                    .FirstOrDefaultAsync();
-                if (currentUser == null) return 0;
-
-                var userInterests = (currentUser.Interests ?? "")
-                    .Split(',', StringSplitOptions.RemoveEmptyEntries)
-                    .Select(i => i.Trim().ToLower())
-                    .ToHashSet();
-
-                int matchCount = 0;
-
-                foreach (var member in members.Take(10))
-                {
-                    var memberUser = await db.Table<User>()
-                        .Where(u => u.PhoneNumber == member.UserPhone)
-                        .FirstOrDefaultAsync();
-
-                    if (memberUser == null) continue;
-
-                    var memberInterests = (memberUser.Interests ?? "")
-                        .Split(',', StringSplitOptions.RemoveEmptyEntries)
-                        .Select(i => i.Trim().ToLower())
-                        .ToHashSet();
-
-                    if (userInterests.Intersect(memberInterests).Any())
-                        matchCount++;
-                }
-
-                int sampleSize = Math.Min(members.Count, 10);
-                return sampleSize > 0
-                    ? (int)((double)matchCount / sampleSize * 100)
-                    : 0;
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"CalculateGroupCompatibility error: {ex}");
-                return 0;
-            }
-        }
-
-        // ═══════════════════════════════════════════════════════════════
         // INTERNAL HELPERS
         // ═══════════════════════════════════════════════════════════════
 
         private static async Task PostSystemMessageAsync(
-         string groupId,
-         string content,
-         GroupMessageType type = GroupMessageType.SystemMessage)
+            string groupId,
+            string content,
+            GroupMessageType type = GroupMessageType.SystemMessage)
         {
             try
             {
-                await GroupDatabaseService.InitializeAsync();
-                var db = GroupDatabaseService.GetConnection();
+                // Check for duplicate system message
+                var recentDuplicate = await SupabaseService.GetAsync<GroupMessage>("GroupMessages",
+                    $"GroupId=eq.{Uri.EscapeDataString(groupId)}&IsSystemMessage=eq.true&Content=eq.{Uri.EscapeDataString(content)}&limit=1");
 
-                // FIXED: Better duplicate detection with longer window and exact content match
-                var recentDuplicate = await db.Table<GroupMessage>()
-       .Where(m => m.GroupId == groupId &&
-                   m.IsSystemMessage &&
-                   m.Content == content)
-       .FirstOrDefaultAsync();
-
-                if (recentDuplicate != null)
+                if (recentDuplicate.Any())
                 {
                     Debug.WriteLine($"Skipped duplicate system message: {content}");
                     return;
@@ -1448,6 +1309,7 @@ namespace Lock.Services
 
                 var msg = new GroupMessage
                 {
+                    Id = Guid.NewGuid().ToString(),
                     GroupId = groupId,
                     SenderPhone = "system",
                     SenderName = "System",
@@ -1458,7 +1320,7 @@ namespace Lock.Services
                     ShowAvatar = false
                 };
 
-                await db.InsertAsync(msg);
+                await SupabaseService.InsertAsync("GroupMessages", msg);
                 Debug.WriteLine($"System message posted: {content}");
             }
             catch (Exception ex)
@@ -1467,40 +1329,12 @@ namespace Lock.Services
             }
         }
 
-        public static async Task AddSystemMessageIndexAsync()
-        {
-            try
-            {
-                await GroupDatabaseService.InitializeAsync();
-                var db = GroupDatabaseService.GetConnection();
-
-                // Add unique index to prevent duplicate system messages within short time window
-                await db.ExecuteAsync(@"
-            CREATE INDEX IF NOT EXISTS idx_system_message_dedup 
-            ON GroupMessages(GroupId, Content, SentAt) 
-            WHERE IsSystemMessage = 1;
-        ");
-
-                Debug.WriteLine("System message deduplication index created");
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"AddSystemMessageIndexAsync error: {ex}");
-            }
-        }
-
-
-
         private static async Task<string> GetUserNameAsync(string phone)
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-                var user = await db.Table<User>()
-                    .Where(u => u.PhoneNumber == phone)
-                    .FirstOrDefaultAsync();
-                return user?.Name ?? phone;
+                var users = await SupabaseService.GetAsync<User>("Users", $"PhoneNumber=eq.{Uri.EscapeDataString(phone)}&limit=1");
+                return users.FirstOrDefault()?.Name ?? phone;
             }
             catch { return phone; }
         }
@@ -1509,12 +1343,8 @@ namespace Lock.Services
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-                var user = await db.Table<User>()
-                    .Where(u => u.PhoneNumber == phone)
-                    .FirstOrDefaultAsync();
-                return user?.ProfileImagePath ?? string.Empty;
+                var users = await SupabaseService.GetAsync<User>("Users", $"PhoneNumber=eq.{Uri.EscapeDataString(phone)}&limit=1");
+                return users.FirstOrDefault()?.ProfileImagePath ?? string.Empty;
             }
             catch { return string.Empty; }
         }
@@ -1523,12 +1353,8 @@ namespace Lock.Services
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-                var user = await db.Table<User>()
-                    .Where(u => u.PhoneNumber == phone)
-                    .FirstOrDefaultAsync();
-                return user?.Mood ?? string.Empty;
+                var users = await SupabaseService.GetAsync<User>("Users", $"PhoneNumber=eq.{Uri.EscapeDataString(phone)}&limit=1");
+                return users.FirstOrDefault()?.Mood ?? string.Empty;
             }
             catch { return string.Empty; }
         }
@@ -1537,36 +1363,20 @@ namespace Lock.Services
         {
             try
             {
-                await GroupDatabaseService.InitializeAsync();
-                var db = GroupDatabaseService.GetConnection();
+                var allGroups = await SupabaseService.GetAsync<Group>("Groups",
+                    $"IsActive=eq.true&Visibility=eq.Public&order=LastActiveAt.desc");
 
-                // Get ALL groups for debugging
-                var allGroups = await db.Table<Group>().ToListAsync();
-                Debug.WriteLine($"Total groups in database: {allGroups.Count}");
+                Debug.WriteLine($"Total public groups: {allGroups.Count}");
 
-                foreach (var g in allGroups)
+                // Update member counts
+                foreach (var group in allGroups)
                 {
-                    Debug.WriteLine($"Group: '{g.Name}' | Visibility: {g.Visibility} | Active: {g.IsActive}");
+                    var members = await SupabaseService.GetAsync<GroupMember>("GroupMembers",
+                        $"GroupId=eq.{Uri.EscapeDataString(group.Id)}&IsBanned=eq.false");
+                    group.MemberCount = members.Count;
                 }
 
-                // Get only Public + Active groups
-                var publicGroups = allGroups
-                    .Where(g => g.IsActive && g.Visibility == GroupVisibility.Public)
-                    .OrderByDescending(g => g.LastActiveAt)
-                    .ToList();
-
-                Debug.WriteLine($"Returning {publicGroups.Count} PUBLIC groups to Explore page");
-
-                // Update member count
-                foreach (var group in publicGroups)
-                {
-                    var count = await db.Table<GroupMember>()
-                        .Where(m => m.GroupId == group.Id && !m.IsBanned)
-                        .CountAsync();
-                    group.MemberCount = count;
-                }
-
-                return publicGroups;
+                return allGroups;
             }
             catch (Exception ex)
             {
@@ -1574,23 +1384,59 @@ namespace Lock.Services
                 return new List<Group>();
             }
         }
+
         public static async Task<List<string>> GetUserGroupIdsAsync(string userPhone)
         {
             try
             {
-                await GroupDatabaseService.InitializeAsync();
-                var db = GroupDatabaseService.GetConnection();
-
-                var memberships = await db.Table<GroupMember>()
-                    .Where(m => m.UserPhone == userPhone && !m.IsBanned)
-                    .ToListAsync();
-
+                var memberships = await SupabaseService.GetAsync<GroupMember>("GroupMembers",
+                    $"UserPhone=eq.{Uri.EscapeDataString(userPhone)}&IsBanned=eq.false");
                 return memberships.Select(m => m.GroupId).ToList();
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"GetUserGroupIdsAsync error: {ex.Message}");
                 return new List<string>();
+            }
+        }
+
+        public static async Task<List<Group>> GetAllGroupsForExploreAsync(string currentUserPhone)
+        {
+            try
+            {
+                var allGroups = await SupabaseService.GetAsync<Group>("Groups",
+                    $"IsActive=eq.true&Visibility=eq.Public&order=LastActiveAt.desc");
+
+                Debug.WriteLine($"GetAllGroupsForExploreAsync: found {allGroups.Count} public groups");
+
+                // Confirmed memberships
+                var memberships = await SupabaseService.GetAsync<GroupMember>("GroupMembers",
+                    $"UserPhone=eq.{Uri.EscapeDataString(currentUserPhone)}&IsBanned=eq.false");
+                var memberGroupIds = memberships.Select(m => m.GroupId).ToHashSet();
+
+                // Pending join requests
+                var pendingRequests = await SupabaseService.GetAsync<GroupJoinRequest>("GroupJoinRequests",
+                    $"UserPhone=eq.{Uri.EscapeDataString(currentUserPhone)}&Status=eq.pending");
+                var pendingByGroupId = pendingRequests.ToDictionary(r => r.GroupId, r => r.Id);
+
+                // Stamp each group with live member count + membership flags
+                foreach (var group in allGroups)
+                {
+                    group.IsMember = memberGroupIds.Contains(group.Id);
+                    group.IsPendingJoin = !group.IsMember && pendingByGroupId.ContainsKey(group.Id);
+                    group.PendingJoinRequestId = group.IsPendingJoin ? pendingByGroupId[group.Id] : string.Empty;
+
+                    var members = await SupabaseService.GetAsync<GroupMember>("GroupMembers",
+                        $"GroupId=eq.{Uri.EscapeDataString(group.Id)}&IsBanned=eq.false");
+                    group.MemberCount = members.Count;
+                }
+
+                return allGroups.OrderByDescending(g => g.LastActiveAt).ToList();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"GetAllGroupsForExploreAsync ERROR: {ex.Message}");
+                return new List<Group>();
             }
         }
 
@@ -1604,19 +1450,17 @@ namespace Lock.Services
                     .ToArray());
         }
 
-        // Simple AES encryption reusing your app's pattern
         private static string EncryptMessage(string plainText, string groupId)
         {
             try
             {
-                using var aes = System.Security.Cryptography.Aes.Create();
-                var keyBytes = System.Security.Cryptography.SHA256.HashData(
-                    System.Text.Encoding.UTF8.GetBytes(groupId + "_lock_group_key"));
+                using var aes = Aes.Create();
+                var keyBytes = SHA256.HashData(Encoding.UTF8.GetBytes(groupId + "_lock_group_key"));
                 aes.Key = keyBytes;
                 aes.GenerateIV();
 
                 using var encryptor = aes.CreateEncryptor();
-                var plainBytes = System.Text.Encoding.UTF8.GetBytes(plainText);
+                var plainBytes = Encoding.UTF8.GetBytes(plainText);
                 var encrypted = encryptor.TransformFinalBlock(plainBytes, 0, plainBytes.Length);
 
                 var result = new byte[aes.IV.Length + encrypted.Length];
@@ -1626,63 +1470,13 @@ namespace Lock.Services
             }
             catch { return plainText; }
         }
-        public static async Task<List<Group>> GetAllGroupsForExploreAsync(string currentUserPhone)
-        {
-            try
-            {
-                await GroupDatabaseService.InitializeAsync();
-                var db = GroupDatabaseService.GetConnection();
-
-                // All active public groups
-                var allGroups = await db.Table<Group>()
-                    .Where(g => g.IsActive && g.Visibility == GroupVisibility.Public)
-                    .ToListAsync();
-
-                Debug.WriteLine($"GetAllGroupsForExploreAsync: found {allGroups.Count} public groups");
-
-                // Confirmed memberships
-                var memberships = await db.Table<GroupMember>()
-                    .Where(m => m.UserPhone == currentUserPhone && !m.IsBanned)
-                    .ToListAsync();
-                var memberGroupIds = memberships.Select(m => m.GroupId).ToHashSet();
-
-                // Pending join requests — keyed by GroupId so we can get the RequestId too
-                var pendingRequests = await db.Table<GroupJoinRequest>()
-                    .Where(r => r.UserPhone == currentUserPhone && r.Status == "pending")
-                    .ToListAsync();
-                var pendingByGroupId = pendingRequests.ToDictionary(r => r.GroupId, r => r.Id);
-
-                // Stamp each group with live member count + membership flags
-                foreach (var group in allGroups)
-                {
-                    group.IsMember = memberGroupIds.Contains(group.Id);
-                    group.IsPendingJoin = !group.IsMember && pendingByGroupId.ContainsKey(group.Id);
-                    group.PendingJoinRequestId = group.IsPendingJoin
-                        ? pendingByGroupId[group.Id]
-                        : string.Empty;
-
-                    var count = await db.Table<GroupMember>()
-                        .Where(m => m.GroupId == group.Id && !m.IsBanned)
-                        .CountAsync();
-                    group.MemberCount = count;
-                }
-
-                return allGroups.OrderByDescending(g => g.LastActiveAt).ToList();
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"GetAllGroupsForExploreAsync ERROR: {ex.Message}");
-                return new List<Group>();
-            }
-        }
-
 
         private static string DecryptMessage(string cipherText, string groupId)
         {
             try
             {
                 var fullCipher = Convert.FromBase64String(cipherText);
-                using var aes = System.Security.Cryptography.Aes.Create();
+                using var aes = Aes.Create();
                 var keyBytes = SHA256.HashData(Encoding.UTF8.GetBytes(groupId + "_lock_group_key"));
                 aes.Key = keyBytes;
 

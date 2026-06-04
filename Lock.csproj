@@ -104,11 +104,15 @@
 		<PackageReference Include="Plugin.Maui.Audio" Version="4.0.0" />
 		<PackageReference Include="Plugin.Maui.OCR" Version="1.1.1" />
 
-		<!-- SQLite -->
-		<PackageReference Include="sqlite-net-pcl" Version="1.9.172" />
-		<PackageReference Include="SQLitePCLRaw.bundle_green" Version="2.1.8" />
-		<PackageReference Include="SQLitePCLRaw.core" Version="2.1.8" />
+		<PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+
 		<PackageReference Include="Supabase" Version="1.1.1" />
+
+		<PackageReference Include="Supabase.Gotrue" Version="6.0.3" />
+
+		<PackageReference Include="Supabase.Postgrest" Version="4.1.0" />
+
+		<PackageReference Include="Supabase.Realtime" Version="7.2.0" />
 
 		<PackageReference Include="Syncfusion.Maui.Toolkit" Version="1.0.6" />
 	</ItemGroup>
@@ -149,13 +153,7 @@
 		<!-- Add iOS-specific packages here if needed -->
 	</ItemGroup>
 
-	<!-- MACCATALYST-SPECIFIC PACKAGES -->
-	<ItemGroup Condition="'$(TargetFramework)' == 'net9.0-maccatalyst'">
-		<None Include="libSQLitePCLRaw.dylib">
-			<Link>libSQLitePCLRaw.dylib</Link>
-			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-		</None>
-	</ItemGroup>
+
 
 	<!-- CODE-BEHIND FILES -->
 	<ItemGroup>

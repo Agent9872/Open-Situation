@@ -1,5 +1,4 @@
 using Microsoft.Maui.Storage;
-using SQLite;
 using System;
 using System.IO;
 using System.Linq;
@@ -11,211 +10,72 @@ namespace Lock.Chat.Services
 {
     public static class DatabaseService
     {
-        private static SQLiteAsyncConnection? _db;
         private static bool _isInitialized = false;
 
-        public static async Task InitializeAsync()
+        public static Task InitializeAsync()
         {
-            if (_isInitialized && _db != null)
-            {
-                return;
-            }
+            if (_isInitialized)
+                return Task.CompletedTask;
 
-            var dbPath = Path.Combine(FileSystem.AppDataDirectory, "lock.db3");
-            _db = new SQLiteAsyncConnection(dbPath);
-
-            // Create tables
-            await _db.CreateTableAsync<Models.User>();
-            await _db.CreateTableAsync<Models.Post>();
-            await _db.CreateTableAsync<Models.Chat.Conversation>();
-            await _db.CreateTableAsync<Models.Chat.ChatMessage>();
-            await _db.CreateTableAsync<Models.Chat.MessageRequest>();
-            await _db.CreateTableAsync<Models.BlockedUser>();
-            await _db.CreateTableAsync<UserPhoto>();
-            await _db.CreateTableAsync<UserPrompt>();
-            await _db.CreateTableAsync<DateIdea>();
-            await _db.CreateTableAsync<UserEvent>();
-            await _db.CreateTableAsync<EventAttendance>();
-            await _db.CreateTableAsync<UserBlock>();
-            await _db.CreateTableAsync<Models.SeenPost>();
-            await _db.CreateTableAsync<Models.EmergencyContact>();
-            await _db.CreateTableAsync<LiveSession>();
-
-            // Add Spark tables
-            await _db.CreateTableAsync<SparkRateLimit>();
-            await _db.CreateTableAsync<SparkTransaction>();
-
-            // ========== ADD ADMIN TRACKING TABLES ==========
-            await _db.CreateTableAsync<UserMoodTracking>();
-            await _db.CreateTableAsync<UserProfileTracking>();
-            await _db.CreateTableAsync<UserLoginTracking>();
-            await _db.CreateTableAsync<PostTracking>();
-            await _db.CreateTableAsync<GroupTracking>();
-
-            // Run migrations to add new columns
-            await DatabaseMigration.EnsureDatabaseSchemaAsync(_db);
-            await AddMatchTypeNotificationsColumnIfNeeded();
-            await AddHiddenByJsonColumnIfNeeded();
-            await AddDeniedPagesColumnIfNeeded();   // ? NEW
-            await AddTrackingIndexes();
-
-            _isInitialized = true;
-        }
-
-        // ?? NEW: Add DeniedPages column to Users table ????????????????????????
-        private static async Task AddDeniedPagesColumnIfNeeded()
-        {
             try
             {
-                await _db!.ExecuteScalarAsync<string>(
-                    "SELECT DeniedPages FROM Users LIMIT 1");
-                System.Diagnostics.Debug.WriteLine("DeniedPages column already exists");
-            }
-            catch (SQLiteException)
-            {
-                await _db!.ExecuteAsync(
-                    "ALTER TABLE Users ADD COLUMN DeniedPages TEXT DEFAULT ''");
-                System.Diagnostics.Debug.WriteLine("Added DeniedPages column to Users table");
+                // Just verify Supabase connection is available
+                // Your SupabaseService should already be configured
+                _isInitialized = true;
+                System.Diagnostics.Debug.WriteLine("DatabaseService initialized (using Supabase)");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine(
-                    $"Error checking DeniedPages column: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"DatabaseService init error: {ex}");
+                throw;
             }
+
+            return Task.CompletedTask;
         }
 
-        // Add indexes for better query performance on tracking tables
-        private static async Task AddTrackingIndexes()
+        // Note: This method is deprecated. Use SupabaseService directly instead.
+        [Obsolete("Use SupabaseService methods directly. This is a compatibility shim.")]
+        public static object GetConnection()
         {
-            try
-            {
-                // Add indexes for UserMoodTracking
-                await _db!.ExecuteAsync("CREATE INDEX IF NOT EXISTS idx_mood_userphone ON UserMoodTracking(UserPhone)");
-                await _db!.ExecuteAsync("CREATE INDEX IF NOT EXISTS idx_mood_timestamp ON UserMoodTracking(Timestamp DESC)");
-
-                // Add indexes for UserProfileTracking
-                await _db!.ExecuteAsync("CREATE INDEX IF NOT EXISTS idx_profile_userphone ON UserProfileTracking(UserPhone)");
-                await _db!.ExecuteAsync("CREATE INDEX IF NOT EXISTS idx_profile_timestamp ON UserProfileTracking(Timestamp DESC)");
-
-                // Add indexes for UserLoginTracking
-                await _db!.ExecuteAsync("CREATE INDEX IF NOT EXISTS idx_login_userphone ON UserLoginTracking(UserPhone)");
-                await _db!.ExecuteAsync("CREATE INDEX IF NOT EXISTS idx_login_timestamp ON UserLoginTracking(LoginTime DESC)");
-
-                // Add indexes for PostTracking
-                await _db!.ExecuteAsync("CREATE INDEX IF NOT EXISTS idx_post_author ON PostTracking(AuthorPhone)");
-                await _db!.ExecuteAsync("CREATE INDEX IF NOT EXISTS idx_post_timestamp ON PostTracking(Timestamp DESC)");
-
-                // Add indexes for GroupTracking
-                await _db!.ExecuteAsync("CREATE INDEX IF NOT EXISTS idx_group_groupid ON GroupTracking(GroupId)");
-                await _db!.ExecuteAsync("CREATE INDEX IF NOT EXISTS idx_group_timestamp ON GroupTracking(Timestamp DESC)");
-                await _db!.ExecuteAsync("CREATE INDEX IF NOT EXISTS idx_group_actor ON GroupTracking(ActorPhone)");
-
-                System.Diagnostics.Debug.WriteLine("All tracking indexes created successfully");
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Error creating tracking indexes: {ex.Message}");
-            }
+            throw new InvalidOperationException(
+                "Direct SQLite connection is no longer available. Use SupabaseService methods instead.");
         }
 
-        // Method to add MatchTypeNotifications column if needed
-        private static async Task AddMatchTypeNotificationsColumnIfNeeded()
-        {
-            try
-            {
-                await _db!.ExecuteScalarAsync<string>("SELECT MatchTypeNotificationsJson FROM Conversations LIMIT 1");
-                System.Diagnostics.Debug.WriteLine("MatchTypeNotificationsJson column already exists");
-            }
-            catch (SQLiteException)
-            {
-                await _db!.ExecuteAsync("ALTER TABLE Conversations ADD COLUMN MatchTypeNotificationsJson TEXT NOT NULL DEFAULT '{}'");
-                System.Diagnostics.Debug.WriteLine("Added MatchTypeNotificationsJson column to Conversations table");
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Error checking MatchTypeNotificationsJson column: {ex}");
-            }
-        }
-
-        private static async Task AddHiddenByJsonColumnIfNeeded()
-        {
-            try
-            {
-                var connection = GetConnection();
-                var tableInfo = await connection.QueryAsync<TableInfo>("PRAGMA table_info(Posts)");
-                var columnExists = tableInfo.Any(c => c.name == "HiddenByJson");
-
-                if (!columnExists)
-                {
-                    await connection.ExecuteAsync("ALTER TABLE Posts ADD COLUMN HiddenByJson TEXT DEFAULT '[]'");
-                    System.Diagnostics.Debug.WriteLine("Added HiddenByJson column to Posts table");
-                }
-                else
-                {
-                    System.Diagnostics.Debug.WriteLine("HiddenByJson column already exists");
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Error adding HiddenByJson column: {ex}");
-            }
-        }
-
-        public static SQLiteAsyncConnection GetConnection()
-        {
-            if (_db == null)
-            {
-                throw new InvalidOperationException("Database not initialized. Call InitializeAsync() first.");
-            }
-            return _db;
-        }
-
+        // Legacy compatibility - redirect to SupabaseService
         public static async Task RecreateDatabaseAsync()
         {
-            var dbPath = Path.Combine(FileSystem.AppDataDirectory, "lock.db3");
-            if (File.Exists(dbPath))
-            {
-                File.Delete(dbPath);
-            }
-
-            _db = null;
-            _isInitialized = false;
-            await InitializeAsync();
+            // This doesn't apply to Supabase
+            await Task.CompletedTask;
+            System.Diagnostics.Debug.WriteLine("RecreateDatabaseAsync called - no action needed for Supabase");
         }
 
-        // Helper method to get tracking statistics
+        // Helper method to get tracking statistics using Supabase
         public static async Task<TrackingStats> GetTrackingStatsAsync()
         {
             var stats = new TrackingStats();
             try
             {
-                var db = GetConnection();
+                // Get counts from Supabase
+                var moodChanges = await SupabaseService.GetAsync<UserMoodTracking>("UserMoodTracking", "");
+                var profileChanges = await SupabaseService.GetAsync<UserProfileTracking>("UserProfileTracking", "");
+                var logins = await SupabaseService.GetAsync<UserLoginTracking>("UserLoginTracking", "");
+                var postsTracked = await SupabaseService.GetAsync<PostTracking>("PostTracking", "");
+                var groupActivities = await SupabaseService.GetAsync<GroupTracking>("GroupTracking", "");
 
-                stats.TotalMoodChanges = await db.Table<UserMoodTracking>().CountAsync();
-                stats.TotalProfileChanges = await db.Table<UserProfileTracking>().CountAsync();
-                stats.TotalLogins = await db.Table<UserLoginTracking>().CountAsync();
-                stats.TotalPostsTracked = await db.Table<PostTracking>().CountAsync();
-                stats.TotalGroupActivities = await db.Table<GroupTracking>().CountAsync();
+                stats.TotalMoodChanges = moodChanges.Count;
+                stats.TotalProfileChanges = profileChanges.Count;
+                stats.TotalLogins = logins.Count;
+                stats.TotalPostsTracked = postsTracked.Count;
+                stats.TotalGroupActivities = groupActivities.Count;
 
                 // Get today's stats
                 var today = DateTime.UtcNow.Date;
                 var tomorrow = today.AddDays(1);
 
-                stats.TodayMoodChanges = await db.Table<UserMoodTracking>()
-                    .Where(t => t.Timestamp >= today && t.Timestamp < tomorrow)
-                    .CountAsync();
-
-                stats.TodayProfileChanges = await db.Table<UserProfileTracking>()
-                    .Where(t => t.Timestamp >= today && t.Timestamp < tomorrow)
-                    .CountAsync();
-
-                stats.TodayLogins = await db.Table<UserLoginTracking>()
-                    .Where(t => t.LoginTime >= today && t.LoginTime < tomorrow)
-                    .CountAsync();
-
-                stats.TodayGroupActivities = await db.Table<GroupTracking>()
-                    .Where(t => t.Timestamp >= today && t.Timestamp < tomorrow)
-                    .CountAsync();
+                stats.TodayMoodChanges = moodChanges.Count(t => t.Timestamp >= today && t.Timestamp < tomorrow);
+                stats.TodayProfileChanges = profileChanges.Count(t => t.Timestamp >= today && t.Timestamp < tomorrow);
+                stats.TodayLogins = logins.Count(t => t.LoginTime >= today && t.LoginTime < tomorrow);
+                stats.TodayGroupActivities = groupActivities.Count(t => t.Timestamp >= today && t.Timestamp < tomorrow);
             }
             catch (Exception ex)
             {
@@ -229,36 +89,44 @@ namespace Lock.Chat.Services
         {
             try
             {
-                var db = GetConnection();
                 var cutoffDate = DateTime.UtcNow.AddDays(-daysToKeep);
 
-                var oldMoodChanges = await db.Table<UserMoodTracking>()
-                    .Where(t => t.Timestamp < cutoffDate)
-                    .ToListAsync();
-
-                var oldProfileChanges = await db.Table<UserProfileTracking>()
-                    .Where(t => t.Timestamp < cutoffDate)
-                    .ToListAsync();
-
-                var oldPostTracking = await db.Table<PostTracking>()
-                    .Where(t => t.Timestamp < cutoffDate)
-                    .ToListAsync();
-
-                var oldGroupTracking = await db.Table<GroupTracking>()
-                    .Where(t => t.Timestamp < cutoffDate)
-                    .ToListAsync();
+                // Get items to delete
+                var oldMoodChanges = await SupabaseService.GetAsync<UserMoodTracking>("UserMoodTracking",
+                    $"Timestamp=lt.{cutoffDate:yyyy-MM-ddTHH:mm:ssZ}");
+                var oldProfileChanges = await SupabaseService.GetAsync<UserProfileTracking>("UserProfileTracking",
+                    $"Timestamp=lt.{cutoffDate:yyyy-MM-ddTHH:mm:ssZ}");
+                var oldPostTracking = await SupabaseService.GetAsync<PostTracking>("PostTracking",
+                    $"Timestamp=lt.{cutoffDate:yyyy-MM-ddTHH:mm:ssZ}");
+                var oldGroupTracking = await SupabaseService.GetAsync<GroupTracking>("GroupTracking",
+                    $"Timestamp=lt.{cutoffDate:yyyy-MM-ddTHH:mm:ssZ}");
 
                 // Keep login history longer (90 days)
                 var loginCutoff = DateTime.UtcNow.AddDays(-90);
-                var oldLogins = await db.Table<UserLoginTracking>()
-                    .Where(t => t.LoginTime < loginCutoff)
-                    .ToListAsync();
+                var oldLogins = await SupabaseService.GetAsync<UserLoginTracking>("UserLoginTracking",
+                    $"LoginTime=lt.{loginCutoff:yyyy-MM-ddTHH:mm:ssZ}");
 
-                foreach (var item in oldMoodChanges) await db.DeleteAsync(item);
-                foreach (var item in oldProfileChanges) await db.DeleteAsync(item);
-                foreach (var item in oldPostTracking) await db.DeleteAsync(item);
-                foreach (var item in oldGroupTracking) await db.DeleteAsync(item);
-                foreach (var item in oldLogins) await db.DeleteAsync(item);
+                // Delete old records
+                foreach (var item in oldMoodChanges)
+                {
+                    await SupabaseService.DeleteAsync("UserMoodTracking", $"Id=eq.{item.Id}");
+                }
+                foreach (var item in oldProfileChanges)
+                {
+                    await SupabaseService.DeleteAsync("UserProfileTracking", $"Id=eq.{item.Id}");
+                }
+                foreach (var item in oldPostTracking)
+                {
+                    await SupabaseService.DeleteAsync("PostTracking", $"Id=eq.{item.Id}");
+                }
+                foreach (var item in oldGroupTracking)
+                {
+                    await SupabaseService.DeleteAsync("GroupTracking", $"Id=eq.{item.Id}");
+                }
+                foreach (var item in oldLogins)
+                {
+                    await SupabaseService.DeleteAsync("UserLoginTracking", $"Id=eq.{item.Id}");
+                }
 
                 System.Diagnostics.Debug.WriteLine($"Cleaned up tracking data older than {daysToKeep} days");
             }
@@ -272,10 +140,10 @@ namespace Lock.Chat.Services
     public class TableInfo
     {
         public int cid { get; set; }
-        public string name { get; set; }
-        public string type { get; set; }
+        public string name { get; set; } = string.Empty;
+        public string type { get; set; } = string.Empty;
         public int notnull { get; set; }
-        public string dflt_value { get; set; }
+        public string dflt_value { get; set; } = string.Empty;
         public int pk { get; set; }
     }
 

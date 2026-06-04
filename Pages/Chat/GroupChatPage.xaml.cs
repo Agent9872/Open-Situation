@@ -23,9 +23,9 @@ namespace Lock.Pages.Chat
         private Group? _group;
         private GroupMember? _currentMember;
         private ObservableCollection<GroupMessage> _messages = new();
-        private int? _replyToMessageId;
+        private string? _replyToMessageId;
         private System.Timers.Timer? _pollTimer;
-        private Dictionary<int, PollData> _pollCache = new();
+        private Dictionary<string, PollData> _pollCache = new();
         private bool _attachmentPanelOpen = false;
 
         public string GroupId
@@ -60,10 +60,7 @@ namespace Lock.Pages.Chat
                         }
 
                         _pollCache.Remove(pollMsg.Id);
-                        var db = GroupDatabaseService.GetConnection();
-                        var fresh = await db.Table<GroupMessage>()
-                            .Where(m => m.Id == msg.MessageId)
-                            .FirstOrDefaultAsync();
+                        var fresh = await GroupRepository.GetMessageAsync(msg.MessageId);
 
                         if (fresh != null)
                         {
@@ -82,15 +79,12 @@ namespace Lock.Pages.Chat
                 });
         }
 
-        // ?? Init ?????????????????????????????????????????????????????????????
-
         private async Task InitializePageAsync()
         {
             try
             {
                 _isPageActive = true;
 
-                await GroupDatabaseService.InitializeAsync();
                 _group = await GroupRepository.GetGroupAsync(_groupId);
 
                 if (_group == null)
@@ -124,6 +118,7 @@ namespace Lock.Pages.Chat
                 await DisplayAlert("Error", "Could not load group chat", "OK");
             }
         }
+
         private void PopulateHeader()
         {
             if (_group == null) return;
@@ -149,8 +144,6 @@ namespace Lock.Pages.Chat
                     : "G";
             }
         }
-
-        // ?? Messages ?????????????????????????????????????????????????????????
 
         private async Task LoadMessagesAsync()
         {
@@ -190,9 +183,9 @@ namespace Lock.Pages.Chat
                 Debug.WriteLine($"LoadMessages error: {ex}");
             }
         }
+
         private void DecryptIfNeeded(GroupMessage msg)
         {
-            // For system messages or non-encrypted messages with content
             if (msg.IsSystemMessage || (!msg.IsEncrypted && !string.IsNullOrEmpty(msg.Content)))
             {
                 if (string.IsNullOrEmpty(msg.DisplayContent) && !string.IsNullOrEmpty(msg.Content))
@@ -200,7 +193,6 @@ namespace Lock.Pages.Chat
                 return;
             }
 
-            // For encrypted messages
             if (msg.IsEncrypted && !string.IsNullOrEmpty(msg.EncryptedContent))
             {
                 try
@@ -215,17 +207,17 @@ namespace Lock.Pages.Chat
                     msg.SetDecryptedContent("?? Encrypted");
                 }
             }
-            // For non-encrypted but empty content
             else if (!msg.IsEncrypted && string.IsNullOrEmpty(msg.Content) && msg.MessageType == GroupMessageType.Image)
             {
                 msg.SetDecryptedContent(string.Empty);
             }
         }
+
         private void StartMessagePolling()
         {
             try
             {
-                StopPolling(); // Ensure any existing timer is cleaned up
+                StopPolling();
 
                 _pollTimer = new System.Timers.Timer(3000);
                 _pollTimer.Elapsed += async (s, e) =>
@@ -245,12 +237,10 @@ namespace Lock.Pages.Chat
 
         private async Task PollForNewMessagesAsync()
         {
-            // Don't poll if page is no longer active
             if (!_isPageActive || _pollTimer == null) return;
 
             try
             {
-                // Check if we're still a member before polling
                 var isStillMember = await GroupRepository.IsMemberAsync(_groupId, _currentUserPhone);
                 if (!isStillMember)
                 {
@@ -259,24 +249,21 @@ namespace Lock.Pages.Chat
                     return;
                 }
 
-                var lastId = _messages.LastOrDefault()?.Id ?? 0;
-                var db = GroupDatabaseService.GetConnection();
+                var lastMsg = _messages.LastOrDefault();
+                var lastId = lastMsg?.Id ?? string.Empty;
 
-                var newMsgs = await db.Table<GroupMessage>()
-      .Where(m => m.GroupId == _groupId && m.Id > lastId && !m.IsDeleted && !m.IsSystemMessage)
-      .OrderBy(m => m.SentAt)
-      .ToListAsync();
+                var newMsgs = await GroupRepository.GetNewerMessagesAsync(_groupId, lastId, _currentUserPhone);
 
                 if (!newMsgs.Any()) return;
 
-                var lastMsg = _messages.LastOrDefault(m => !m.IsSystemMessage);
+                var lastMsgForComparison = _messages.LastOrDefault(m => !m.IsSystemMessage);
 
                 foreach (var msg in newMsgs)
                 {
                     DecryptIfNeeded(msg);
                     msg.IsOutgoing = msg.SenderPhone == _currentUserPhone;
 
-                    bool isDifferentSender = lastMsg == null || lastMsg.SenderPhone != msg.SenderPhone;
+                    bool isDifferentSender = lastMsgForComparison == null || lastMsgForComparison.SenderPhone != msg.SenderPhone;
                     msg.ShowSenderName = !msg.IsSystemMessage && !msg.IsOutgoing && isDifferentSender;
                     msg.ShowAvatar = msg.ShowSenderName;
 
@@ -287,10 +274,9 @@ namespace Lock.Pages.Chat
                     if (msg.MessageType == GroupMessageType.Poll)
                         _ = LoadPollDataAsync(msg);
 
-                    lastMsg = msg;
+                    lastMsgForComparison = msg;
                 }
 
-                // Only update UI if page is still active
                 if (_isPageActive)
                 {
                     await MainThread.InvokeOnMainThreadAsync(() =>
@@ -306,13 +292,9 @@ namespace Lock.Pages.Chat
             catch (Exception ex)
             {
                 Debug.WriteLine($"PollForNewMessages error: {ex}");
-                // If we get an error that might indicate the user is no longer a member, stop polling
-                if (ex.Message.Contains("no such table") || ex.Message.Contains("Group not found"))
-                {
-                    StopPolling();
-                }
             }
         }
+
         private void ScrollToBottom()
         {
             if (_messages.Count == 0) return;
@@ -323,8 +305,6 @@ namespace Lock.Pages.Chat
             }
             catch { }
         }
-
-        // ?? Send ?????????????????????????????????????????????????????????????
 
         private async void OnSendMessageTapped(object sender, EventArgs e)
         {
@@ -337,7 +317,7 @@ namespace Lock.Pages.Chat
 
                 var msg = await GroupRepository.SendMessageAsync(
                     _groupId, _currentUserPhone, text,
-                    replyToMessageId: _replyToMessageId ?? 0);
+                    replyToMessageId: _replyToMessageId);
 
                 if (msg.IsEncrypted && !string.IsNullOrEmpty(msg.EncryptedContent))
                 {
@@ -374,164 +354,6 @@ namespace Lock.Pages.Chat
             }
         }
 
-        // Track message sent
-        private async Task TrackGroupMessageSentAsync(GroupMessage message)
-        {
-            try
-            {
-                await UserTrackingService.Instance.TrackGroupMembershipAsync(
-                    _groupId,
-                    _group?.Name ?? "Unknown",
-                    message.SenderPhone,
-                    "Sent Message",
-                    message.SenderPhone);
-                Debug.WriteLine($"[TRACKING] Group message sent: GroupId={_groupId}, User={message.SenderPhone}, MessageId={message.Id}");
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"TrackGroupMessageSentAsync error: {ex}");
-            }
-        }
-
-        // Track message edit
-        private async Task TrackGroupMessageEditAsync(GroupMessage message, string oldContent)
-        {
-            try
-            {
-                await UserTrackingService.Instance.TrackGroupUpdateAsync(
-                    _groupId,
-                    _group?.Name ?? "Unknown",
-                    "Message Edited",
-                    oldContent,
-                    message.DisplayContent,
-                    message.SenderPhone);
-                Debug.WriteLine($"[TRACKING] Group message edited: GroupId={_groupId}, User={message.SenderPhone}, MessageId={message.Id}");
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"TrackGroupMessageEditAsync error: {ex}");
-            }
-        }
-
-        // Track message deletion
-        private async Task TrackGroupMessageDeletionAsync(GroupMessage message, string action)
-        {
-            try
-            {
-                await UserTrackingService.Instance.TrackGroupMembershipAsync(
-                    _groupId,
-                    _group?.Name ?? "Unknown",
-                    message.SenderPhone,
-                    action,
-                    _currentUserPhone);
-                Debug.WriteLine($"[TRACKING] Group message {action}: GroupId={_groupId}, User={message.SenderPhone}, MessageId={message.Id}, DeletedBy={_currentUserPhone}");
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"TrackGroupMessageDeletionAsync error: {ex}");
-            }
-        }
-
-        // Track poll creation
-        private async Task TrackPollCreationAsync(GroupMessage message, GroupPoll poll)
-        {
-            try
-            {
-                await UserTrackingService.Instance.TrackGroupUpdateAsync(
-                    _groupId,
-                    _group?.Name ?? "Unknown",
-                    "Poll Created",
-                    string.Empty,
-                    $"{poll.Question} with {poll.Options.Count} options",
-                    message.SenderPhone);
-                Debug.WriteLine($"[TRACKING] Poll created: GroupId={_groupId}, User={message.SenderPhone}, Question={poll.Question}");
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"TrackPollCreationAsync error: {ex}");
-            }
-        }
-
-        // Track poll vote
-        private async Task TrackPollVoteAsync(GroupMessage message, string optionText)
-        {
-            try
-            {
-                await UserTrackingService.Instance.TrackGroupMembershipAsync(
-                    _groupId,
-                    _group?.Name ?? "Unknown",
-                    _currentUserPhone,
-                    "Voted in Poll",
-                    _currentUserPhone);
-                Debug.WriteLine($"[TRACKING] Poll vote: GroupId={_groupId}, User={_currentUserPhone}, Option={optionText}, PollId={message.Id}");
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"TrackPollVoteAsync error: {ex}");
-            }
-        }
-
-        // Track image upload
-        private async Task TrackImageUploadAsync(List<string> imagePaths)
-        {
-            try
-            {
-                await UserTrackingService.Instance.TrackGroupMembershipAsync(
-                    _groupId,
-                    _group?.Name ?? "Unknown",
-                    _currentUserPhone,
-                    "Uploaded Images",
-                    _currentUserPhone);
-                Debug.WriteLine($"[TRACKING] Images uploaded: GroupId={_groupId}, User={_currentUserPhone}, Count={imagePaths.Count}");
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"TrackImageUploadAsync error: {ex}");
-            }
-        }
-
-        // Track event creation
-        private async Task TrackEventCreationAsync(string eventTitle)
-        {
-            try
-            {
-                await UserTrackingService.Instance.TrackGroupUpdateAsync(
-                    _groupId,
-                    _group?.Name ?? "Unknown",
-                    "Event Created",
-                    string.Empty,
-                    eventTitle,
-                    _currentUserPhone);
-                Debug.WriteLine($"[TRACKING] Event created: GroupId={_groupId}, User={_currentUserPhone}, Event={eventTitle}");
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"TrackEventCreationAsync error: {ex}");
-            }
-        }
-
-        // Track member leaving group
-        private async Task TrackMemberLeaveAsync()
-        {
-            try
-            {
-                await UserTrackingService.Instance.TrackGroupMembershipAsync(
-                    _groupId,
-                    _group?.Name ?? "Unknown",
-                    _currentUserPhone,
-                    "Left Group",
-                    _currentUserPhone);
-                Debug.WriteLine($"[TRACKING] Member left: GroupId={_groupId}, User={_currentUserPhone}");
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"TrackMemberLeaveAsync error: {ex}");
-            }
-        }
-
-
-        // ?? Attachment panel ?????????????????????????????????????????????????
-
         private void OnAttachmentTapped(object sender, EventArgs e)
         {
             _attachmentPanelOpen = !_attachmentPanelOpen;
@@ -564,8 +386,6 @@ namespace Lock.Pages.Chat
             await ShowCreateEventAsync();
         }
 
-        // ?? Image send ???????????????????????????????????????????????????????
-
         private async Task SendImagesAsync()
         {
             try
@@ -591,13 +411,21 @@ namespace Lock.Pages.Chat
 
                 if (!savedPaths.Any()) return;
 
-                // ========== TRACK IMAGE UPLOAD ==========
-                await TrackImageUploadAsync(savedPaths);
+                // Convert string? to int? - you'll need to decide how to map string IDs to ints
+                // Since you're using GUID strings, this is problematic
+                // Better to update ImagePreviewPage to accept string
+                int? replyId = null;
+                if (!string.IsNullOrEmpty(_replyToMessageId))
+                {
+                    // If your message IDs are numeric strings, parse them
+                    if (int.TryParse(_replyToMessageId, out int parsed))
+                        replyId = parsed;
+                    else
+                        replyId = 0; // Use 0 as fallback (means no reply)
+                }
 
-                // Show preview page with captions option
-                var previewPage = new ImagePreviewPage(savedPaths, _groupId, _currentUserPhone, _replyToMessageId);
+                var previewPage = new ImagePreviewPage(savedPaths, _groupId, _currentUserPhone, replyId);
 
-                // Subscribe to the ImagesSent message
                 MessagingCenter.Subscribe<ImagePreviewPage>(this, "ImagesSent", async (sender) =>
                 {
                     MessagingCenter.Unsubscribe<ImagePreviewPage>(this, "ImagesSent");
@@ -613,8 +441,6 @@ namespace Lock.Pages.Chat
                 await DisplayAlert("Error", "Could not select images: " + ex.Message, "OK");
             }
         }
-        
-        // ?? Poll ?????????????????????????????????????????????????????????????
 
         private async Task LoadPollDataAsync(GroupMessage message)
         {
@@ -694,7 +520,7 @@ namespace Lock.Pages.Chat
                 if (!_pollCache.TryGetValue(message.Id, out var pollData))
                 {
                     await LoadPollDataAsync(message);
-                    pollData = _pollCache.GetValueOrDefault(message.Id);
+                    _pollCache.TryGetValue(message.Id, out pollData);
                 }
                 if (pollData == null) { btn.IsEnabled = true; return; }
 
@@ -727,13 +553,8 @@ namespace Lock.Pages.Chat
 
                 if (ok)
                 {
-                    // ========== TRACK POLL VOTE ==========
-                    await TrackPollVoteAsync(message, selected);
-
                     _pollCache.Remove(message.Id);
-                    var db = GroupDatabaseService.GetConnection();
-                    var fresh = await db.Table<GroupMessage>()
-                        .Where(m => m.Id == message.Id).FirstOrDefaultAsync();
+                    var fresh = await GroupRepository.GetMessageAsync(message.Id);
                     if (fresh != null)
                     {
                         message.PollJson = fresh.PollJson;
@@ -759,7 +580,6 @@ namespace Lock.Pages.Chat
                 btn.IsEnabled = true;
             }
         }
-        // ?? Message menu ?????????????????????????????????????????????????????
 
         private async void OnMessageMenuTapped(object sender, EventArgs e)
         {
@@ -801,47 +621,35 @@ namespace Lock.Pages.Chat
                 "Save", "Cancel", message.DisplayContent, maxLength: 2000);
             if (string.IsNullOrWhiteSpace(newText)) return;
 
-            string oldContent = message.DisplayContent;
-
             if (await GroupRepository.EditMessageAsync(message.Id, _currentUserPhone, newText))
             {
-                // ========== TRACK MESSAGE EDIT ==========
-                await TrackGroupMessageEditAsync(message, oldContent);
-
-                // Refresh the specific message instead of reloading all messages
                 await RefreshSingleMessageAsync(message);
             }
             else
                 await DisplayAlert("Error", "Could not edit message.", "OK");
         }
+
         private async Task RefreshSingleMessageAsync(GroupMessage oldMessage)
         {
             try
             {
-                var db = GroupDatabaseService.GetConnection();
-                var freshMsg = await db.Table<GroupMessage>()
-                    .Where(m => m.Id == oldMessage.Id)
-                    .FirstOrDefaultAsync();
+                var freshMsg = await GroupRepository.GetMessageAsync(oldMessage.Id);
 
                 if (freshMsg != null)
                 {
-                    // Decrypt if needed
                     DecryptIfNeeded(freshMsg);
 
-                    // Preserve UI properties
                     freshMsg.IsOutgoing = oldMessage.IsOutgoing;
                     freshMsg.ShowAvatar = oldMessage.ShowAvatar;
                     freshMsg.ShowSenderName = oldMessage.ShowSenderName;
                     freshMsg.SenderInitial = oldMessage.SenderInitial;
 
-                    // Find and replace in the collection
                     var index = _messages.IndexOf(oldMessage);
                     if (index >= 0)
                     {
                         await MainThread.InvokeOnMainThreadAsync(() =>
                         {
                             _messages[index] = freshMsg;
-                            // Force refresh of that specific item
                             var temp = _messages.ToList();
                             _messages.Clear();
                             foreach (var msg in temp)
@@ -853,10 +661,10 @@ namespace Lock.Pages.Chat
             catch (Exception ex)
             {
                 Debug.WriteLine($"RefreshSingleMessage error: {ex}");
-                // Fallback to reload all messages
                 await LoadMessagesAsync();
             }
         }
+
         private async Task ForwardMessageAsync(GroupMessage message)
         {
             var groups = await GroupRepository.GetMyGroupsAsync(_currentUserPhone);
@@ -873,7 +681,7 @@ namespace Lock.Pages.Chat
 
             var target = others.First(g => g.Name == pick);
             await GroupRepository.SendMessageAsync(target.Id, _currentUserPhone,
-                $"? Forwarded: {message.DisplayContent}");
+                $"?? Forwarded: {message.DisplayContent}");
             await DisplayAlert("Forwarded", $"Message forwarded to {pick}", "OK");
         }
 
@@ -886,10 +694,8 @@ namespace Lock.Pages.Chat
         private async Task DeleteForMeAsync(GroupMessage message)
         {
             if (!await DisplayAlert("Delete", "Delete for yourself only?", "Delete", "Cancel")) return;
-            if (await GroupRepository.DeleteMessageAsync(_groupId, message.Id, _currentUserPhone))
+            if (await GroupRepository.DeleteMessageForSelfAsync(_groupId, message.Id, _currentUserPhone))
             {
-                // ========== TRACK MESSAGE DELETION ==========
-                await TrackGroupMessageDeletionAsync(message, "Deleted for self");
                 await LoadMessagesAsync();
             }
             else
@@ -912,10 +718,8 @@ namespace Lock.Pages.Chat
             if (!await DisplayAlert("Delete for Everyone",
                 "This cannot be undone.", "Delete", "Cancel")) return;
 
-            if (await GroupRepository.DeleteMessageAsync(_groupId, message.Id, _currentUserPhone))
+            if (await GroupRepository.DeleteMessageForEveryoneAsync(_groupId, message.Id, _currentUserPhone))
             {
-                // ========== TRACK MESSAGE DELETION ==========
-                await TrackGroupMessageDeletionAsync(message, "Deleted for everyone");
                 await LoadMessagesAsync();
             }
             else
@@ -947,45 +751,6 @@ namespace Lock.Pages.Chat
             await DisplayAlert("Message Info", info, "OK");
         }
 
-        public static async Task<bool> DeleteMessageAsync(
-        string groupId,
-        int messageId,
-        string requestorPhone)
-        {
-            await GroupDatabaseService.InitializeAsync();
-            var db = GroupDatabaseService.GetConnection();
-
-            var msg = await db.Table<GroupMessage>()
-                .Where(m => m.Id == messageId)
-                .FirstOrDefaultAsync();
-            if (msg == null) return false;
-
-            var member = await db.Table<GroupMember>()
-                .Where(m => m.GroupId == groupId && m.UserPhone == requestorPhone)
-                .FirstOrDefaultAsync();
-
-            // CRITICAL FIX: Only allow deletion if:
-            // 1. User is the message sender, OR
-            // 2. User is an admin/creator (privileged)
-            bool canDelete = msg.SenderPhone == requestorPhone || (member?.IsPrivileged == true);
-
-            if (!canDelete)
-            {
-                Debug.WriteLine($"User {requestorPhone} attempted to delete message {messageId} but is not authorized");
-                return false;
-            }
-
-            msg.IsDeleted = true;
-            msg.Content = string.Empty;
-            msg.EncryptedContent = string.Empty; // Also clear encrypted content
-            await db.UpdateAsync(msg);
-
-            Debug.WriteLine($"Message {messageId} deleted by {requestorPhone} (IsSender: {msg.SenderPhone == requestorPhone}, IsAdmin: {member?.IsPrivileged})");
-            return true;
-        }
-
-        // ?? Image viewer ?????????????????????????????????????????????????????
-
         private async void OnImageTapped(object sender, TappedEventArgs e)
         {
             try
@@ -1006,16 +771,12 @@ namespace Lock.Pages.Chat
             }
         }
 
-        // ?? Reply ?????????????????????????????????????????????????????????????
-
         private void SetReplyTo(GroupMessage message)
         {
             _replyToMessageId = message.Id;
 
-            // FIX: Ensure we use the decrypted content for preview
             string decryptedContent = message.DisplayContent;
 
-            // If DisplayContent is empty or still encrypted, try to decrypt
             if (string.IsNullOrEmpty(decryptedContent) || decryptedContent == "?? Encrypted")
             {
                 if (message.IsEncrypted && !string.IsNullOrEmpty(message.EncryptedContent))
@@ -1050,6 +811,7 @@ namespace Lock.Pages.Chat
             ReplyToPreviewLabel.Text = preview;
             ReplyPreviewBanner.IsVisible = true;
         }
+
         private void ClearReply()
         {
             _replyToMessageId = null;
@@ -1057,8 +819,6 @@ namespace Lock.Pages.Chat
         }
 
         private void OnCancelReplyTapped(object sender, EventArgs e) => ClearReply();
-
-        // ?? Events ????????????????????????????????????????????????????????????
 
         private async Task ShowCreateEventAsync()
         {
@@ -1072,14 +832,8 @@ namespace Lock.Pages.Chat
                 title.Trim(), string.Empty, location?.Trim() ?? string.Empty,
                 DateTime.UtcNow.AddDays(7));
 
-            // ========== TRACK EVENT CREATION ==========
-            await TrackEventCreationAsync(title.Trim());
-
             await DisplayAlert("Event Created", $"'{ev.Title}' has been posted to the group!", "OK");
         }
-
-
-        // ?? Encryption ????????????????????????????????????????????????????????
 
         private string DecryptMessage(string enc, string groupId)
         {
@@ -1111,8 +865,6 @@ namespace Lock.Pages.Chat
             }
         }
 
-        // ?? Header actions ????????????????????????????????????????????????????
-
         private async void OnBackTapped(object sender, EventArgs e)
             => await Navigation.PopAsync();
 
@@ -1131,7 +883,7 @@ namespace Lock.Pages.Chat
 
             bool isAdmin = _currentMember?.IsPrivileged == true;
             var opts = new List<string>
-        { "Group Info", "Polls", "Mute Notifications", "Search Messages", "Members" }; // <-- Add "Members" here
+            { "Group Info", "Polls", "Mute Notifications", "Search Messages", "Members" };
 
             if (isAdmin)
             {
@@ -1148,7 +900,7 @@ namespace Lock.Pages.Chat
                 case "Group Info":
                     await Navigation.PushAsync(new GroupInfoPage(_groupId, _currentUserPhone));
                     break;
-                case "Members": // <-- Add this case
+                case "Members":
                     await Navigation.PushAsync(new GroupMembersPage(_groupId, _currentUserPhone));
                     break;
                 case "Polls":
@@ -1174,12 +926,12 @@ namespace Lock.Pages.Chat
                     break;
             }
         }
+
         private async Task ToggleMuteAsync()
         {
             if (_currentMember == null) return;
-            var db = GroupDatabaseService.GetConnection();
             _currentMember.IsMuted = !_currentMember.IsMuted;
-            await db.UpdateAsync(_currentMember);
+            await GroupRepository.UpdateMemberAsync(_currentMember);
             await DisplayAlert(
                 _currentMember.IsMuted ? "Muted" : "Unmuted",
                 _currentMember.IsMuted
@@ -1256,10 +1008,8 @@ namespace Lock.Pages.Chat
 
                 if (success)
                 {
-                    await TrackMemberLeaveAsync();
                     MessagingCenter.Send(this, "GroupsUpdated");
 
-                    // Full cleanup only on actual leave
                     _messages.Clear();
                     _pollCache.Clear();
 
@@ -1298,6 +1048,7 @@ namespace Lock.Pages.Chat
                 });
             }
         }
+
         private void StopPolling()
         {
             try
@@ -1315,8 +1066,6 @@ namespace Lock.Pages.Chat
             }
         }
 
-        // ?? Lifecycle ?????????????????????????????????????????????????????????
-
         protected override void OnAppearing()
         {
             base.OnAppearing();
@@ -1325,7 +1074,6 @@ namespace Lock.Pages.Chat
 
             _isPageActive = true;
 
-            // Unsubscribe before re-subscribing to avoid duplicate handlers
             MessagingCenter.Unsubscribe<GroupPollsPage, PollUpdateMessage>(this, "PollUpdated");
             MessagingCenter.Unsubscribe<ImagePreviewPage>(this, "ImagesSent");
 
@@ -1338,9 +1086,7 @@ namespace Lock.Pages.Chat
                         if (pollMsg == null) return;
                         if (msg.IsDeleted) { _messages.Remove(pollMsg); return; }
                         _pollCache.Remove(pollMsg.Id);
-                        var db = GroupDatabaseService.GetConnection();
-                        var fresh = await db.Table<GroupMessage>()
-                            .Where(m => m.Id == msg.MessageId).FirstOrDefaultAsync();
+                        var fresh = await GroupRepository.GetMessageAsync(msg.MessageId);
                         if (fresh != null)
                         {
                             pollMsg.PollJson = fresh.PollJson;
@@ -1368,7 +1114,6 @@ namespace Lock.Pages.Chat
                 _isPageActive = false;
                 StopPolling();
 
-                // Unsubscribe from messages
                 MessagingCenter.Unsubscribe<GroupPollsPage, PollUpdateMessage>(this, "PollUpdated");
                 MessagingCenter.Unsubscribe<ImagePreviewPage>(this, "ImagesSent");
 
@@ -1380,8 +1125,6 @@ namespace Lock.Pages.Chat
             }
         }
     }
-
-    // ?? Supporting classes ????????????????????????????????????????????????????
 
     public class PollData
     {
@@ -1406,7 +1149,7 @@ namespace Lock.Pages.Chat
 
     public class PollUpdateMessage
     {
-        public int MessageId { get; set; }
+        public string MessageId { get; set; } = string.Empty;
         public bool IsDeleted { get; set; }
     }
 }

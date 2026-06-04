@@ -114,22 +114,41 @@ namespace Lock.Pages.Admin
                 var currentUserPhone = Preferences.Get("current_user_phone", string.Empty);
                 if (string.IsNullOrEmpty(currentUserPhone)) return;
 
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-                var blockedRelations = await db.Table<BlockedUser>()
-                    .Where(b => b.UserPhone == currentUserPhone).ToListAsync();
+                // Replace this SQLite code:
+                // await DatabaseService.InitializeAsync();
+                // var db = DatabaseService.GetConnection();
+                // var blockedRelations = await db.Table<BlockedUser>()
+                //     .Where(b => b.UserPhone == currentUserPhone).ToListAsync();
 
-                _blockedUsers = blockedRelations.Select(b =>
+                // With this Supabase code:
+                var blockedRelations = await SupabaseService.GetAsync<BlockedUser>("BlockedUsers",
+                    $"UserPhone=eq.{Uri.EscapeDataString(currentUserPhone)}");
+
+                // Get all unique blocked phone numbers
+                var blockedPhones = blockedRelations.Select(b => b.BlockedPhone).Distinct().ToList();
+
+                if (blockedPhones.Any())
                 {
-                    var user = _allUsers.FirstOrDefault(u => u.PhoneNumber == b.BlockedPhone);
-                    return new BlockedUserItem
+                    // Build a filter for getting all blocked users in one query
+                    var phoneFilters = string.Join(",", blockedPhones.Select(p => $"PhoneNumber=eq.{Uri.EscapeDataString(p)}"));
+                    var allBlockedUsers = await SupabaseService.GetAsync<Lock.Models.User>("Users", phoneFilters);
+
+                    _blockedUsers = blockedRelations.Select(b =>
                     {
-                        Phone = b.BlockedPhone,
-                        UserName = user?.Name ?? b.BlockedPhone,
-                        ProfileImagePath = user?.ProfileImagePath ?? string.Empty,
-                        Initial = user?.Name?.Length > 0 ? user.Name[0].ToString().ToUpper() : "U"
-                    };
-                }).ToList();
+                        var user = allBlockedUsers.FirstOrDefault(u => u.PhoneNumber == b.BlockedPhone);
+                        return new BlockedUserItem
+                        {
+                            Phone = b.BlockedPhone,
+                            UserName = user?.Name ?? b.BlockedPhone,
+                            ProfileImagePath = user?.ProfileImagePath ?? string.Empty,
+                            Initial = user?.Name?.Length > 0 ? user.Name[0].ToString().ToUpper() : "U"
+                        };
+                    }).ToList();
+                }
+                else
+                {
+                    _blockedUsers = new List<BlockedUserItem>();
+                }
             }
             catch (Exception ex) { Debug.WriteLine($"LoadBlockedUsersData: {ex}"); }
         }

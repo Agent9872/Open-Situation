@@ -1,0 +1,18 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<linker>
+	<assembly fullname="Supabase">
+		<type fullname="*" preserve="all" />
+	</assembly>
+	<assembly fullname="Supabase.Postgrest">
+		<type fullname="*" preserve="all" />
+	</assembly>
+	<assembly fullname="Supabase.Realtime">
+		<type fullname="*" preserve="all" />
+	</assembly>
+	<assembly fullname="Supabase.Storage">
+		<type fullname="*" preserve="all" />
+	</assembly>
+	<assembly fullname="Newtonsoft.Json">
+		<type fullname="*" preserve="all" />
+	</assembly>
+</linker>

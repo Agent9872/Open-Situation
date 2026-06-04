@@ -2,7 +2,6 @@
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.ApplicationModel;
 using Microsoft.Maui.Storage;
-using Lock.Chat.Services;
 using Lock.Helpers;
 using Lock.Services;
 using Lock.Models.Chat;
@@ -12,7 +11,7 @@ using System.Threading.Tasks;
 using System.Linq;
 using Plugin.LocalNotification;
 using Plugin.LocalNotification.EventArgs;
-
+using Lock.Models;
 
 namespace Lock
 {
@@ -58,7 +57,7 @@ namespace Lock
             }
 
             InitializeNotificationServices();
-            Task.Run(async () => await InitializeDatabaseAsync());
+            Task.Run(async () => await InitializeSupabaseAsync());
 
             Debug.WriteLine("=== APP CONSTRUCTOR END ===");
         }
@@ -123,7 +122,7 @@ namespace Lock
             }
         }
 
-        private async Task InitializeDatabaseAsync()
+        private async Task InitializeSupabaseAsync()
         {
             if (!_databaseInitialized)
             {
@@ -141,15 +140,27 @@ namespace Lock
 
                 try
                 {
-                    Debug.WriteLine("Starting database initialization...");
-                    await DatabaseService.InitializeAsync();
-                    await ChatRepository.AddMediaItemsJsonColumnAsync();
-                    Preferences.Set("DatabaseMigrationComplete", true);
-                    Debug.WriteLine("Database initialization completed successfully");
+                    Debug.WriteLine("Starting Supabase initialization...");
+                    // Supabase is already initialized in MauiProgram.cs
+                    // No need to initialize again, just verify connection if needed
+
+                    // Optional: Test connection by fetching a small amount of data
+                    try
+                    {
+                        var test = await SupabaseService.GetAsync<User>("Users", "limit=1");
+                        Debug.WriteLine($"Supabase connection verified. Found {test.Count} users.");
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"Supabase connection test failed: {ex.Message}");
+                        throw;
+                    }
+
+                    Debug.WriteLine("Supabase initialization completed successfully");
                 }
                 catch (Exception ex)
                 {
-                    Debug.WriteLine($"Database initialization error: {ex}");
+                    Debug.WriteLine($"Supabase initialization error: {ex}");
                     lock (_lock)
                     {
                         _databaseInitialized = false;
@@ -202,38 +213,49 @@ namespace Lock
                 InitializeNotificationServices();
             }
 
-            // NO DELAY - redirect immediately
             var phone = Preferences.Get(CurrentUserPhoneKey, string.Empty);
 
             if (!string.IsNullOrWhiteSpace(phone))
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-                var user = await db.Table<Lock.Models.User>()
-                    .Where(u => u.PhoneNumber == phone)
-                    .FirstOrDefaultAsync();
-
-                if (user != null)
+                try
                 {
-                    user.LastActive = DateTime.UtcNow;
-                    await db.UpdateAsync(user);
-                    StartMessagePolling(phone);
+                    // Get user from Supabase
+                    var users = await SupabaseService.GetAsync<Lock.Models.User>("Users",
+                        $"PhoneNumber=eq.{Uri.EscapeDataString(phone)}&limit=1");
+                    var user = users.FirstOrDefault();
 
-                    // Navigate IMMEDIATELY to PostPage
-                    await MainThread.InvokeOnMainThreadAsync(async () =>
+                    if (user != null)
                     {
-                        // REMOVE THIS LINE - FlyoutBehavior doesn't exist here
-                        // FlyoutBehavior = FlyoutBehavior.Flyout;
+                        // Update last active timestamp
+                        await SupabaseService.UpdateAsync("Users", $"Id=eq.{user.Id}",
+                            new { LastActive = DateTime.UtcNow });
 
-                        await Shell.Current.GoToAsync("//post", new Dictionary<string, object>
+                        StartMessagePolling(phone);
+
+                        // Navigate IMMEDIATELY to PostPage
+                        await MainThread.InvokeOnMainThreadAsync(async () =>
                         {
-                            ["animated"] = false
+                            await Shell.Current.GoToAsync("//post", new Dictionary<string, object>
+                            {
+                                ["animated"] = false
+                            });
                         });
-                    });
+                    }
+                    else
+                    {
+                        Preferences.Remove(CurrentUserPhoneKey);
+                        await MainThread.InvokeOnMainThreadAsync(async () =>
+                        {
+                            await Shell.Current.GoToAsync("//login", new Dictionary<string, object>
+                            {
+                                ["animated"] = false
+                            });
+                        });
+                    }
                 }
-                else
+                catch (Exception ex)
                 {
-                    Preferences.Remove(CurrentUserPhoneKey);
+                    Debug.WriteLine($"Error in OnStart: {ex}");
                     await MainThread.InvokeOnMainThreadAsync(async () =>
                     {
                         await Shell.Current.GoToAsync("//login", new Dictionary<string, object>
@@ -256,7 +278,6 @@ namespace Lock
 
             base.OnStart();
         }
-
 
         private void StartMessagePolling(string userPhone)
         {
@@ -319,15 +340,12 @@ namespace Lock
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
                 var currentUserPhone = Preferences.Get(CurrentUserPhoneKey, string.Empty);
-
                 if (string.IsNullOrEmpty(currentUserPhone)) return 0;
 
-                return await db.Table<ChatMessage>()
-                    .Where(m => m.RecipientPhone == currentUserPhone && !m.IsRead)
-                    .CountAsync();
+                var messages = await SupabaseService.GetAsync<ChatMessage>("ChatMessages",
+                    $"RecipientPhone=eq.{Uri.EscapeDataString(currentUserPhone)}&IsRead=eq.false");
+                return messages.Count;
             }
             catch (Exception ex)
             {
@@ -340,11 +358,9 @@ namespace Lock
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-                var user = await db.Table<Lock.Models.User>()
-                    .Where(u => u.PhoneNumber == phone)
-                    .FirstOrDefaultAsync();
+                var users = await SupabaseService.GetAsync<Lock.Models.User>("Users",
+                    $"PhoneNumber=eq.{Uri.EscapeDataString(phone)}&limit=1");
+                var user = users.FirstOrDefault();
                 return user?.Name ?? phone;
             }
             catch
@@ -357,11 +373,9 @@ namespace Lock
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-                var user = await db.Table<Lock.Models.User>()
-                    .Where(u => u.PhoneNumber == phone)
-                    .FirstOrDefaultAsync();
+                var users = await SupabaseService.GetAsync<Lock.Models.User>("Users",
+                    $"PhoneNumber=eq.{Uri.EscapeDataString(phone)}&limit=1");
+                var user = users.FirstOrDefault();
                 return user?.ProfileImagePath ?? string.Empty;
             }
             catch
@@ -377,6 +391,7 @@ namespace Lock
                 var currentPage = GetCurrentPage();
                 if (currentPage is Pages.Chat.ChatPage chatPage)
                 {
+                    // You might want to check if the current conversation matches
                     return false;
                 }
             }
@@ -413,7 +428,6 @@ namespace Lock
             });
         }
 
-        // Event handler using object parameter to avoid type resolution issues
         private void OnNotificationActionTapped(NotificationActionEventArgs e)
         {
             try
@@ -455,14 +469,13 @@ namespace Lock
             }
         }
 
-        // Add this method to your App.xaml.cs or any page
         public async Task TestSystemNotification()
         {
             try
             {
                 var testMessage = new ChatMessage
                 {
-                    Id = 9999, // Unique ID
+                    Id = Guid.NewGuid().ToString(),  // Changed from 9999 to a string GUID
                     ConversationId = "test-conversation-123",
                     SenderPhone = "+1234567890",
                     Content = "This is a test notification message! 🎉",
@@ -477,7 +490,6 @@ namespace Lock
 
                 Debug.WriteLine("✅ Test notification sent!");
 
-                // Show a popup confirmation
                 await Application.Current.MainPage.DisplayAlert("Test", "Test notification sent! Check your notification center.", "OK");
             }
             catch (Exception ex)
@@ -487,11 +499,10 @@ namespace Lock
             }
         }
 
-        protected override void OnSleep()
+        protected override async void OnSleep()
         {
             Debug.WriteLine("App OnSleep");
 
-            // CRITICAL: Use FULL namespace
             LocalNotificationCenter.Current.NotificationActionTapped -= OnNotificationActionTapped;
 
             IsInForeground = false;
@@ -501,28 +512,16 @@ namespace Lock
                 var phone = Preferences.Get(CurrentUserPhoneKey, string.Empty);
                 if (!string.IsNullOrWhiteSpace(phone))
                 {
-                    Task.Run(async () =>
-                    {
-                        try
-                        {
-                            await DatabaseService.InitializeAsync();
-                            var db = DatabaseService.GetConnection();
-                            var user = await db.Table<Lock.Models.User>()
-                                .Where(u => u.PhoneNumber == phone)
-                                .FirstOrDefaultAsync();
+                    var users = await SupabaseService.GetAsync<Lock.Models.User>("Users",
+                        $"PhoneNumber=eq.{Uri.EscapeDataString(phone)}&limit=1");
+                    var user = users.FirstOrDefault();
 
-                            if (user != null)
-                            {
-                                user.LastActive = DateTime.UtcNow;
-                                await db.UpdateAsync(user);
-                                Debug.WriteLine($"Updated last active for {phone} on sleep");
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            Debug.WriteLine($"Error updating last active on sleep: {ex}");
-                        }
-                    });
+                    if (user != null)
+                    {
+                        await SupabaseService.UpdateAsync("Users", $"Id=eq.{user.Id}",
+                            new { LastActive = DateTime.UtcNow });
+                        Debug.WriteLine($"Updated last active for {phone} on sleep");
+                    }
                 }
             }
             catch (Exception ex)
@@ -533,11 +532,10 @@ namespace Lock
             base.OnSleep();
         }
 
-        protected override void OnResume()
+        protected override async void OnResume()
         {
             Debug.WriteLine("App OnResume");
 
-            // CRITICAL: Use FULL namespace
             LocalNotificationCenter.Current.NotificationActionTapped += OnNotificationActionTapped;
 
             IsInForeground = true;
@@ -545,7 +543,7 @@ namespace Lock
             bool migrationComplete = Preferences.Get("DatabaseMigrationComplete", false);
             if (!migrationComplete)
             {
-                Task.Run(async () => await InitializeDatabaseAsync());
+                Task.Run(async () => await InitializeSupabaseAsync());
             }
 
             if (!_moodMappingInitialized)
@@ -558,28 +556,16 @@ namespace Lock
                 var phone = Preferences.Get(CurrentUserPhoneKey, string.Empty);
                 if (!string.IsNullOrWhiteSpace(phone))
                 {
-                    Task.Run(async () =>
-                    {
-                        try
-                        {
-                            await DatabaseService.InitializeAsync();
-                            var db = DatabaseService.GetConnection();
-                            var user = await db.Table<Lock.Models.User>()
-                                .Where(u => u.PhoneNumber == phone)
-                                .FirstOrDefaultAsync();
+                    var users = await SupabaseService.GetAsync<Lock.Models.User>("Users",
+                        $"PhoneNumber=eq.{Uri.EscapeDataString(phone)}&limit=1");
+                    var user = users.FirstOrDefault();
 
-                            if (user != null)
-                            {
-                                user.LastActive = DateTime.UtcNow;
-                                await db.UpdateAsync(user);
-                                Debug.WriteLine($"Updated last active for {phone} on resume");
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            Debug.WriteLine($"Error updating last active on resume: {ex}");
-                        }
-                    });
+                    if (user != null)
+                    {
+                        await SupabaseService.UpdateAsync("Users", $"Id=eq.{user.Id}",
+                            new { LastActive = DateTime.UtcNow });
+                        Debug.WriteLine($"Updated last active for {phone} on resume");
+                    }
 
                     if (_pollingService != null)
                     {

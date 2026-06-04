@@ -514,19 +514,17 @@ namespace Lock.Pages.Post
 
                         if (!string.IsNullOrEmpty(savedPath))
                         {
-                            await Lock.Chat.Services.DatabaseService.InitializeAsync();
-                            var db = Lock.Chat.Services.DatabaseService.GetConnection();
-
-                            var statusPost = await db.Table<Lock.Models.Post>()
-                                .Where(p => p.StatusImagePath == currentImagePath && p.AuthorPhone == currentUser.UserPhone)
-                                .FirstOrDefaultAsync();
+                            // FIXED: Use Supabase instead of SQLite
+                            var statusPosts = await SupabaseService.GetAsync<Lock.Models.Post>("Posts",
+                                $"StatusImagePath=eq.{Uri.EscapeDataString(currentImagePath)}&AuthorPhone=eq.{Uri.EscapeDataString(currentUser.UserPhone)}&limit=1");
+                            var statusPost = statusPosts.FirstOrDefault();
 
                             if (statusPost != null)
                             {
                                 try { if (File.Exists(currentImagePath)) File.Delete(currentImagePath); } catch { }
 
                                 statusPost.StatusImagePath = savedPath;
-                                await db.UpdateAsync(statusPost);
+                                await SupabaseService.UpdateAsync("Posts", $"Id=eq.{statusPost.Id}", statusPost);
 
                                 currentUser.ImagePaths[_currentImageIndex] = savedPath;
                                 // Keep the same mood
@@ -542,12 +540,10 @@ namespace Lock.Pages.Post
                 }
                 else if (choice == "Change Mood")
                 {
-                    await Lock.Chat.Services.DatabaseService.InitializeAsync();
-                    var db = Lock.Chat.Services.DatabaseService.GetConnection();
-
-                    var statusPost = await db.Table<Lock.Models.Post>()
-                        .Where(p => p.StatusImagePath == currentImagePath && p.AuthorPhone == currentUser.UserPhone)
-                        .FirstOrDefaultAsync();
+                    // FIXED: Use Supabase instead of SQLite
+                    var statusPosts = await SupabaseService.GetAsync<Lock.Models.Post>("Posts",
+                        $"StatusImagePath=eq.{Uri.EscapeDataString(currentImagePath)}&AuthorPhone=eq.{Uri.EscapeDataString(currentUser.UserPhone)}&limit=1");
+                    var statusPost = statusPosts.FirstOrDefault();
 
                     if (statusPost != null)
                     {
@@ -570,7 +566,7 @@ namespace Lock.Pages.Post
                             if (!string.IsNullOrEmpty(mood))
                             {
                                 statusPost.Mood = mood;
-                                await db.UpdateAsync(statusPost);
+                                await SupabaseService.UpdateAsync("Posts", $"Id=eq.{statusPost.Id}", statusPost);
 
                                 // Update the mood in our list
                                 currentUser.Moods[_currentImageIndex] = mood;
@@ -625,16 +621,23 @@ namespace Lock.Pages.Post
                 var currentUser = _usersWithStatus[_currentUserIndex];
                 var currentImagePath = currentUser.ImagePaths[_currentImageIndex];
 
-                await Lock.Chat.Services.DatabaseService.InitializeAsync();
-                var db = Lock.Chat.Services.DatabaseService.GetConnection();
+                // Replace this SQLite code:
+                // await Lock.Chat.Services.DatabaseService.InitializeAsync();
+                // var db = Lock.Chat.Services.DatabaseService.GetConnection();
+                // var statusPost = await db.Table<Lock.Models.Post>()
+                //     .Where(p => p.StatusImagePath == currentImagePath && p.AuthorPhone == currentUser.UserPhone)
+                //     .FirstOrDefaultAsync();
 
-                var statusPost = await db.Table<Lock.Models.Post>()
-                    .Where(p => p.StatusImagePath == currentImagePath && p.AuthorPhone == currentUser.UserPhone)
-                    .FirstOrDefaultAsync();
+                // With this Supabase code:
+                var statusPosts = await SupabaseService.GetAsync<Lock.Models.Post>("Posts",
+                    $"StatusImagePath=eq.{Uri.EscapeDataString(currentImagePath)}&AuthorPhone=eq.{Uri.EscapeDataString(currentUser.UserPhone)}&limit=1");
+                var statusPost = statusPosts.FirstOrDefault();
 
                 if (statusPost != null)
                 {
-                    await db.DeleteAsync(statusPost);
+                    // Replace: await db.DeleteAsync(statusPost);
+                    await SupabaseService.DeleteAsync("Posts", $"Id=eq.{statusPost.Id}");
+
                     try { if (File.Exists(currentImagePath)) File.Delete(currentImagePath); } catch { }
 
                     // Remove image and its mood
@@ -669,7 +672,7 @@ namespace Lock.Pages.Post
                     MainThread.BeginInvokeOnMainThread(() =>
                     {
                         LoadCurrentUserStatus();
-                        UpdateUI(); // Updates mood for the new current image
+                        UpdateUI();
                     });
                 }
             }

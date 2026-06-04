@@ -1,17 +1,19 @@
-﻿using SQLite;
+﻿using Newtonsoft.Json;
+using System;
 
 namespace Lock.Models
 {
-    [Table("Follows")]
     public class Follow
     {
-        [PrimaryKey, AutoIncrement]
         public int Id { get; set; }
 
+        [JsonProperty("follower_phone")]
         public string FollowerPhone { get; set; } = string.Empty;
 
+        [JsonProperty("following_phone")]
         public string FollowingPhone { get; set; } = string.Empty;
 
+        [JsonProperty("created_at")]
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     }
 }

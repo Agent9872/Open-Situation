@@ -1,5 +1,4 @@
-﻿using SQLite;
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using System.Runtime.CompilerServices;
 
 namespace Lock.Models.Chat
@@ -98,8 +97,7 @@ namespace Lock.Models.Chat
             }
         }
 
-        // UI state (runtime only) - these won't be saved to database
-        [Ignore]
+        // UI state (runtime only) - not saved to database
         public bool IsPlaying
         {
             get => _isPlaying;
@@ -115,7 +113,6 @@ namespace Lock.Models.Chat
             }
         }
 
-        [Ignore]
         public double PlaybackProgress
         {
             get => _playbackProgress;
@@ -130,35 +127,25 @@ namespace Lock.Models.Chat
             }
         }
 
-
-
-        // Computed properties for UI
-        [Ignore]
+        // Computed properties for UI (not stored in Supabase)
         public bool IsAudio => string.Equals(Type, "audio", StringComparison.OrdinalIgnoreCase);
-
-        [Ignore]
         public bool IsImage => string.Equals(Type, "image", StringComparison.OrdinalIgnoreCase);
-
-        [Ignore]
         public bool IsVideo => string.Equals(Type, "video", StringComparison.OrdinalIgnoreCase);
-
-        [Ignore]
         public string PlayPauseText => IsPlaying ? "⏸" : "▶";
 
         private string? _currentDisplayDuration;
 
-public string? CurrentDisplayDuration
-{
-    get => _currentDisplayDuration;
-    set
-    {
-        _currentDisplayDuration = value;
-        OnPropertyChanged(nameof(CurrentDisplayDuration));
-        OnPropertyChanged(nameof(DisplayDuration)); // also refresh DisplayDuration
-    }
-}
+        public string? CurrentDisplayDuration
+        {
+            get => _currentDisplayDuration;
+            set
+            {
+                _currentDisplayDuration = value;
+                OnPropertyChanged(nameof(CurrentDisplayDuration));
+                OnPropertyChanged(nameof(DisplayDuration));
+            }
+        }
 
-        [Ignore]
         public string FormattedDuration
         {
             get
@@ -173,7 +160,6 @@ public string? CurrentDisplayDuration
             }
         }
 
-        [Ignore]
         public string DisplayDuration
         {
             get
@@ -181,11 +167,9 @@ public string? CurrentDisplayDuration
                 if (!DurationSeconds.HasValue || DurationSeconds.Value <= 0)
                     return "0:00";
 
-                // ── If a live countdown is being pushed, use it ──
                 if (!string.IsNullOrEmpty(_currentDisplayDuration) && IsPlaying)
                     return _currentDisplayDuration;
 
-                // ── If playing, compute from progress ──
                 if (IsPlaying && PlaybackProgress > 0)
                 {
                     var elapsedSeconds = DurationSeconds.Value * PlaybackProgress;
@@ -196,13 +180,11 @@ public string? CurrentDisplayDuration
                         : $"0:{ts.Seconds:D2}";
                 }
 
-                // ── Default: show total duration ──
                 return FormattedDuration;
             }
         }
 
-
-        // Helper to create an audio media item
+        // Helper factory methods
         public static ChatMediaItem CreateAudio(string path, int durationSeconds, string? waveformData = null, string? caption = null)
         {
             return new ChatMediaItem
@@ -215,7 +197,6 @@ public string? CurrentDisplayDuration
             };
         }
 
-        // Helper to create an image media item
         public static ChatMediaItem CreateImage(string path, string? thumbnailPath = null, string? caption = null)
         {
             return new ChatMediaItem
@@ -227,7 +208,6 @@ public string? CurrentDisplayDuration
             };
         }
 
-        // Helper to create a video media item
         public static ChatMediaItem CreateVideo(string path, string? thumbnailPath = null, int? durationSeconds = null, string? caption = null)
         {
             return new ChatMediaItem
@@ -240,10 +220,9 @@ public string? CurrentDisplayDuration
             };
         }
 
-        // INotifyPropertyChanged implementation
+        // INotifyPropertyChanged
         public event PropertyChangedEventHandler? PropertyChanged;
 
-        // Make this method public so it can be called from other classes
         public void OnPropertyChanged([CallerMemberName] string? propertyName = null)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));

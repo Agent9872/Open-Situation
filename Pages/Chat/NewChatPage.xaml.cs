@@ -8,7 +8,6 @@ using Microsoft.Maui.Storage;
 using Lock.Chat.Services;
 using Lock.Models;
 using Lock.Models.Chat;
-using SQLite;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using Communication = Microsoft.Maui.ApplicationModel.Communication;
@@ -469,10 +468,8 @@ namespace Lock.Pages.Chat
 
                 await Task.Delay(300, token);
 
-                await Lock.Chat.Services.DatabaseService.InitializeAsync();
-                var db = Lock.Chat.Services.DatabaseService.GetConnection();
-                var allUsers = await db.Table<User>().ToListAsync();
-
+                // Get all users from Supabase
+                var allUsers = await SupabaseService.GetAsync<User>("Users", "");
                 var currentUserPhone = Preferences.Get(CurrentUserPhoneKey, string.Empty);
 
                 // Load ghosted phones
@@ -536,7 +533,7 @@ namespace Lock.Pages.Chat
                     // 1. Exact phone number match - ONLY if user doesn't have HidePhoneNumber enabled
                     var exactPhoneMatches = registeredUsers
                         .Where(u => !string.IsNullOrWhiteSpace(u.PhoneNumber))
-                        .Where(u => !u.HidePhoneNumber)  // Skip users hiding their phone
+                        .Where(u => !u.HidePhoneNumber)
                         .Where(u =>
                         {
                             var normalizedUserPhone = new string(u.PhoneNumber.Where(c => char.IsDigit(c)).ToArray());
@@ -546,12 +543,12 @@ namespace Lock.Pages.Chat
 
                     matches.AddRange(exactPhoneMatches);
 
-                    // 2. Partial phone number match - ONLY if user doesn't have HidePhoneNumber enabled
+                    // 2. Partial phone number match
                     if (!exactPhoneMatches.Any() && !string.IsNullOrEmpty(normalizedSearch))
                     {
                         var registeredByPhone = registeredUsers
                             .Where(u => !string.IsNullOrWhiteSpace(u.PhoneNumber))
-                            .Where(u => !u.HidePhoneNumber)  // Skip users hiding their phone
+                            .Where(u => !u.HidePhoneNumber)
                             .Where(u =>
                             {
                                 var normalizedUserPhone = new string(u.PhoneNumber.Where(c => char.IsDigit(c)).ToArray());
@@ -562,7 +559,7 @@ namespace Lock.Pages.Chat
                         matches.AddRange(registeredByPhone);
                     }
 
-                    // 3. Partial name match (always allowed, name is public)
+                    // 3. Partial name match
                     var registeredByName = registeredUsers
                         .Where(u => !string.IsNullOrWhiteSpace(u.Name) &&
                                    u.Name.ToLowerInvariant().Contains(searchLower))
@@ -640,18 +637,16 @@ namespace Lock.Pages.Chat
                 // Enrich with match data and interested-in
                 try
                 {
-                    var meUser = await db.Table<User>()
-                        .Where(u => u.PhoneNumber == currentUserPhone)
-                        .FirstOrDefaultAsync();
+                    var meUsers = await SupabaseService.GetAsync<User>("Users", $"PhoneNumber=eq.{Uri.EscapeDataString(currentUserPhone)}&limit=1");
+                    var meUser = meUsers.FirstOrDefault();
 
                     if (meUser != null)
                     {
                         foreach (var result in matches.Where(r => r.IsRegistered && r.User != null))
                         {
-                            var (score, interestedIn, compatible) =
-                                await GetMatchDataAsync(meUser, result.User);
-                            result.MatchPercent = compatible ? score : 0;
-                            result.InterestedIn = interestedIn;
+                            var matchData = await GetMatchDataAsync(meUser, result.User);
+                            result.MatchPercent = matchData.compatible ? matchData.score : 0;
+                            result.InterestedIn = matchData.interestedIn;
                         }
                     }
                 }
@@ -772,17 +767,17 @@ namespace Lock.Pages.Chat
         {
             try
             {
-                await Lock.Chat.Services.DatabaseService.InitializeAsync();
-                var db = Lock.Chat.Services.DatabaseService.GetConnection();
                 var currentUserPhone = Preferences.Get(CurrentUserPhoneKey, string.Empty);
 
                 if (string.IsNullOrEmpty(currentUserPhone))
                     return;
 
+                // Get all users for ghost mode filtering
+                var allUsers = await SupabaseService.GetAsync<User>("Users", "");
+
                 var ghostedPhones = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 try
                 {
-                    var allUsers = await db.Table<User>().ToListAsync();
                     ghostedPhones = allUsers
                         .Where(u => u.GhostModeMoodShield)
                         .Select(u => (u.PhoneNumber ?? "").Trim())
@@ -795,9 +790,9 @@ namespace Lock.Pages.Chat
                     System.Diagnostics.Debug.WriteLine($"Ghost mode filter load error: {ex.Message}");
                 }
 
-                var allConversations = await db.Table<Conversation>()
-                    .Where(c => c.ParticipantA == currentUserPhone || c.ParticipantB == currentUserPhone)
-                    .ToListAsync();
+                // Get all conversations from Supabase
+                var allConversations = await SupabaseService.GetAsync<Conversation>("Conversations",
+                    $"or=(ParticipantA.eq.{Uri.EscapeDataString(currentUserPhone)},ParticipantB.eq.{Uri.EscapeDataString(currentUserPhone)})");
 
                 if (!allConversations.Any())
                 {
@@ -806,9 +801,9 @@ namespace Lock.Pages.Chat
                 }
 
                 var recentChats = new List<SearchResult>();
-                var currentUser = await db.Table<User>()
-                    .Where(u => u.PhoneNumber == currentUserPhone)
-                    .FirstOrDefaultAsync();
+
+                var currentUserUsers = await SupabaseService.GetAsync<User>("Users", $"PhoneNumber=eq.{Uri.EscapeDataString(currentUserPhone)}&limit=1");
+                var currentUser = currentUserUsers.FirstOrDefault();
 
                 foreach (var conv in allConversations)
                 {
@@ -827,25 +822,19 @@ namespace Lock.Pages.Chat
                         continue;
                     }
 
-                    var acceptedMessages = await db.Table<ChatMessage>()
-                        .Where(m => m.ConversationId == conv.ConversationId
-                            && !m.IsMessageRequest
-                            && !m.IsDeclined)
-                        .CountAsync();
+                    // Get messages for this conversation
+                    var messages = await SupabaseService.GetAsync<ChatMessage>("ChatMessages",
+                        $"ConversationId=eq.{Uri.EscapeDataString(conv.ConversationId)}");
 
-                    var userSentMessages = await db.Table<ChatMessage>()
-                        .Where(m => m.ConversationId == conv.ConversationId
-                            && m.SenderPhone == currentUserPhone
-                            && !m.IsMessageRequest)
-                        .CountAsync();
+                    var acceptedMessages = messages.Count(m => !m.IsMessageRequest && !m.IsDeclined);
+                    var userSentMessages = messages.Count(m => m.SenderPhone == currentUserPhone && !m.IsMessageRequest);
 
                     bool isRealChat = acceptedMessages > 0 || userSentMessages > 0;
 
                     if (isRealChat)
                     {
-                        var otherUser = await db.Table<User>()
-                            .Where(u => u.PhoneNumber == otherPhone)
-                            .FirstOrDefaultAsync();
+                        var otherUsers = await SupabaseService.GetAsync<User>("Users", $"PhoneNumber=eq.{Uri.EscapeDataString(otherPhone)}&limit=1");
+                        var otherUser = otherUsers.FirstOrDefault();
 
                         if (otherUser != null && !recentChats.Any(r => r.PhoneNumber == otherPhone))
                         {
@@ -856,21 +845,17 @@ namespace Lock.Pages.Chat
                                 continue;
                             }
 
-                            var me = await db.Table<User>()
-                                .Where(u => u.PhoneNumber == currentUserPhone)
-                                .FirstOrDefaultAsync();
-
-                            var (score, interestedIn, compatible) = me != null
-                                ? await GetMatchDataAsync(me, otherUser)
-                                : (0, string.Empty, true);
-
-                            recentChats.Add(new SearchResult
+                            if (currentUser != null)
                             {
-                                User = otherUser,
-                                IsRegistered = true,
-                                MatchPercent = compatible ? score : 0,
-                                InterestedIn = interestedIn
-                            });
+                                var matchData = await GetMatchDataAsync(currentUser, otherUser);
+                                recentChats.Add(new SearchResult
+                                {
+                                    User = otherUser,
+                                    IsRegistered = true,
+                                    MatchPercent = matchData.compatible ? matchData.score : 0,
+                                    InterestedIn = matchData.interestedIn
+                                });
+                            }
                         }
                     }
                 }
@@ -1066,9 +1051,8 @@ namespace Lock.Pages.Chat
                 var myPhone = Preferences.Get(CurrentUserPhoneKey, string.Empty);
                 if (string.IsNullOrEmpty(myPhone)) return;
 
-                await Lock.Chat.Services.DatabaseService.InitializeAsync();
-                var db = Lock.Chat.Services.DatabaseService.GetConnection();
-                var me = await db.Table<User>().Where(u => u.PhoneNumber == myPhone).FirstOrDefaultAsync();
+                var users = await SupabaseService.GetAsync<User>("Users", $"PhoneNumber=eq.{Uri.EscapeDataString(myPhone)}&limit=1");
+                var me = users.FirstOrDefault();
                 _myOwnMood = me?.Mood?.Trim();
             }
             catch (Exception ex)
@@ -1081,15 +1065,13 @@ namespace Lock.Pages.Chat
         {
             try
             {
-                await Lock.Chat.Services.DatabaseService.InitializeAsync();
-                var db = Lock.Chat.Services.DatabaseService.GetConnection();
                 var currentUserPhone = Preferences.Get(CurrentUserPhoneKey, string.Empty);
 
-                var allUsers = await db.Table<User>()
-                    .Where(u => u.PhoneNumber != currentUserPhone && !string.IsNullOrWhiteSpace(u.PhoneNumber))
-                    .ToListAsync();
+                var allUsers = await SupabaseService.GetAsync<User>("Users",
+                    $"PhoneNumber=ne.{Uri.EscapeDataString(currentUserPhone)}");
 
                 var friends = allUsers
+                    .Where(u => !string.IsNullOrWhiteSpace(u.PhoneNumber))
                     .Select(u => new SearchResult { User = u, IsRegistered = true })
                     .OrderBy(f => f.Name)
                     .ToList();
@@ -1120,13 +1102,8 @@ namespace Lock.Pages.Chat
         {
             try
             {
-                await Lock.Chat.Services.DatabaseService.InitializeAsync();
-                var db = Lock.Chat.Services.DatabaseService.GetConnection();
-
                 var currentUserPhone = Preferences.Get("current_user_phone", string.Empty);
-                var allUsers = await db.Table<User>()
-                    .Where(u => u.PhoneNumber != currentUserPhone)
-                    .ToListAsync();
+                var allUsers = await SupabaseService.GetAsync<User>("Users", $"PhoneNumber=ne.{Uri.EscapeDataString(currentUserPhone)}");
 
                 var uniqueLocations = new HashSet<string>();
 
@@ -1394,8 +1371,7 @@ namespace Lock.Pages.Chat
                 if (string.IsNullOrEmpty(me) || string.IsNullOrEmpty(target))
                     return;
 
-                await Lock.Chat.Services.DatabaseService.InitializeAsync();
-                var conv = await ChatRepository.GetOrCreateConversationAsync(me, target);
+                var conv = await GetOrCreateConversationAsync(me, target);
 
                 var route = $"chat?conversationId={Uri.EscapeDataString(conv.ConversationId)}&otherPhone={Uri.EscapeDataString(target)}";
 
@@ -1438,8 +1414,7 @@ namespace Lock.Pages.Chat
                 var me = Preferences.Get(CurrentUserPhoneKey, string.Empty).Trim();
                 if (string.IsNullOrEmpty(me)) return;
 
-                await DatabaseService.InitializeAsync();
-                var conv = await ChatRepository.GetOrCreateConversationAsync(me, targetPhone);
+                var conv = await GetOrCreateConversationAsync(me, targetPhone);
 
                 var chatPage = new ChatPage(conv.ConversationId, targetPhone);
 
@@ -1550,9 +1525,7 @@ namespace Lock.Pages.Chat
                     return;
                 }
 
-                await Lock.Chat.Services.DatabaseService.InitializeAsync();
-
-                var conv = await ChatRepository.GetOrCreateConversationAsync(me, target);
+                var conv = await GetOrCreateConversationAsync(me, target);
 
                 if (_selectedSearchResult.IsRegistered)
                 {
@@ -1754,9 +1727,8 @@ private async Task PickContactAndroid()
                     return;
                 }
 
-                await Lock.Chat.Services.DatabaseService.InitializeAsync();
-                var db = Lock.Chat.Services.DatabaseService.GetConnection();
-                var allUsers = await db.Table<User>().ToListAsync();
+                // Get all registered users from Supabase
+                var allUsers = await SupabaseService.GetAsync<User>("Users", "");
                 var currentUserPhone = Preferences.Get(CurrentUserPhoneKey, string.Empty);
 
                 var contactItems = new List<ContactItem>();
@@ -1815,6 +1787,41 @@ private async Task PickContactAndroid()
             {
                 System.Diagnostics.Debug.WriteLine($"Import contacts failed: {ex}");
                 await DisplayAlert("Error", $"Could not import contacts: {ex.Message}", "OK");
+            }
+        }
+
+        private async Task<Conversation> GetOrCreateConversationAsync(string userPhone, string otherPhone)
+        {
+            try
+            {
+                // Check if conversation already exists
+                var existingConvs = await SupabaseService.GetAsync<Conversation>("Conversations",
+                    $"and(ParticipantA.eq.{Uri.EscapeDataString(userPhone)},ParticipantB.eq.{Uri.EscapeDataString(otherPhone)})," +
+                    $"and(ParticipantA.eq.{Uri.EscapeDataString(otherPhone)},ParticipantB.eq.{Uri.EscapeDataString(userPhone)})");
+
+                if (existingConvs.Any())
+                {
+                    return existingConvs.First();
+                }
+
+                // Create new conversation
+                var newConversation = new Conversation
+                {
+                    ConversationId = Guid.NewGuid().ToString(),
+                    ParticipantA = userPhone,
+                    ParticipantB = otherPhone,
+                    CreatedAt = DateTime.UtcNow,
+                    LastMessageAt = DateTime.UtcNow,
+                    LastMessagePreview = string.Empty
+                };
+
+                var inserted = await SupabaseService.InsertAndReturnAsync<Conversation>("Conversations", newConversation);
+                return inserted ?? newConversation;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"GetOrCreateConversationAsync error: {ex}");
+                throw;
             }
         }
 

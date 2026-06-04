@@ -1,8 +1,7 @@
-using Lock.Chat.Services;
 using Lock.Helpers;
 using Lock.Models;
 using Lock.Models.Chat;
-using SQLite;
+using Lock.Services;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -13,49 +12,84 @@ namespace Lock.Services
 {
     public static class PostRepository
     {
-        public static async Task<List<Lock.Models.Post>> GetAllAsync()
+        public static async Task<List<Post>> GetAllAsync()
         {
-            await DatabaseService.InitializeAsync();
-            var db = DatabaseService.GetConnection();
-            return await db.Table<Lock.Models.Post>().OrderByDescending(p => p.CreatedAt).ToListAsync();
+            try
+            {
+                return await SupabaseService.GetAsync<Post>("Posts", "order=CreatedAt.desc");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"GetAllAsync error: {ex}");
+                return new List<Post>();
+            }
         }
 
-        public static async Task<List<Lock.Models.Post>> GetByAuthorAsync(string authorPhone)
+        public static async Task<List<Post>> GetByAuthorAsync(string authorPhone)
         {
-            await DatabaseService.InitializeAsync();
-            var db = DatabaseService.GetConnection();
-            return await db.Table<Lock.Models.Post>()
-                           .Where(p => p.AuthorPhone == (authorPhone ?? string.Empty))
-                           .OrderByDescending(p => p.CreatedAt)
-                           .ToListAsync();
+            try
+            {
+                return await SupabaseService.GetAsync<Post>("Posts",
+                    $"AuthorPhone=eq.{Uri.EscapeDataString(authorPhone ?? string.Empty)}&order=CreatedAt.desc");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"GetByAuthorAsync error: {ex}");
+                return new List<Post>();
+            }
         }
 
-        public static async Task<Lock.Models.Post?> GetByIdAsync(int id)
+        public static async Task<Post?> GetByIdAsync(int id)
         {
-            await DatabaseService.InitializeAsync();
-            var db = DatabaseService.GetConnection();
-            return await db.Table<Lock.Models.Post>().Where(p => p.Id == id).FirstOrDefaultAsync();
+            try
+            {
+                var posts = await SupabaseService.GetAsync<Post>("Posts", $"Id=eq.{id}&limit=1");
+                return posts.FirstOrDefault();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"GetByIdAsync error: {ex}");
+                return null;
+            }
         }
 
-        public static async Task InsertAsync(Lock.Models.Post post)
+        public static async Task<Post?> InsertAsync(Post post)
         {
-            await DatabaseService.InitializeAsync();
-            var db = DatabaseService.GetConnection();
-            await db.InsertAsync(post);
+            try
+            {
+                return await SupabaseService.InsertAndReturnAsync<Post>("Posts", post);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"InsertAsync error: {ex}");
+                return null;
+            }
         }
 
-        public static async Task UpdateAsync(Lock.Models.Post post)
+        public static async Task<bool> UpdateAsync(Post post)
         {
-            await DatabaseService.InitializeAsync();
-            var db = DatabaseService.GetConnection();
-            await db.UpdateAsync(post);
+            try
+            {
+                return await SupabaseService.UpdateAsync("Posts", $"Id=eq.{post.Id}", post);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"UpdateAsync error: {ex}");
+                return false;
+            }
         }
 
-        public static async Task DeleteAsync(int id)
+        public static async Task<bool> DeleteAsync(int id)
         {
-            await DatabaseService.InitializeAsync();
-            var db = DatabaseService.GetConnection();
-            await db.DeleteAsync<Lock.Models.Post>(id);
+            try
+            {
+                return await SupabaseService.DeleteAsync("Posts", $"Id=eq.{id}");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"DeleteAsync error: {ex}");
+                return false;
+            }
         }
 
         /// <summary>
@@ -69,21 +103,16 @@ namespace Lock.Services
 
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
                 // Get all posts
-                var allPosts = await db.Table<Lock.Models.Post>().ToListAsync();
+                var allPosts = await SupabaseService.GetAsync<Post>("Posts", "");
 
                 // Get all seen posts by current user
-                var seenPosts = await db.Table<SeenPost>()
-                    .Where(s => s.UserPhone == currentUserPhone)
-                    .ToListAsync();
+                var seenPosts = await SupabaseService.GetAsync<SeenPost>("SeenPosts",
+                    $"UserPhone=eq.{Uri.EscapeDataString(currentUserPhone)}");
 
                 // Get all conversations for current user
-                var conversations = await db.Table<Conversation>()
-                    .Where(c => c.ParticipantA == currentUserPhone || c.ParticipantB == currentUserPhone)
-                    .ToListAsync();
+                var conversations = await SupabaseService.GetAsync<Conversation>("Conversations",
+                    $"or(ParticipantA.eq.{Uri.EscapeDataString(currentUserPhone)},ParticipantB.eq.{Uri.EscapeDataString(currentUserPhone)})");
 
                 // Get notification preferences for this user (only enabled moods)
                 var enabledMoods = notificationPreferences
@@ -124,7 +153,7 @@ namespace Lock.Services
                     Debug.WriteLine($"\nAuthor {otherPhone} has {authorPosts.Count} total posts");
 
                     // Filter posts where the mapped mood key is in enabledMoods
-                    var relevantPosts = new List<Lock.Models.Post>();
+                    var relevantPosts = new List<Post>();
 
                     foreach (var post in authorPosts)
                     {
@@ -170,17 +199,13 @@ namespace Lock.Services
             return result;
         }
 
-        // Add these methods to PostRepository.cs
-
-        public static async Task ToggleSparkAsync(int postId, string userPhone)
+        public static async Task<bool> ToggleSparkAsync(int postId, string userPhone)
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
-                var post = await db.Table<Post>().Where(p => p.Id == postId).FirstOrDefaultAsync();
-                if (post == null) return;
+                var posts = await SupabaseService.GetAsync<Post>("Posts", $"Id=eq.{postId}&limit=1");
+                var post = posts.FirstOrDefault();
+                if (post == null) return false;
 
                 var sparkedBy = post.SparkedBy;
 
@@ -191,13 +216,16 @@ namespace Lock.Services
 
                 post.SparkedBy = sparkedBy;
 
-                await db.UpdateAsync(post);
+                var success = await SupabaseService.UpdateAsync("Posts", $"Id=eq.{postId}",
+                    new { SparkedByJson = post.SparkedByJson, SparkCount = post.SparkCount });
 
                 Debug.WriteLine($"Toggled spark for post {postId}: {sparkedBy.Count} sparks");
+                return success;
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"Error toggling spark: {ex}");
+                return false;
             }
         }
 
@@ -205,10 +233,8 @@ namespace Lock.Services
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
-                var post = await db.Table<Post>().Where(p => p.Id == postId).FirstOrDefaultAsync();
+                var posts = await SupabaseService.GetAsync<Post>("Posts", $"Id=eq.{postId}&limit=1");
+                var post = posts.FirstOrDefault();
                 if (post == null) return false;
 
                 return post.SparkedBy.Contains(userPhone);
@@ -219,17 +245,14 @@ namespace Lock.Services
                 return false;
             }
         }
-        // Add to PostRepository.cs
 
-        public static async Task ToggleLoveAsync(int postId, string userPhone)
+        public static async Task<bool> ToggleLoveAsync(int postId, string userPhone)
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
-                var post = await db.Table<Post>().Where(p => p.Id == postId).FirstOrDefaultAsync();
-                if (post == null) return;
+                var posts = await SupabaseService.GetAsync<Post>("Posts", $"Id=eq.{postId}&limit=1");
+                var post = posts.FirstOrDefault();
+                if (post == null) return false;
 
                 var lovedBy = post.LovedBy;
 
@@ -238,25 +261,27 @@ namespace Lock.Services
                 else
                     lovedBy.Add(userPhone);
 
-                post.LovedBy = lovedBy; // This updates LoveCount and LovedByJson
+                post.LovedBy = lovedBy;
 
-                await db.UpdateAsync(post);
+                var success = await SupabaseService.UpdateAsync("Posts", $"Id=eq.{postId}",
+                    new { LovedByJson = post.LovedByJson, LoveCount = post.LoveCount });
 
                 Debug.WriteLine($"Toggled love for post {postId}: {lovedBy.Count} loves");
+                return success;
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"Error toggling love: {ex}");
+                return false;
             }
         }
+
         public static async Task<bool> HasUserLovedPostAsync(int postId, string userPhone)
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
-                var post = await db.Table<Post>().Where(p => p.Id == postId).FirstOrDefaultAsync();
+                var posts = await SupabaseService.GetAsync<Post>("Posts", $"Id=eq.{postId}&limit=1");
+                var post = posts.FirstOrDefault();
                 if (post == null) return false;
 
                 return post.LovedBy.Contains(userPhone);
@@ -272,10 +297,8 @@ namespace Lock.Services
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
-                var post = await db.Table<Post>().Where(p => p.Id == postId).FirstOrDefaultAsync();
+                var posts = await SupabaseService.GetAsync<Post>("Posts", $"Id=eq.{postId}&limit=1");
+                var post = posts.FirstOrDefault();
                 return post?.LoveCount ?? 0;
             }
             catch (Exception ex)
@@ -288,43 +311,43 @@ namespace Lock.Services
         /// <summary>
         /// Mark posts as seen when user opens a conversation
         /// </summary>
-        public static async Task MarkPostsAsSeenAsync(string userPhone, string authorPhone)
+        public static async Task<bool> MarkPostsAsSeenAsync(string userPhone, string authorPhone)
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
                 // Get all posts by this author
-                var posts = await db.Table<Lock.Models.Post>()
-                    .Where(p => p.AuthorPhone == authorPhone)
-                    .ToListAsync();
+                var posts = await SupabaseService.GetAsync<Post>("Posts",
+                    $"AuthorPhone=eq.{Uri.EscapeDataString(authorPhone)}");
 
                 // Get already seen posts
-                var seenPosts = await db.Table<SeenPost>()
-                    .Where(s => s.UserPhone == userPhone && s.AuthorPhone == authorPhone)
-                    .ToListAsync();
+                var seenPosts = await SupabaseService.GetAsync<SeenPost>("SeenPosts",
+                    $"UserPhone=eq.{Uri.EscapeDataString(userPhone)}&AuthorPhone=eq.{Uri.EscapeDataString(authorPhone)}");
+
+                var seenPostIds = seenPosts.Select(s => s.PostId).ToHashSet();
 
                 // Mark each post as seen if not already seen
                 foreach (var post in posts)
                 {
-                    if (!seenPosts.Any(s => s.PostId == post.Id))
+                    if (!seenPostIds.Contains(post.Id))
                     {
-                        await db.InsertAsync(new SeenPost
+                        var seenPost = new SeenPost
                         {
                             UserPhone = userPhone,
                             AuthorPhone = authorPhone,
                             PostId = post.Id,
                             SeenAt = DateTime.UtcNow
-                        });
+                        };
+                        await SupabaseService.InsertAsync("SeenPosts", seenPost);
                     }
                 }
 
                 Debug.WriteLine($"Marked posts from {authorPhone} as seen for user {userPhone}");
+                return true;
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"Error in MarkPostsAsSeenAsync: {ex}");
+                return false;
             }
         }
     }

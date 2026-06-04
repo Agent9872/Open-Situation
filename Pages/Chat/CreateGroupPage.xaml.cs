@@ -426,11 +426,17 @@ namespace Lock.Pages.Chat
 
                 if (string.IsNullOrWhiteSpace(phone)) return;
 
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-                var user = await db.Table<User>()
-                    .Where(u => u.PhoneNumber == phone.Trim())
-                    .FirstOrDefaultAsync();
+                // Remove this SQLite code:
+                // await DatabaseService.InitializeAsync();
+                // var db = DatabaseService.GetConnection();
+                // var user = await db.Table<User>()
+                //     .Where(u => u.PhoneNumber == phone.Trim())
+                //     .FirstOrDefaultAsync();
+
+                // Replace with Supabase code:
+                var users = await SupabaseService.GetAsync<User>("Users",
+                    $"PhoneNumber=eq.{Uri.EscapeDataString(phone.Trim())}&limit=1");
+                var user = users.FirstOrDefault();
 
                 if (user != null)
                 {

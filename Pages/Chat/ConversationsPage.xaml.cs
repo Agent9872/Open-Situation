@@ -9,7 +9,6 @@ using Microsoft.Maui.Controls;
 using Microsoft.Maui.Controls.Shapes;
 using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Storage;
-using SQLite;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -397,11 +396,10 @@ namespace Lock.Pages.Chat
                     return;
                 }
 
-                await Lock.Chat.Services.DatabaseService.InitializeAsync();
-                var db = Lock.Chat.Services.DatabaseService.GetConnection();
+                // Get all users from Supabase for ghost mode filtering
+                var allUsers = await SupabaseService.GetAsync<Lock.Models.User>("Users", "");
 
                 var ghostedPhones = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                var allUsers = await db.Table<Lock.Models.User>().ToListAsync();
                 ghostedPhones = allUsers
                     .Where(u => u.GhostModeMoodShield)
                     .Select(u => (u.PhoneNumber ?? "").Trim())
@@ -409,44 +407,27 @@ namespace Lock.Pages.Chat
                     .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
                 var userMap = allUsers.ToDictionary(u => u.PhoneNumber ?? "", u => u, StringComparer.OrdinalIgnoreCase);
-                var convs = await ChatRepository.GetConversationsForUserAsync(me);
 
-                var allUnreadMessages = await db.Table<ChatMessage>()
-                    .Where(m => m.RecipientPhone == me &&
-                                m.IsRead == false &&
-                                m.IsMessageRequest == false &&
-                                !m.IsDeclined)
-                    .ToListAsync();
-                var unreadByConversation = allUnreadMessages
+                // Get conversations from Supabase
+                var convs = await SupabaseService.GetAsync<Conversation>("Conversations",
+                    $"or(ParticipantA.eq.{Uri.EscapeDataString(me)},ParticipantB.eq.{Uri.EscapeDataString(me)})");
+
+                // Get all messages for unread counts
+                var allMessages = await SupabaseService.GetAsync<ChatMessage>("ChatMessages",
+                    $"RecipientPhone=eq.{Uri.EscapeDataString(me)}&IsRead=eq.false&IsMessageRequest=eq.false&IsDeclined=eq.false");
+
+                var unreadByConversation = allMessages
                     .GroupBy(m => m.ConversationId)
                     .ToDictionary(g => g.Key, g => g.Count());
 
-                var allLastMessages = await db.Table<ChatMessage>()
-                    .Where(m => !m.IsDeclined)
-                    .ToListAsync();
-                var lastMsgByConv = allLastMessages
-                    .GroupBy(m => m.ConversationId)
-                    .ToDictionary(
-                        g => g.Key,
-                        g => g.OrderByDescending(m => m.SentAt).First());
+                // Get message requests
+                var messageRequests = await SupabaseService.GetAsync<MessageRequest>("MessageRequests",
+                    $"RecipientPhone=eq.{Uri.EscapeDataString(me)}&IsAccepted=eq.false&IsDeclined=eq.false");
 
-                _cachedTotalPostsCounts = new Dictionary<string, int>();
-                _cachedUnreadPostsCounts = new Dictionary<string, int>();
-                _lastFullLoad = DateTime.UtcNow;
-
-                var messageRequests = await ChatRepository.GetMessageRequestsAsync(me);
-                var pendingRequests = await ChatRepository.GetPendingMessageRequestsAsync(me);
-
-                var requestGroups = messageRequests
+                var pendingRequests = messageRequests.ToList();
+                var requestGroups = pendingRequests
                     .GroupBy(m => m.ConversationId)
                     .ToDictionary(g => g.Key, g => g.ToList());
-
-                var pendingRequestDict = pendingRequests
-                    .ToDictionary(r => r.ConversationId, r => r);
-
-                convs = convs.OrderByDescending(c => c.IsPinned)
-                             .ThenByDescending(c => c.LastMessageAt)
-                             .ToList();
 
                 var listsMap = LoadConversationLists();
                 var allItemsList = new List<ConversationItem>();
@@ -464,8 +445,7 @@ namespace Lock.Pages.Chat
                     var displayName = other;
                     var avatarUrl = $"https://ui-avatars.com/api/?name={Uri.EscapeDataString(displayName)}&background=2F3337&color=E6E6E6&size=128";
 
-                    Lock.Models.User? user = null;
-                    userMap.TryGetValue(other, out user);
+                    userMap.TryGetValue(other, out var user);
                     if (user != null)
                     {
                         displayName = string.IsNullOrEmpty(user.Name) ? other : user.Name;
@@ -474,45 +454,13 @@ namespace Lock.Pages.Chat
                     }
 
                     int unreadCount = unreadByConversation.TryGetValue(c.ConversationId, out int uc) ? uc : 0;
-                    bool isMessageRequest = requestGroups.ContainsKey(c.ConversationId) || pendingRequestDict.ContainsKey(c.ConversationId);
+                    bool isMessageRequest = requestGroups.ContainsKey(c.ConversationId);
                     bool isOnline = user != null && (DateTime.UtcNow - user.LastActive).TotalMinutes < 5;
-
-                    string cleanOther = other.Contains("·")
-                        ? other.Split(new[] { '·' }, StringSplitOptions.RemoveEmptyEntries).Skip(1).FirstOrDefault()?.Trim() ?? other.Trim()
-                        : other.Trim();
 
                     string mood = user?.Mood ?? string.Empty;
                     DateTime moodLastUpdated = (user?.MoodLastUpdated ?? DateTime.MinValue) != DateTime.MinValue
                         ? user!.MoodLastUpdated : DateTime.UtcNow;
                     string moodLastUpdatedRelative = GetRelativeTimeString(moodLastUpdated);
-
-                    string previewText = c.LastMessagePreview;
-                    ChatMessage? lastMsgForPrefix = lastMsgByConv.TryGetValue(c.ConversationId, out var lm) ? lm : null;
-
-                    if (previewText?.Contains("Encrypted") == true || previewText?.Contains("??") == true)
-                    {
-                        if (lastMsgForPrefix != null)
-                        {
-                            if (lastMsgForPrefix.MessageType == "post")
-                                previewText = string.IsNullOrEmpty(lastMsgForPrefix.PostPreview) ? "Shared a post" : "Post: " + lastMsgForPrefix.PostPreview;
-                            else if (lastMsgForPrefix.MessageType == "contact")
-                                previewText = string.IsNullOrEmpty(lastMsgForPrefix.ContactName) ? "Shared contact" : "Contact: " + lastMsgForPrefix.ContactName;
-                            else if (lastMsgForPrefix.IsVoiceMessage)
-                                previewText = "Voice message";
-                            else if (!string.IsNullOrEmpty(lastMsgForPrefix.MediaPath) && lastMsgForPrefix.MediaType == "image")
-                                previewText = lastMsgForPrefix.MediaItems != null && lastMsgForPrefix.MediaItems.Count > 1
-                                    ? $"{lastMsgForPrefix.MediaItems.Count} images" : "Image";
-                            else if (!string.IsNullOrWhiteSpace(lastMsgForPrefix.Content))
-                                previewText = lastMsgForPrefix.IsEncrypted && !string.IsNullOrEmpty(lastMsgForPrefix.EncryptionIV)
-                                    ? "New message"
-                                    : (lastMsgForPrefix.Content.Length > 120 ? lastMsgForPrefix.Content.Substring(0, 120) + "…" : lastMsgForPrefix.Content);
-                            else
-                                previewText = "New message";
-                        }
-                    }
-
-                    if (lastMsgForPrefix != null && lastMsgForPrefix.SenderPhone == me && !isMessageRequest)
-                        previewText = "You: " + previewText;
 
                     var item = new ConversationItem
                     {
@@ -534,7 +482,6 @@ namespace Lock.Pages.Chat
                         MatchPercent = 0,
                         IsLive = false,
                     };
-                    item.Conversation.LastMessagePreview = previewText;
                     allItemsList.Add(item);
                 }
 
@@ -549,7 +496,7 @@ namespace Lock.Pages.Chat
                     {
                         var firstMsg = messageRequests
                             .Where(m => m.ConversationId == request.ConversationId)
-                            .OrderBy(m => m.SentAt).FirstOrDefault();
+                            .OrderBy(m => m.RequestedAt).FirstOrDefault();
 
                         if (firstMsg != null)
                         {
@@ -570,21 +517,13 @@ namespace Lock.Pages.Chat
                                 ? senderUser!.MoodLastUpdated : DateTime.UtcNow;
                             string reqMoodRelative = GetRelativeTimeString(reqMoodLastUpdated);
 
-                            string requestPreview = request.MessagePreview ?? "Message request";
-                            if (firstMsg.MessageType == "post")
-                                requestPreview = string.IsNullOrEmpty(firstMsg.PostPreview) ? "Shared a post" : "Post: " + firstMsg.PostPreview;
-                            else if (firstMsg.IsVoiceMessage)
-                                requestPreview = "Voice message";
-                            else if (!string.IsNullOrWhiteSpace(firstMsg.Content))
-                                requestPreview = firstMsg.Content.Length > 120 ? firstMsg.Content.Substring(0, 120) + "…" : firstMsg.Content;
-
                             var tempConv = new Conversation
                             {
                                 ConversationId = request.ConversationId,
                                 ParticipantA = request.SenderPhone,
                                 ParticipantB = request.RecipientPhone,
                                 LastMessageAt = request.RequestedAt,
-                                LastMessagePreview = requestPreview,
+                                LastMessagePreview = request.MessagePreview ?? "Message request",
                                 CreatedAt = request.RequestedAt,
                             };
 
@@ -605,82 +544,6 @@ namespace Lock.Pages.Chat
                         }
                     }
                 }
-
-                // Load Groups
-                try
-                {
-                    await GroupDatabaseService.InitializeAsync();
-                    var groupDb = GroupDatabaseService.GetConnection();
-                    var memberships = await groupDb.Table<GroupMember>().Where(m => m.UserPhone == me).ToListAsync();
-
-                    if (memberships.Any())
-                    {
-                        var groupIds = memberships.Select(m => m.GroupId).Distinct().ToList();
-                        var allGroups = await groupDb.Table<Group>().ToListAsync();
-                        var groupMap = allGroups.ToDictionary(g => g.Id, g => g);
-
-                        var allGroupMessages = await groupDb.Table<GroupMessage>()
-                            .Where(m => !m.IsDeleted)
-                            .ToListAsync();
-                        var groupMsgMap = allGroupMessages
-                            .GroupBy(m => m.GroupId)
-                            .ToDictionary(g => g.Key, g => g.OrderByDescending(m => m.SentAt).ToList());
-
-                        foreach (var groupId in groupIds)
-                        {
-                            if (!groupMap.TryGetValue(groupId, out var group) || !group.IsActive) continue;
-                            var memberInfo = memberships.First(m => m.GroupId == groupId);
-
-                            int unreadCount = 0;
-                            if (groupMsgMap.TryGetValue(groupId, out var groupMsgs))
-                                unreadCount = groupMsgs.Count(m => m.SenderPhone != me && m.SentAt > memberInfo.LastReadAt);
-
-                            string lastMessagePreview = "No messages yet";
-                            DateTime lastMessageAt = group.CreatedAt;
-
-                            if (groupMsgMap.TryGetValue(groupId, out var msgs) && msgs.Any())
-                            {
-                                var lastMsg = msgs.First();
-                                string messageText = await GetDecryptedGroupMessageContent(lastMsg, groupId);
-                                if (string.IsNullOrEmpty(messageText))
-                                {
-                                    messageText = lastMsg.MessageType switch
-                                    {
-                                        GroupMessageType.Image => "Photo",
-                                        GroupMessageType.Poll => "Poll",
-                                        GroupMessageType.Voice => "Voice message",
-                                        GroupMessageType.Event => "Event",
-                                        _ => "New message"
-                                    };
-                                }
-                                if (messageText.Length > 50) messageText = messageText.Substring(0, 47) + "...";
-                                lastMessagePreview = $"{lastMsg.DisplaySenderName}: {messageText}";
-                                lastMessageAt = lastMsg.SentAt;
-                            }
-
-                            allItemsList.Add(new ConversationItem
-                            {
-                                Conversation = new Conversation
-                                {
-                                    ConversationId = $"group_{groupId}",
-                                    ParticipantA = me,
-                                    ParticipantB = group.Name,
-                                    LastMessageAt = lastMessageAt,
-                                    LastMessagePreview = lastMessagePreview,
-                                    CreatedAt = group.CreatedAt,
-                                },
-                                OtherPhone = groupId,
-                                OtherName = group.Name,
-                                OtherProfileImage = string.IsNullOrEmpty(group.CoverImagePath)
-                                    ? $"https://ui-avatars.com/api/?name={Uri.EscapeDataString(group.Name)}&background=008080&color=FFFFFF&size=128"
-                                    : group.CoverImagePath,
-                                UnreadCount = unreadCount,
-                                IsGroupChat = true,
-                            });
-                        }
-                    }
-                }
-                catch (Exception ex) { Debug.WriteLine($"Error loading groups: {ex.Message}"); }
 
                 allItemsList = allItemsList
                     .OrderByDescending(i => i.IsMessageRequest)
@@ -721,7 +584,6 @@ namespace Lock.Pages.Chat
                 _isLoadingConversations = false;
             }
         }
-
         private void StartLiveBadgeBlink()
         {
             // Find all live items and animate their badge opacity
@@ -1276,15 +1138,13 @@ namespace Lock.Pages.Chat
                     return;
                 }
 
-                await Lock.Chat.Services.DatabaseService.InitializeAsync();
-                var db = Lock.Chat.Services.DatabaseService.GetConnection();
-
                 switch (action)
                 {
                     case "Pin chat":
                     case "Unpin chat":
                         _overlayConversation.IsPinned = !_overlayConversation.IsPinned;
-                        await SafeUpdateConversationAsync(db, _overlayConversation);
+                        await SupabaseService.UpdateAsync("Conversations", $"ConversationId=eq.{Uri.EscapeDataString(_overlayConversation.ConversationId)}",
+                            new { IsPinned = _overlayConversation.IsPinned });
                         await LoadConversationsAsync();
                         await DisplayAlert(_overlayConversation.IsPinned ? "Pinned" : "Unpinned",
                             _overlayConversation.IsPinned ? "Conversation pinned." : "Conversation unpinned.", "OK");
@@ -1293,7 +1153,8 @@ namespace Lock.Pages.Chat
                     case "Add to favorites":
                     case "Remove from favorites":
                         _overlayConversation.IsStarred = !_overlayConversation.IsStarred;
-                        await SafeUpdateConversationAsync(db, _overlayConversation);
+                        await SupabaseService.UpdateAsync("Conversations", $"ConversationId=eq.{Uri.EscapeDataString(_overlayConversation.ConversationId)}",
+                            new { IsStarred = _overlayConversation.IsStarred });
                         await LoadConversationsAsync();
                         await DisplayAlert(_overlayConversation.IsStarred ? "Added to favorites" : "Removed from favorites",
                             _overlayConversation.IsStarred ? "Added to favorites." : "Removed from favorites.", "OK");
@@ -1302,7 +1163,8 @@ namespace Lock.Pages.Chat
                     case "Mute notifications":
                     case "Unmute notifications":
                         _overlayConversation.IsMuted = !_overlayConversation.IsMuted;
-                        await SafeUpdateConversationAsync(db, _overlayConversation);
+                        await SupabaseService.UpdateAsync("Conversations", $"ConversationId=eq.{Uri.EscapeDataString(_overlayConversation.ConversationId)}",
+                            new { IsMuted = _overlayConversation.IsMuted });
                         await LoadConversationsAsync();
                         await DisplayAlert(_overlayConversation.IsMuted ? "Muted" : "Unmuted",
                             _overlayConversation.IsMuted ? "Notifications muted." : "Notifications unmuted.", "OK");
@@ -1311,7 +1173,8 @@ namespace Lock.Pages.Chat
                     case "Archive chat":
                     case "Unarchive chat":
                         _overlayConversation.IsArchived = !_overlayConversation.IsArchived;
-                        await SafeUpdateConversationAsync(db, _overlayConversation);
+                        await SupabaseService.UpdateAsync("Conversations", $"ConversationId=eq.{Uri.EscapeDataString(_overlayConversation.ConversationId)}",
+                            new { IsArchived = _overlayConversation.IsArchived });
                         await DisplayAlert(_overlayConversation.IsArchived ? "Archived" : "Unarchived",
                             _overlayConversation.IsArchived ? "Conversation archived." : "Conversation unarchived.", "OK");
                         await LoadConversationsAsync();
@@ -1327,12 +1190,9 @@ namespace Lock.Pages.Chat
                         var me2 = Preferences.Get(CurrentUserPhoneKey, string.Empty);
                         if (!string.IsNullOrEmpty(me2))
                         {
-                            try { await db.ExecuteAsync("UPDATE ChatMessage SET IsRead = 0 WHERE ConversationId = ? AND RecipientPhone = ?", _overlayConversation.ConversationId, me2); }
-                            catch
-                            {
-                                var msgs = await db.Table<ChatMessage>().Where(m => m.ConversationId == _overlayConversation.ConversationId && m.RecipientPhone == me2).ToListAsync();
-                                foreach (var msg in msgs) { msg.IsRead = false; await db.UpdateAsync(msg); }
-                            }
+                            await SupabaseService.UpdateAsync("ChatMessages",
+                                $"ConversationId=eq.{Uri.EscapeDataString(_overlayConversation.ConversationId)}&RecipientPhone=eq.{Uri.EscapeDataString(me2)}",
+                                new { IsRead = false });
                             await DisplayAlert("Marked", "Conversation marked as unread.", "OK");
                             await LoadConversationsAsync();
                         }
@@ -1377,9 +1237,11 @@ namespace Lock.Pages.Chat
                     case "Delete chat":
                         if (await DisplayAlert("Delete", "Delete this conversation? This cannot be undone.", "Delete", "Cancel"))
                         {
-                            var msgs2 = await db.Table<ChatMessage>().Where(m => m.ConversationId == _overlayConversation.ConversationId).ToListAsync();
-                            foreach (var msg in msgs2) await db.DeleteAsync(msg);
-                            await db.DeleteAsync(_overlayConversation);
+                            // Delete all messages in conversation
+                            await SupabaseService.DeleteAsync("ChatMessages", $"ConversationId=eq.{Uri.EscapeDataString(_overlayConversation.ConversationId)}");
+                            // Delete the conversation
+                            await SupabaseService.DeleteAsync("Conversations", $"ConversationId=eq.{Uri.EscapeDataString(_overlayConversation.ConversationId)}");
+
                             var map2 = LoadConversationLists();
                             if (map2.Remove(_overlayConversation.ConversationId)) SaveConversationLists(map2);
                             await DisplayAlert("Deleted", "Conversation deleted.", "OK");
@@ -1395,7 +1257,6 @@ namespace Lock.Pages.Chat
                 _overlayBusy = false;
             }
         }
-
         private async Task UpdateArchiveBadge(int unreadCount)
         {
             try
@@ -1494,11 +1355,9 @@ namespace Lock.Pages.Chat
                 var phone = Preferences.Get(CurrentUserPhoneKey, string.Empty);
                 if (string.IsNullOrEmpty(phone)) return;
 
-                await Lock.Chat.Services.DatabaseService.InitializeAsync();
-                var db = Lock.Chat.Services.DatabaseService.GetConnection();
-                var user = await db.Table<Lock.Models.User>()
-                    .Where(u => u.PhoneNumber == phone)
-                    .FirstOrDefaultAsync();
+                var users = await SupabaseService.GetAsync<Lock.Models.User>("Users",
+                    $"PhoneNumber=eq.{Uri.EscapeDataString(phone)}&limit=1");
+                var user = users.FirstOrDefault();
 
                 if (user == null) return;
 
@@ -1524,11 +1383,11 @@ namespace Lock.Pages.Chat
                     return;
                 }
 
-                // Show moderation note if not yet seen (resolved/dismissed/under review)
+                // Show moderation note if not yet seen
                 if (!string.IsNullOrEmpty(user.ModerationNote)
-                    && user.ModerationStatus != "warned"      // warnings handled above
-                    && user.ModerationStatus != "perm_banned" // handled at login
-                    && user.ModerationStatus != "temp_banned" // handled at login
+                    && user.ModerationStatus != "warned"
+                    && user.ModerationStatus != "perm_banned"
+                    && user.ModerationStatus != "temp_banned"
                     && user.ModerationUpdatedAt.HasValue
                     && (DateTime.UtcNow - user.ModerationUpdatedAt.Value).TotalHours < 72)
                 {
@@ -1543,9 +1402,8 @@ namespace Lock.Pages.Chat
                     {
                         await DisplayAlert(title, user.ModerationNote, "OK");
                         // Clear note so it doesn't show again
-                        user.ModerationNote = string.Empty;
-                        user.ModerationUpdatedAt = null;
-                        await db.UpdateAsync(user);
+                        await SupabaseService.UpdateAsync("Users", $"Id=eq.{user.Id}",
+                            new { ModerationNote = string.Empty, ModerationUpdatedAt = (DateTime?)null });
                     });
                 }
             }
@@ -1554,7 +1412,6 @@ namespace Lock.Pages.Chat
                 Debug.WriteLine($"CheckModerationStatusAsync error: {ex.Message}");
             }
         }
-
         private async Task UpdateUnreadCountsOnlyAsync()
         {
             try
@@ -1562,19 +1419,14 @@ namespace Lock.Pages.Chat
                 var me = Preferences.Get(CurrentUserPhoneKey, string.Empty);
                 if (string.IsNullOrEmpty(me)) return;
 
-                await Lock.Chat.Services.DatabaseService.InitializeAsync();
-                var db = Lock.Chat.Services.DatabaseService.GetConnection();
-
                 foreach (var item in _allItems)
                 {
                     try
                     {
-                        var newUnreadCount = await db.Table<ChatMessage>()
-                            .Where(m => m.ConversationId == item.Conversation.ConversationId &&
-                                       m.RecipientPhone == me && m.IsRead == false &&
-                                       m.IsMessageRequest == false && !m.IsDeclined)
-                            .CountAsync();
-                        item.UnreadCount = newUnreadCount;
+                        var messages = await SupabaseService.GetAsync<ChatMessage>("ChatMessages",
+                            $"ConversationId=eq.{Uri.EscapeDataString(item.Conversation.ConversationId)}&RecipientPhone=eq.{Uri.EscapeDataString(me)}&IsRead=eq.false&IsMessageRequest=eq.false&IsDeclined=eq.false");
+
+                        item.UnreadCount = messages.Count;
                     }
                     catch { }
                 }
@@ -1582,7 +1434,6 @@ namespace Lock.Pages.Chat
             }
             catch (Exception ex) { Debug.WriteLine($"UpdateUnreadCountsOnlyAsync error: {ex}"); }
         }
-
         protected override void OnDisappearing()
         {
             base.OnDisappearing();
@@ -1647,10 +1498,9 @@ namespace Lock.Pages.Chat
             if (string.IsNullOrEmpty(savedPhone)) return false;
             try
             {
-                await Lock.Chat.Services.DatabaseService.InitializeAsync();
-                var db = Lock.Chat.Services.DatabaseService.GetConnection();
-                var user = await db.Table<Lock.Models.User>().Where(u => u.PhoneNumber == savedPhone).FirstOrDefaultAsync();
-                return user != null;
+                var users = await SupabaseService.GetAsync<Lock.Models.User>("Users",
+                    $"PhoneNumber=eq.{Uri.EscapeDataString(savedPhone)}&limit=1");
+                return users.Any();
             }
             catch { return false; }
         }
@@ -1759,21 +1609,27 @@ namespace Lock.Pages.Chat
         {
             try
             {
-                await GroupDatabaseService.InitializeAsync();
-                var groupDb = GroupDatabaseService.GetConnection();
-                var allGroups = await groupDb.Table<Group>().ToListAsync();
-                Debug.WriteLine($"=== TOTAL GROUPS IN DATABASE: {allGroups.Count} ===");
+                // Groups are now stored in Supabase
+                var groups = await SupabaseService.GetAsync<Group>("Groups", "");
+                Debug.WriteLine($"=== TOTAL GROUPS IN DATABASE: {groups.Count} ===");
                 var me = Preferences.Get("current_user_phone", string.Empty);
-                var memberships = await groupDb.Table<GroupMember>().Where(m => m.UserPhone == me).ToListAsync();
+                var memberships = await SupabaseService.GetAsync<GroupMember>("GroupMembers",
+                    $"UserPhone=eq.{Uri.EscapeDataString(me)}");
                 Debug.WriteLine($"=== MY GROUP MEMBERSHIPS: {memberships.Count} ===");
             }
             catch (Exception ex) { Debug.WriteLine($"Debug error: {ex.Message}"); }
         }
 
-        private static async Task SafeUpdateConversationAsync(SQLiteAsyncConnection db, Conversation conv)
+        private static async Task SafeUpdateConversationAsync(object db, Conversation conv)
         {
-            try { await db.UpdateAsync(conv); }
-            catch { try { await db.InsertAsync(conv); } catch { } }
+            try
+            {
+                await SupabaseService.UpdateAsync("Conversations", $"ConversationId=eq.{Uri.EscapeDataString(conv.ConversationId)}", conv);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"SafeUpdateConversationAsync error: {ex}");
+            }
         }
 
         // Kept for any remaining references — routes to FilterTabClicked
@@ -1806,16 +1662,20 @@ namespace Lock.Pages.Chat
             {
                 var me = Preferences.Get(CurrentUserPhoneKey, string.Empty);
                 if (string.IsNullOrEmpty(me)) return;
-                await Lock.Chat.Services.DatabaseService.InitializeAsync();
-                var db = Lock.Chat.Services.DatabaseService.GetConnection();
-                var currentUser = await db.Table<Lock.Models.User>().Where(u => u.PhoneNumber == me).FirstOrDefaultAsync();
+
+                var users = await SupabaseService.GetAsync<Lock.Models.User>("Users",
+                    $"PhoneNumber=eq.{Uri.EscapeDataString(me)}&limit=1");
+                var currentUser = users.FirstOrDefault();
                 if (currentUser == null) return;
+
                 foreach (var item in _allItems)
                 {
                     if (item.IsGroupChat || item.IsMessageRequest || item.IsArchived) continue;
                     try
                     {
-                        var otherUser = await db.Table<Lock.Models.User>().Where(u => u.PhoneNumber == item.OtherPhone).FirstOrDefaultAsync();
+                        var otherUsers = await SupabaseService.GetAsync<Lock.Models.User>("Users",
+                            $"PhoneNumber=eq.{Uri.EscapeDataString(item.OtherPhone)}&limit=1");
+                        var otherUser = otherUsers.FirstOrDefault();
                         if (otherUser != null)
                             item.MatchPercent = await CompatibilityService.CalculateCompatibilityScoreAsync(currentUser, otherUser);
                     }

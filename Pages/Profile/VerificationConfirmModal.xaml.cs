@@ -131,8 +131,9 @@ namespace Lock.Pages.Profile
                 SubmitModalText.IsVisible = false;
                 SubmitModalButton.IsEnabled = false;
 
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
+                // Remove this SQLite code:
+                // await DatabaseService.InitializeAsync();
+                // var db = DatabaseService.GetConnection();
 
                 // Update user verification
                 _profileUser.IsVerified = true;
@@ -144,7 +145,8 @@ namespace Lock.Pages.Profile
                 _profileUser.VerificationStatus = "verified";
                 _profileUser.VerificationScore = _similarityScore;
 
-                await db.UpdateAsync(_profileUser);
+                // Replace with Supabase code:
+                await SupabaseService.UpdateAsync("Users", $"PhoneNumber=eq.{Uri.EscapeDataString(_profileUser.PhoneNumber)}", _profileUser);
 
                 // Send completion message
                 VerificationCompleted?.Invoke(this, true);

@@ -27,8 +27,8 @@ namespace Lock.Pages
             {
                 Debug.WriteLine("=== SPLASH PAGE: Checking login state ===");
 
-                // Ensure database is initialized
-                await DatabaseService.InitializeAsync();
+                // Remove this SQLite code:
+                // await DatabaseService.InitializeAsync();
 
                 // Check if there's a saved phone number
                 var phone = Preferences.Get(CurrentUserPhoneKey, string.Empty);
@@ -36,11 +36,10 @@ namespace Lock.Pages
 
                 if (!string.IsNullOrWhiteSpace(phone))
                 {
-                    // Verify user exists in database
-                    var db = DatabaseService.GetConnection();
-                    var user = await db.Table<User>()
-                        .Where(u => u.PhoneNumber == phone)
-                        .FirstOrDefaultAsync();
+                    // Verify user exists in Supabase
+                    var users = await SupabaseService.GetAsync<User>("Users",
+                        $"PhoneNumber=eq.{Uri.EscapeDataString(phone)}&limit=1");
+                    var user = users.FirstOrDefault();
 
                     if (user != null)
                     {

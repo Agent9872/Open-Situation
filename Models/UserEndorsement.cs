@@ -1,37 +1,47 @@
-﻿using SQLite;
+﻿using Newtonsoft.Json;
 using System;
 
 namespace Lock.Models
 {
     public class UserEndorsement
     {
-        [PrimaryKey, AutoIncrement]
         public int Id { get; set; }
 
-        // The person being endorsed (target)
+        [JsonProperty("target_user_id")]
         public int TargetUserId { get; set; }
+
+        [JsonProperty("target_user_phone")]
         public string TargetUserPhone { get; set; } = string.Empty;
 
-        // The person giving the endorsement (endorser)
+        [JsonProperty("endorser_user_id")]
         public int EndorserUserId { get; set; }
-        public string EndorserUserPhone { get; set; } = string.Empty;
-        public string EndorserName { get; set; } = string.Empty;
-        public string EndorserProfileImage { get; set; } = string.Empty;  // ADD THIS PROPERTY
 
-        // Endorsement content
+        [JsonProperty("endorser_user_phone")]
+        public string EndorserUserPhone { get; set; } = string.Empty;
+
+        [JsonProperty("endorser_name")]
+        public string EndorserName { get; set; } = string.Empty;
+
+        [JsonProperty("endorser_profile_image")]
+        public string EndorserProfileImage { get; set; } = string.Empty;
+
+        [JsonProperty("testimonial")]
         public string Testimonial { get; set; } = string.Empty;
+
+        [JsonProperty("rating")]
         public int Rating { get; set; } = 5;
 
-        // Status and timestamps
+        [JsonProperty("is_approved")]
         public bool IsApproved { get; set; } = true;
-        public DateTime CreatedAt { get; set; }
+
+        [JsonProperty("created_at")]
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+        [JsonProperty("updated_at")]
         public DateTime? UpdatedAt { get; set; }
 
-        // For display purposes (not stored in DB)
-        [Ignore]
+        // For display purposes (computed properties - not stored)
         public string RatingStars => new string('★', Rating) + new string('☆', 5 - Rating);
-
-        [Ignore]
         public string DisplayDate => CreatedAt.ToString("MMMM dd, yyyy");
     }
 }

@@ -39,11 +39,17 @@ namespace Lock.Pages.Admin
                 if (PhoneDisplayLabel != null)
                     PhoneDisplayLabel.Text = _phone;
 
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-                var user = await db.Table<User>()
-                    .Where(u => u.PhoneNumber == _phone)
-                    .FirstOrDefaultAsync();
+                // Replace this SQLite code:
+                // await DatabaseService.InitializeAsync();
+                // var db = DatabaseService.GetConnection();
+                // var user = await db.Table<User>()
+                //     .Where(u => u.PhoneNumber == _phone)
+                //     .FirstOrDefaultAsync();
+
+                // With this Supabase code:
+                var users = await SupabaseService.GetAsync<User>("Users",
+                    $"PhoneNumber=eq.{Uri.EscapeDataString(_phone)}&limit=1");
+                var user = users.FirstOrDefault();
 
                 if (user == null || BanStatusLabel == null) return;
 
@@ -61,7 +67,6 @@ namespace Lock.Pages.Admin
                 Debug.WriteLine($"LoadBanInfo error: {ex.Message}");
             }
         }
-
         private void OnReasonPresetTapped(object sender, TappedEventArgs e)
         {
             if (e.Parameter is not string indexStr || !int.TryParse(indexStr, out int index)) return;
@@ -134,12 +139,17 @@ namespace Lock.Pages.Admin
 
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
+                // Replace this SQLite code:
+                // await DatabaseService.InitializeAsync();
+                // var db = DatabaseService.GetConnection();
+                // var user = await db.Table<User>()
+                //     .Where(u => u.PhoneNumber == _phone)
+                //     .FirstOrDefaultAsync();
 
-                var user = await db.Table<User>()
-                    .Where(u => u.PhoneNumber == _phone)
-                    .FirstOrDefaultAsync();
+                // With this Supabase code:
+                var users = await SupabaseService.GetAsync<User>("Users",
+                    $"PhoneNumber=eq.{Uri.EscapeDataString(_phone)}&limit=1");
+                var user = users.FirstOrDefault();
 
                 if (user == null)
                 {
@@ -165,7 +175,11 @@ namespace Lock.Pages.Admin
                 user.AppealStatus = "pending";
                 user.AppealSubmittedAt = DateTime.UtcNow;
 
-                await db.UpdateAsync(user);
+                // Replace this SQLite code:
+                // await db.UpdateAsync(user);
+
+                // With this Supabase code:
+                await SupabaseService.UpdateAsync("Users", $"PhoneNumber=eq.{Uri.EscapeDataString(_phone)}", user);
 
                 await DisplayAlert(
                     "Appeal Submitted",

@@ -2,15 +2,12 @@
 using System.Collections.Generic;
 using System.Text.Json;
 using System.ComponentModel;
-using SQLite;
 using Microsoft.Maui.Graphics;
 
 namespace Lock.Models
 {
-    [Table("Comments")]
     public class Comment : INotifyPropertyChanged
     {
-        [PrimaryKey, AutoIncrement]
         public int Id { get; set; }
 
         // The post this comment belongs to
@@ -22,10 +19,8 @@ namespace Lock.Models
         // Author info
         public string AuthorPhone { get; set; } = string.Empty;
 
-        [Ignore]
+        // Runtime display properties (not persisted)
         public string AuthorDisplayName { get; set; } = string.Empty;
-
-        [Ignore]
         public string AuthorProfileImagePath { get; set; } = string.Empty;
 
         // Comment content
@@ -41,9 +36,7 @@ namespace Lock.Models
         public string LovedByJson { get; set; } = "[]";
 
         // For UI binding
-
         private bool _isLovedByCurrentUser;
-        [Ignore]
         public bool IsLovedByCurrentUser
         {
             get => _isLovedByCurrentUser;
@@ -59,17 +52,13 @@ namespace Lock.Models
             }
         }
 
-        [Ignore]
         public Color LoveIconColor => IsLovedByCurrentUser ? Color.FromArgb("#C05050") : Color.FromArgb("#888888");
 
-        [Ignore]
         public string LoveIcon => IsLovedByCurrentUser ? "❤️" : "🤍";
 
-        [Ignore]
         public string LoveCountDisplay => LoveCount > 0 ? LoveCount.ToString() : string.Empty;
 
         // Helper to get/set loved by list
-        [Ignore]
         public List<string> LovedBy
         {
             get
@@ -114,22 +103,13 @@ namespace Lock.Models
             LovedBy = lovedBy;
         }
 
-        // Nested comments (replies)
-        [Ignore]
+        // Nested comments (replies) - runtime only
         public List<Comment> Replies { get; set; } = new List<Comment>();
-
-        [Ignore]
         public bool HasReplies => Replies.Any();
-
-        [Ignore]
         public int ReplyCount => Replies.Count;
-
-        [Ignore]
         public string ReplyCountDisplay => ReplyCount > 0 ? $"{ReplyCount} {(ReplyCount == 1 ? "reply" : "replies")}" : "";
 
-        // In your Comment class
         private bool _isOwnedByCurrentUser;
-        [Ignore]
         public bool IsOwnedByCurrentUser
         {
             get => _isOwnedByCurrentUser;
@@ -139,18 +119,15 @@ namespace Lock.Models
                 {
                     _isOwnedByCurrentUser = value;
                     OnPropertyChanged(nameof(IsOwnedByCurrentUser));
-                    OnPropertyChanged(nameof(ShowMenuButton)); // This is important
+                    OnPropertyChanged(nameof(ShowMenuButton));
                 }
             }
         }
 
-        [Ignore]
         public bool ShowMenuButton => IsOwnedByCurrentUser;
 
-      
         // For UI - expand/collapse replies
         private bool _areRepliesExpanded;
-        [Ignore]
         public bool AreRepliesExpanded
         {
             get => _areRepliesExpanded;
@@ -166,14 +143,10 @@ namespace Lock.Models
             }
         }
 
-        [Ignore]
         public bool RepliesVisibility => AreRepliesExpanded && HasReplies;
-
-        [Ignore]
         public string ExpandCollapseIcon => AreRepliesExpanded ? "▼" : "▶";
 
         // For UI
-        [Ignore]
         public string CreatedAtRelative => GetRelativeTime(CreatedAt);
 
         private static string GetRelativeTime(DateTime utcTime)

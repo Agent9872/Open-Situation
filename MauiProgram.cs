@@ -1,5 +1,4 @@
 ﻿using CommunityToolkit.Maui;
-using Lock.Chat.Services;
 using Lock.Pages.Chat;
 using Lock.Services;                    // Keep this for your other services
 using Microsoft.Extensions.Logging;
@@ -96,7 +95,7 @@ namespace Lock
 #endif
             });
 
-            // SERVICE REGISTRATIONS
+            // SERVICE REGISTRATIONS - Remove old SQLite repositories
             builder.Services.AddSingleton<IAudioManager>(AudioManager.Current);
             builder.Services.AddSingleton<IMessageNotificationService, MessageNotificationService>();
             builder.Services.AddSingleton<ISystemNotificationService, SystemNotificationService>();
@@ -115,16 +114,20 @@ namespace Lock
             builder.Services.AddSingleton<IFolderPicker, Lock.Services.FolderPicker>();
 #endif
 
-            builder.Services.AddSingleton<ProjectRepository>();
-            builder.Services.AddSingleton<TaskRepository>();
-            builder.Services.AddSingleton<CategoryRepository>();
-            builder.Services.AddSingleton<TagRepository>();
-            builder.Services.AddSingleton<SeedDataService>();
-            builder.Services.AddSingleton<ModalErrorHandler>();
-            builder.Services.AddSingleton<MainPageModel>();
-            builder.Services.AddSingleton<ProjectListPageModel>();
-            builder.Services.AddSingleton<ManageMetaPageModel>();
+            // REMOVE these old SQLite-based repositories:
+            // builder.Services.AddSingleton<ProjectRepository>();
+            // builder.Services.AddSingleton<TaskRepository>();
+            // builder.Services.AddSingleton<CategoryRepository>();
+            // builder.Services.AddSingleton<TagRepository>();
+            // builder.Services.AddSingleton<SeedDataService>();
 
+            // Keep these if needed for your app
+            builder.Services.AddSingleton<ModalErrorHandler>();
+            // builder.Services.AddSingleton<MainPageModel>(); // Remove if not needed
+            // builder.Services.AddSingleton<ProjectListPageModel>(); // Remove if not needed
+            // builder.Services.AddSingleton<ManageMetaPageModel>(); // Remove if not needed
+
+            // Keep your existing page registrations
             builder.Services.AddTransient<ChatPage>();
             builder.Services.AddTransient<Lock.Pages.Post.CommentsPage>();
             builder.Services.AddTransient<Lock.Pages.Post.NotificationPage>();
@@ -134,8 +137,9 @@ namespace Lock
             builder.Services.AddTransient<Lock.Pages.Post.SearchPage>();
             builder.Services.AddTransient<Lock.Pages.Post.MatchPage>();
 
-            builder.Services.AddTransientWithShellRoute<ProjectDetailPage, ProjectDetailPageModel>("project");
-            builder.Services.AddTransientWithShellRoute<TaskDetailPage, TaskDetailPageModel>("task");
+            // Remove these if they reference old repositories
+            // builder.Services.AddTransientWithShellRoute<ProjectDetailPage, ProjectDetailPageModel>("project");
+            // builder.Services.AddTransientWithShellRoute<TaskDetailPage, TaskDetailPageModel>("task");
 
 #if DEBUG
             builder.Logging.AddDebug();
@@ -149,17 +153,12 @@ namespace Lock
             {
                 try
                 {
-                    await DatabaseService.InitializeAsync();
-                    await GroupDatabaseService.InitializeAsync();
-                    await GroupRepository.InitializeAsync();
-
-                    // ADD THIS
-                    await SupabaseService.GetClientAsync();
+                    await SupabaseService.GetAsync<object>("Users", "limit=1");
                     Debug.WriteLine("Supabase connected successfully");
                 }
                 catch (Exception ex)
                 {
-                    Debug.WriteLine($"Initialization error: {ex.Message}");
+                    Debug.WriteLine($"Supabase connection error: {ex.Message}");
                 }
             });
 

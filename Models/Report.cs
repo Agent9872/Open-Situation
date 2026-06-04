@@ -1,83 +1,93 @@
-﻿using SQLite;
+﻿using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 
 namespace Lock.Models
 {
-    [Table("Reports")]
     public class Report
     {
-        [PrimaryKey, AutoIncrement]
         public int Id { get; set; }
 
-        // Reporter info
-        public string ReporterPhone { get; set; }
-        public string ReporterName { get; set; }
+        [JsonProperty("reporter_phone")]
+        public string ReporterPhone { get; set; } = string.Empty;
 
-        // Reported user info
-        public string ReportedUserPhone { get; set; }
-        public string ReportedUserName { get; set; }
-        public string ReportedUserProfileImage { get; set; }
+        [JsonProperty("reporter_name")]
+        public string ReporterName { get; set; } = string.Empty;
 
-        // Report details
-        public string Category { get; set; }
-        public string Description { get; set; }
-        public DateTime ReportedAt { get; set; }
+        [JsonProperty("reported_user_phone")]
+        public string ReportedUserPhone { get; set; } = string.Empty;
 
-        // Evidence — NOT stored in this table column
-        // Loaded separately via ReportImage table
-        [Ignore]
+        [JsonProperty("reported_user_name")]
+        public string ReportedUserName { get; set; } = string.Empty;
+
+        [JsonProperty("reported_user_profile_image")]
+        public string ReportedUserProfileImage { get; set; } = string.Empty;
+
+        [JsonProperty("category")]
+        public string Category { get; set; } = string.Empty;
+
+        [JsonProperty("description")]
+        public string Description { get; set; } = string.Empty;
+
+        [JsonProperty("reported_at")]
+        public DateTime ReportedAt { get; set; } = DateTime.UtcNow;
+
+        [JsonProperty("message_screenshot_path")]
+        public string MessageScreenshotPath { get; set; } = string.Empty;
+
+        [JsonProperty("conversation_id")]
+        public string ConversationId { get; set; } = string.Empty;
+
+        [JsonProperty("reported_message_id_db")]
+        public int ReportedMessageIdDb { get; set; } = -1;
+
+        [JsonProperty("reported_message_content")]
+        public string ReportedMessageContent { get; set; } = string.Empty;
+
+        [JsonProperty("status")]
+        public ReportStatus Status { get; set; } = ReportStatus.Pending;
+
+        [JsonProperty("admin_notes")]
+        public string AdminNotes { get; set; } = string.Empty;
+
+        [JsonProperty("resolved_at")]
+        public DateTime? ResolvedAt { get; set; }
+
+        [JsonProperty("resolved_by")]
+        public string ResolvedBy { get; set; } = string.Empty;
+
+        [JsonProperty("action_taken")]
+        public AdminAction ActionTaken { get; set; } = AdminAction.None;
+
+        // Not persisted - loaded separately
         public List<ReportImage> Images { get; set; } = new();
 
-        // Optional screenshot path (single file reference, safe to store)
-        public string MessageScreenshotPath { get; set; }
-
-        // Conversation context
-        public string ConversationId { get; set; }
-
-        // Store as int with -1 meaning "no message" to avoid nullable issues
-        // on older SQLite-NET builds
-        private int _reportedMessageIdRaw = -1;
-
-        [Ignore]
+        // Computed property
         public int? ReportedMessageId
         {
-            get => _reportedMessageIdRaw == -1 ? (int?)null : _reportedMessageIdRaw;
-            set => _reportedMessageIdRaw = value ?? -1;
+            get => ReportedMessageIdDb == -1 ? (int?)null : ReportedMessageIdDb;
+            set => ReportedMessageIdDb = value ?? -1;
         }
-
-        // Backing column that SQLite actually stores
-        [Column("ReportedMessageId")]
-        public int ReportedMessageIdDb
-        {
-            get => _reportedMessageIdRaw;
-            set => _reportedMessageIdRaw = value;
-        }
-
-        public string ReportedMessageContent { get; set; }
-
-        // Status
-        public ReportStatus Status { get; set; } = ReportStatus.Pending;
-        public string AdminNotes { get; set; }
-        public DateTime? ResolvedAt { get; set; }
-        public string ResolvedBy { get; set; }
-
-        // Actions taken
-        public AdminAction ActionTaken { get; set; } = AdminAction.None;
     }
 
-    [Table("ReportImages")]
     public class ReportImage
     {
-        [PrimaryKey, AutoIncrement]
         public int Id { get; set; }
 
+        [JsonProperty("report_id")]
         public int ReportId { get; set; }
-        public string LocalPath { get; set; }
-        public string RemoteUrl { get; set; }
-        public DateTime AddedAt { get; set; }
+
+        [JsonProperty("local_path")]
+        public string LocalPath { get; set; } = string.Empty;
+
+        [JsonProperty("remote_url")]
+        public string RemoteUrl { get; set; } = string.Empty;
+
+        [JsonProperty("added_at")]
+        public DateTime AddedAt { get; set; } = DateTime.UtcNow;
     }
 
+    // Enums remain the same
     public enum ReportStatus
     {
         Pending,

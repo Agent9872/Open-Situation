@@ -1,19 +1,25 @@
-﻿using SQLite;
+﻿using Newtonsoft.Json;
+using System;
 
 namespace Lock.Models
 {
-    [Table("UserPrompts")]
     public class UserPrompt
     {
-        [PrimaryKey, AutoIncrement]
         public int Id { get; set; }
 
-        [Indexed]
+        [JsonProperty("user_id")]
         public int UserId { get; set; }
 
+        [JsonProperty("question")]
         public string Question { get; set; } = string.Empty;
+
+        [JsonProperty("answer")]
         public string Answer { get; set; } = string.Empty;
+
+        [JsonProperty("order")]
         public int Order { get; set; }
+
+        [JsonProperty("created_at")]
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     }
 }

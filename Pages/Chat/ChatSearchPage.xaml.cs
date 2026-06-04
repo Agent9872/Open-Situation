@@ -1,8 +1,7 @@
-using Lock.Chat.Services;
 using Lock.Models.Chat;
 using Lock.Services.Chat;
+using Lock.Services;
 using Microsoft.Maui.Controls;
-using SQLite;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -84,7 +83,9 @@ namespace Lock.Pages.Chat
 
                 await Task.Delay(100);
 
-                var conversations = await ChatRepository.GetAllConversationsAsync(_currentUserPhone);
+                // Get all conversations from Supabase
+                var conversations = await SupabaseService.GetAsync<Conversation>("Conversations",
+                    $"or(ParticipantA.eq.{Uri.EscapeDataString(_currentUserPhone)},ParticipantB.eq.{Uri.EscapeDataString(_currentUserPhone)})");
 
                 if (conversations == null || !conversations.Any())
                 {
@@ -97,7 +98,9 @@ namespace Lock.Pages.Chat
 
                 foreach (var conv in conversations)
                 {
-                    var messages = await ChatRepository.GetMessagesAsync(conv.ConversationId, 500);
+                    // Get messages for this conversation
+                    var messages = await SupabaseService.GetAsync<ChatMessage>("ChatMessages",
+                        $"ConversationId=eq.{Uri.EscapeDataString(conv.ConversationId)}&order=SentAt.desc&limit=500");
 
                     var matchingMessages = messages.Where(m =>
                         !string.IsNullOrEmpty(m.Content) &&
@@ -107,6 +110,11 @@ namespace Lock.Pages.Chat
                     {
                         var senderPhone = msg.SenderPhone == _currentUserPhone ? _currentUserPhone : msg.SenderPhone;
                         var senderInfo = await GetUserInfoAsync(senderPhone);
+
+                        // Get the other participant for the conversation
+                        string otherUserPhone = msg.SenderPhone == _currentUserPhone
+                            ? conv.GetOtherParticipant(_currentUserPhone)
+                            : msg.SenderPhone;
 
                         allResults.Add(new SearchResultItem
                         {
@@ -122,7 +130,7 @@ namespace Lock.Pages.Chat
                             SentAt = msg.SentAt.ToLocalTime(),
                             HasMedia = msg.HasMedia,
                             MediaCount = msg.MediaCount,
-                            OtherUserPhone = msg.SenderPhone == _currentUserPhone ? conv.GetOtherParticipant(_currentUserPhone) : msg.SenderPhone
+                            OtherUserPhone = otherUserPhone
                         });
                     }
                 }
@@ -156,11 +164,9 @@ namespace Lock.Pages.Chat
         {
             try
             {
-                await Lock.Chat.Services.DatabaseService.InitializeAsync();
-                var db = Lock.Chat.Services.DatabaseService.GetConnection();
-                var user = await db.Table<Lock.Models.User>()
-                    .Where(u => u.PhoneNumber == phoneNumber)
-                    .FirstOrDefaultAsync();
+                var users = await SupabaseService.GetAsync<Lock.Models.User>("Users",
+                    $"PhoneNumber=eq.{Uri.EscapeDataString(phoneNumber)}&limit=1");
+                var user = users.FirstOrDefault();
 
                 if (user != null)
                 {

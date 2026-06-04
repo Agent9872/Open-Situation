@@ -46,13 +46,17 @@ public partial class ContactPickerPopup : Popup, INotifyPropertyChanged
         {
             string currentUserPhone = Preferences.Get("current_user_phone", string.Empty);
 
-            await DatabaseService.InitializeAsync();
-            var db = DatabaseService.GetConnection();
+            // Remove this SQLite code:
+            // await DatabaseService.InitializeAsync();
+            // var db = DatabaseService.GetConnection();
+            // var users = await db.Table<User>()
+            //     .Where(u => u.PhoneNumber != currentUserPhone &&
+            //                u.PhoneNumber != _sourceContactPhone)
+            //     .ToListAsync();
 
-            var users = await db.Table<User>()
-                .Where(u => u.PhoneNumber != currentUserPhone &&
-                           u.PhoneNumber != _sourceContactPhone)
-                .ToListAsync();
+            // Replace with Supabase code:
+            var users = await SupabaseService.GetAsync<User>("Users",
+                $"PhoneNumber=neq.{Uri.EscapeDataString(currentUserPhone)}&PhoneNumber=neq.{Uri.EscapeDataString(_sourceContactPhone)}");
 
             AllContacts.Clear();
             foreach (var user in users)
@@ -61,7 +65,9 @@ public partial class ContactPickerPopup : Popup, INotifyPropertyChanged
                 {
                     PhoneNumber = user.PhoneNumber,
                     Name = user.Name,
-                    ProfileImagePath = user.ProfileImagePath ?? "default_profile.png"
+                    ProfileImagePath = !string.IsNullOrEmpty(user.ProfileImagePath) && File.Exists(user.ProfileImagePath)
+                        ? user.ProfileImagePath
+                        : "default_profile.png"
                 });
             }
 

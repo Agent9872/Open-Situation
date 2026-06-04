@@ -35,11 +35,17 @@ namespace Lock.Services
                 var phone = Preferences.Get("current_user_phone", string.Empty);
                 if (string.IsNullOrEmpty(phone)) return true; // not logged in — let auth handle it
 
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-                var user = await db.Table<User>()
-                                   .Where(u => u.PhoneNumber == phone)
-                                   .FirstOrDefaultAsync();
+                // Remove this SQLite code:
+                // await DatabaseService.InitializeAsync();
+                // var db = DatabaseService.GetConnection();
+                // var user = await db.Table<User>()
+                //                    .Where(u => u.PhoneNumber == phone)
+                //                    .FirstOrDefaultAsync();
+
+                // Replace with Supabase code:
+                var users = await SupabaseService.GetAsync<User>("Users",
+                    $"PhoneNumber=eq.{Uri.EscapeDataString(phone)}&limit=1");
+                var user = users.FirstOrDefault();
 
                 if (user == null) return true;
 

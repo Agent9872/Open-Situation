@@ -1,28 +1,32 @@
 ﻿// Models/EmergencyContact.cs
-using SQLite;
+using Newtonsoft.Json;
 using System;
 
 namespace Lock.Models
 {
-    [Table("EmergencyContacts")]
     public class EmergencyContact
     {
-        [PrimaryKey, AutoIncrement]
         public int Id { get; set; }
 
-        [Indexed]
+        [JsonProperty("user_phone")]
         public string UserPhone { get; set; } = string.Empty;
 
+        [JsonProperty("name")]
         public string Name { get; set; } = string.Empty;
 
+        [JsonProperty("phone_number")]
         public string PhoneNumber { get; set; } = string.Empty;
 
+        [JsonProperty("relationship")]
         public string Relationship { get; set; } = string.Empty;
 
+        [JsonProperty("is_primary")]
         public bool IsPrimary { get; set; }
 
+        [JsonProperty("created_at")]
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
+        [JsonProperty("notes")]
         public string? Notes { get; set; }
     }
 }

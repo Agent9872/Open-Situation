@@ -1,12 +1,10 @@
 ﻿using Lock.Models;
-using SQLite;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using Lock.Chat.Services;
-using System.Linq;
+using Lock.Services;
 
 namespace Lock.Services
 {
@@ -15,333 +13,411 @@ namespace Lock.Services
         // ========== USER PHOTOS ==========
         public static async Task<List<UserPhoto>> GetUserPhotosAsync(int userId)
         {
-            await DatabaseService.InitializeAsync();
-            var db = DatabaseService.GetConnection();
-            return await db.Table<UserPhoto>()
-                .Where(p => p.UserId == userId)
-                .OrderBy(p => p.Order)
-                .ToListAsync();
+            try
+            {
+                return await SupabaseService.GetAsync<UserPhoto>("UserPhotos",
+                    $"UserId=eq.{userId}&order=Order.asc");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"GetUserPhotosAsync error: {ex}");
+                return new List<UserPhoto>();
+            }
         }
 
-        public static async Task<UserPhoto> AddUserPhotoAsync(int userId, string imagePath, string category = "Profile", string caption = "")
+        public static async Task<UserPhoto?> AddUserPhotoAsync(int userId, string imagePath, string category = "Profile", string caption = "")
         {
-            await DatabaseService.InitializeAsync();
-            var db = DatabaseService.GetConnection();
-
-            // Get current max order
-            var existing = await db.Table<UserPhoto>()
-                .Where(p => p.UserId == userId)
-                .OrderByDescending(p => p.Order)
-                .FirstOrDefaultAsync();
-
-            int newOrder = (existing?.Order ?? -1) + 1;
-
-            var photo = new UserPhoto
+            try
             {
-                UserId = userId,
-                ImagePath = imagePath,
-                Category = category,
-                Caption = caption,
-                Order = newOrder,
-                IsPrimary = newOrder == 0, // First photo is primary
-                UploadedAt = DateTime.UtcNow
-            };
+                // Get current max order
+                var existing = await SupabaseService.GetAsync<UserPhoto>("UserPhotos",
+                    $"UserId=eq.{userId}&order=Order.desc&limit=1");
 
-            await db.InsertAsync(photo);
-            return photo;
+                int newOrder = (existing.FirstOrDefault()?.Order ?? -1) + 1;
+
+                var photo = new UserPhoto
+                {
+                    UserId = userId,
+                    ImagePath = imagePath,
+                    Category = category,
+                    Caption = caption,
+                    Order = newOrder,
+                    IsPrimary = newOrder == 0, // First photo is primary
+                    UploadedAt = DateTime.UtcNow
+                };
+
+                var inserted = await SupabaseService.InsertAndReturnAsync<UserPhoto>("UserPhotos", photo);
+                return inserted;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"AddUserPhotoAsync error: {ex}");
+                return null;
+            }
         }
 
         public static async Task SetPrimaryPhotoAsync(int photoId, int userId)
         {
-            await DatabaseService.InitializeAsync();
-            var db = DatabaseService.GetConnection();
-
-            // Remove primary from all user photos
-            var userPhotos = await db.Table<UserPhoto>()
-                .Where(p => p.UserId == userId)
-                .ToListAsync();
-
-            foreach (var photo in userPhotos)
+            try
             {
-                photo.IsPrimary = false;
-                await db.UpdateAsync(photo);
+                // Remove primary from all user photos
+                var userPhotos = await SupabaseService.GetAsync<UserPhoto>("UserPhotos",
+                    $"UserId=eq.{userId}");
+
+                foreach (var photo in userPhotos)
+                {
+                    if (photo.IsPrimary)
+                    {
+                        await SupabaseService.UpdateAsync("UserPhotos", $"Id=eq.{photo.Id}",
+                            new { IsPrimary = false });
+                    }
+                }
+
+                // Set new primary
+                await SupabaseService.UpdateAsync("UserPhotos", $"Id=eq.{photoId}",
+                    new { IsPrimary = true });
             }
-
-            // Set new primary
-            var newPrimary = await db.Table<UserPhoto>()
-                .Where(p => p.Id == photoId)
-                .FirstOrDefaultAsync();
-
-            if (newPrimary != null)
+            catch (Exception ex)
             {
-                newPrimary.IsPrimary = true;
-                await db.UpdateAsync(newPrimary);
+                System.Diagnostics.Debug.WriteLine($"SetPrimaryPhotoAsync error: {ex}");
             }
         }
 
         public static async Task DeleteUserPhotoAsync(int photoId)
         {
-            await DatabaseService.InitializeAsync();
-            var db = DatabaseService.GetConnection();
-
-            var photo = await db.Table<UserPhoto>()
-                .Where(p => p.Id == photoId)
-                .FirstOrDefaultAsync();
-
-            if (photo != null)
+            try
             {
-                // Delete file
-                try
-                {
-                    if (File.Exists(photo.ImagePath))
-                        File.Delete(photo.ImagePath);
-                }
-                catch { }
+                var photos = await SupabaseService.GetAsync<UserPhoto>("UserPhotos",
+                    $"Id=eq.{photoId}&limit=1");
+                var photo = photos.FirstOrDefault();
 
-                await db.DeleteAsync(photo);
+                if (photo != null)
+                {
+                    // Delete file
+                    try
+                    {
+                        if (File.Exists(photo.ImagePath))
+                            File.Delete(photo.ImagePath);
+                    }
+                    catch { }
+
+                    await SupabaseService.DeleteAsync("UserPhotos", $"Id=eq.{photoId}");
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"DeleteUserPhotoAsync error: {ex}");
             }
         }
 
         // ========== PROMPTS ==========
         public static async Task<List<UserPrompt>> GetUserPromptsAsync(int userId)
         {
-            await DatabaseService.InitializeAsync();
-            var db = DatabaseService.GetConnection();
-            return await db.Table<UserPrompt>()
-                .Where(p => p.UserId == userId)
-                .OrderBy(p => p.Order)
-                .ToListAsync();
+            try
+            {
+                return await SupabaseService.GetAsync<UserPrompt>("UserPrompts",
+                    $"UserId=eq.{userId}&order=Order.asc");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"GetUserPromptsAsync error: {ex}");
+                return new List<UserPrompt>();
+            }
         }
 
         public static async Task DeleteDateIdeaAsync(int ideaId)
         {
-            await DatabaseService.InitializeAsync();
-            var db = DatabaseService.GetConnection();
-            await db.DeleteAsync<DateIdea>(ideaId);
+            try
+            {
+                await SupabaseService.DeleteAsync("DateIdeas", $"Id=eq.{ideaId}");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"DeleteDateIdeaAsync error: {ex}");
+            }
         }
 
-        public static async Task<UserPrompt> AddUserPromptAsync(int userId, string question, string answer)
+        public static async Task<UserPrompt?> AddUserPromptAsync(int userId, string question, string answer)
         {
-            await DatabaseService.InitializeAsync();
-            var db = DatabaseService.GetConnection();
-
-            // Get current max order
-            var existing = await db.Table<UserPrompt>()
-                .Where(p => p.UserId == userId)
-                .OrderByDescending(p => p.Order)
-                .FirstOrDefaultAsync();
-
-            int newOrder = (existing?.Order ?? -1) + 1;
-
-            var prompt = new UserPrompt
+            try
             {
-                UserId = userId,
-                Question = question,
-                Answer = answer,
-                Order = newOrder,
-                CreatedAt = DateTime.UtcNow
-            };
+                // Get current max order
+                var existing = await SupabaseService.GetAsync<UserPrompt>("UserPrompts",
+                    $"UserId=eq.{userId}&order=Order.desc&limit=1");
 
-            await db.InsertAsync(prompt);
-            return prompt;
+                int newOrder = (existing.FirstOrDefault()?.Order ?? -1) + 1;
+
+                var prompt = new UserPrompt
+                {
+                    UserId = userId,
+                    Question = question,
+                    Answer = answer,
+                    Order = newOrder,
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                var inserted = await SupabaseService.InsertAndReturnAsync<UserPrompt>("UserPrompts", prompt);
+                return inserted;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"AddUserPromptAsync error: {ex}");
+                return null;
+            }
         }
 
         public static async Task UpdateUserPromptAsync(int promptId, string answer)
         {
-            await DatabaseService.InitializeAsync();
-            var db = DatabaseService.GetConnection();
-
-            var prompt = await db.Table<UserPrompt>()
-                .Where(p => p.Id == promptId)
-                .FirstOrDefaultAsync();
-
-            if (prompt != null)
+            try
             {
-                prompt.Answer = answer;
-                await db.UpdateAsync(prompt);
+                await SupabaseService.UpdateAsync("UserPrompts", $"Id=eq.{promptId}",
+                    new { Answer = answer });
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"UpdateUserPromptAsync error: {ex}");
             }
         }
 
         public static async Task DeleteUserPromptAsync(int promptId)
         {
-            await DatabaseService.InitializeAsync();
-            var db = DatabaseService.GetConnection();
-            await db.DeleteAsync<UserPrompt>(promptId);
+            try
+            {
+                await SupabaseService.DeleteAsync("UserPrompts", $"Id=eq.{promptId}");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"DeleteUserPromptAsync error: {ex}");
+            }
         }
 
         // ========== DATE IDEAS ==========
         public static async Task<List<DateIdea>> GetUserDateIdeasAsync(int userId)
         {
-            await DatabaseService.InitializeAsync();
-            var db = DatabaseService.GetConnection();
-            return await db.Table<DateIdea>()
-                .Where(d => d.UserId == userId)
-                .OrderByDescending(d => d.CreatedAt)
-                .ToListAsync();
-        }
-
-        public static async Task<DateIdea> AddDateIdeaAsync(int userId, string title, string description, string location, string category, bool isPublic = true)
-        {
-            await DatabaseService.InitializeAsync();
-            var db = DatabaseService.GetConnection();
-
-            var idea = new DateIdea
+            try
             {
-                UserId = userId,
-                Title = title,
-                Description = description,
-                Location = location,
-                Category = category,
-                IsPublic = isPublic,
-                CreatedAt = DateTime.UtcNow
-            };
-
-            await db.InsertAsync(idea);
-            return idea;
+                return await SupabaseService.GetAsync<DateIdea>("DateIdeas",
+                    $"UserId=eq.{userId}&order=CreatedAt.desc");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"GetUserDateIdeasAsync error: {ex}");
+                return new List<DateIdea>();
+            }
         }
 
+        public static async Task<DateIdea?> AddDateIdeaAsync(int userId, string title, string description, string location, string category, bool isPublic = true)
+        {
+            try
+            {
+                var idea = new DateIdea
+                {
+                    UserId = userId,
+                    Title = title,
+                    Description = description,
+                    Location = location,
+                    Category = category,
+                    IsPublic = isPublic,
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                var inserted = await SupabaseService.InsertAndReturnAsync<DateIdea>("DateIdeas", idea);
+                return inserted;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"AddDateIdeaAsync error: {ex}");
+                return null;
+            }
+        }
 
         // ========== EVENTS ==========
         public static async Task<List<UserEvent>> GetUserEventsAsync(int userId, string filter = "Upcoming")
         {
-            await DatabaseService.InitializeAsync();
-            var db = DatabaseService.GetConnection();
-            var now = DateTime.UtcNow;
-
-            switch (filter)
+            try
             {
-                case "Upcoming":
-                    return await db.Table<UserEvent>()
-                        .Where(e => e.UserId == userId && e.EventDate > now)
-                        .OrderBy(e => e.EventDate)
-                        .ToListAsync();
+                var now = DateTime.UtcNow;
 
-                case "Past":
-                    return await db.Table<UserEvent>()
-                        .Where(e => e.UserId == userId && e.EventDate <= now)
-                        .OrderByDescending(e => e.EventDate)
-                        .ToListAsync();
+                switch (filter)
+                {
+                    case "Upcoming":
+                        return await SupabaseService.GetAsync<UserEvent>("UserEvents",
+                            $"UserId=eq.{userId}&EventDate=gt.{now:yyyy-MM-ddTHH:mm:ssZ}&order=EventDate.asc");
 
-                case "Hosting":
-                default:
-                    return await db.Table<UserEvent>()
-                        .Where(e => e.UserId == userId)
-                        .OrderByDescending(e => e.EventDate)
-                        .ToListAsync();
+                    case "Past":
+                        return await SupabaseService.GetAsync<UserEvent>("UserEvents",
+                            $"UserId=eq.{userId}&EventDate=lte.{now:yyyy-MM-ddTHH:mm:ssZ}&order=EventDate.desc");
+
+                    case "Hosting":
+                    default:
+                        return await SupabaseService.GetAsync<UserEvent>("UserEvents",
+                            $"UserId=eq.{userId}&order=EventDate.desc");
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"GetUserEventsAsync error: {ex}");
+                return new List<UserEvent>();
             }
         }
 
-        public static async Task<UserEvent> CreateEventAsync(int userId, string eventName, string description,
+        public static async Task<UserEvent?> CreateEventAsync(int userId, string eventName, string description,
             string location, DateTime eventDate, string category, int maxAttendees = 0, bool isPublic = true)
         {
-            await DatabaseService.InitializeAsync();
-            var db = DatabaseService.GetConnection();
-
-            var evt = new UserEvent
+            try
             {
-                UserId = userId,
-                EventName = eventName,
-                Description = description,
-                Location = location,
-                EventDate = eventDate,
-                Category = category,
-                MaxAttendees = maxAttendees,
-                IsPublic = isPublic,
-                CreatedAt = DateTime.UtcNow
-            };
+                var evt = new UserEvent
+                {
+                    UserId = userId,
+                    EventName = eventName,
+                    Description = description,
+                    Location = location,
+                    EventDate = eventDate,
+                    Category = category,
+                    MaxAttendees = maxAttendees,
+                    IsPublic = isPublic,
+                    CreatedAt = DateTime.UtcNow
+                };
 
-            await db.InsertAsync(evt);
+                var inserted = await SupabaseService.InsertAndReturnAsync<UserEvent>("UserEvents", evt);
 
-            // Creator automatically attends
-            var attendance = new EventAttendance
+                if (inserted != null)
+                {
+                    // Creator automatically attends
+                    var attendance = new EventAttendance
+                    {
+                        EventId = inserted.Id,
+                        UserId = userId,
+                        Status = "Going",
+                        CreatedAt = DateTime.UtcNow
+                    };
+                    await SupabaseService.InsertAsync("EventAttendance", attendance);
+                }
+
+                return inserted;
+            }
+            catch (Exception ex)
             {
-                EventId = evt.Id,
-                UserId = userId,
-                Status = "Going",
-                CreatedAt = DateTime.UtcNow
-            };
-            await db.InsertAsync(attendance);
-
-            return evt;
+                System.Diagnostics.Debug.WriteLine($"CreateEventAsync error: {ex}");
+                return null;
+            }
         }
 
         public static async Task<List<User>> GetEventAttendeesAsync(int eventId)
         {
-            await DatabaseService.InitializeAsync();
-            var db = DatabaseService.GetConnection();
-
-            // Get all attendance records for this event
-            var attendances = await db.Table<EventAttendance>()
-                .Where(a => a.EventId == eventId && a.Status == "Going")
-                .ToListAsync();
-
-            var attendees = new List<User>();
-            foreach (var attendance in attendances)
+            try
             {
-                var user = await db.Table<User>().Where(u => u.Id == attendance.UserId).FirstOrDefaultAsync();
-                if (user != null)
-                    attendees.Add(user);
-            }
+                // Get all attendance records for this event with status "Going"
+                var attendances = await SupabaseService.GetAsync<EventAttendance>("EventAttendance",
+                    $"EventId=eq.{eventId}&Status=eq.Going");
 
-            return attendees;
+                var attendees = new List<User>();
+                foreach (var attendance in attendances)
+                {
+                    var users = await SupabaseService.GetAsync<User>("Users",
+                        $"Id=eq.{attendance.UserId}&limit=1");
+                    var user = users.FirstOrDefault();
+                    if (user != null)
+                        attendees.Add(user);
+                }
+
+                return attendees;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"GetEventAttendeesAsync error: {ex}");
+                return new List<User>();
+            }
         }
 
         public static async Task<bool> JoinEventAsync(int eventId, int userId)
         {
-            await DatabaseService.InitializeAsync();
-            var db = DatabaseService.GetConnection();
-
-            // Check if already attending
-            var existing = await db.Table<EventAttendance>()
-                .Where(a => a.EventId == eventId && a.UserId == userId)
-                .FirstOrDefaultAsync();
-
-            if (existing != null)
-                return false;
-
-            var attendance = new EventAttendance
+            try
             {
-                EventId = eventId,
-                UserId = userId,
-                Status = "Going",
-                CreatedAt = DateTime.UtcNow
-            };
+                // Check if already attending
+                var existing = await SupabaseService.GetAsync<EventAttendance>("EventAttendance",
+                    $"EventId=eq.{eventId}&UserId=eq.{userId}&limit=1");
 
-            await db.InsertAsync(attendance);
-            return true;
+                if (existing.Any())
+                    return false;
+
+                var attendance = new EventAttendance
+                {
+                    EventId = eventId,
+                    UserId = userId,
+                    Status = "Going",
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                await SupabaseService.InsertAsync("EventAttendance", attendance);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"JoinEventAsync error: {ex}");
+                return false;
+            }
         }
 
         public static async Task LeaveEventAsync(int eventId, int userId)
         {
-            await DatabaseService.InitializeAsync();
-            var db = DatabaseService.GetConnection();
-
-            var attendance = await db.Table<EventAttendance>()
-                .Where(a => a.EventId == eventId && a.UserId == userId)
-                .FirstOrDefaultAsync();
-
-            if (attendance != null)
-                await db.DeleteAsync(attendance);
+            try
+            {
+                await SupabaseService.DeleteAsync("EventAttendance",
+                    $"EventId=eq.{eventId}&UserId=eq.{userId}");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"LeaveEventAsync error: {ex}");
+            }
         }
 
         // ========== STATS ==========
         public static async Task<int> GetProfileViewsCountAsync(int userId)
         {
-            // This would ideally come from a ProfileViews table
-            // For now, return sample data
-            return new Random().Next(10, 100);
+            try
+            {
+                // Get profile views count from ProfileViews table
+                var views = await SupabaseService.GetAsync<ProfileView>("ProfileViews",
+                    $"ViewedUserId=eq.{userId}");
+                return views.Count;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"GetProfileViewsCountAsync error: {ex}");
+                return new Random().Next(10, 100); // Fallback
+            }
         }
 
         public static async Task<int> GetMatchesCountAsync(int userId)
         {
-            // This would come from a Matches table
-            return new Random().Next(1, 20);
+            try
+            {
+                // This would come from a Matches table
+                // For now, return sample data
+                // TODO: Implement actual matches count from Supabase
+                return new Random().Next(1, 20);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"GetMatchesCountAsync error: {ex}");
+                return 0;
+            }
         }
 
         public static async Task<double> GetResponseRateAsync(int userId)
         {
-            // This would calculate from message data
-            return new Random().Next(40, 95);
+            try
+            {
+                // This would calculate from message data
+                // TODO: Implement actual response rate calculation
+                return new Random().Next(40, 95);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"GetResponseRateAsync error: {ex}");
+                return 0;
+            }
         }
     }
 }

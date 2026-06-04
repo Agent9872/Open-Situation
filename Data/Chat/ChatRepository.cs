@@ -1,7 +1,6 @@
 using Lock.Models;
 using Lock.Models.Chat;
 using Microsoft.Maui.Storage;
-using SQLite;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -20,22 +19,17 @@ namespace Lock.Chat.Services
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
+                var conversations = await SupabaseService.GetAsync<Conversation>("Conversations",
+                    $"or(and(ParticipantA.eq.{Uri.EscapeDataString(userPhone)},ParticipantB.eq.{Uri.EscapeDataString(otherPhone)})," +
+                    $"and(ParticipantA.eq.{Uri.EscapeDataString(otherPhone)},ParticipantB.eq.{Uri.EscapeDataString(userPhone)}))&limit=1");
 
-                var conversations = await db.Table<Conversation>()
-                    .Where(c => (c.ParticipantA == userPhone && c.ParticipantB == otherPhone) ||
-                               (c.ParticipantA == otherPhone && c.ParticipantB == userPhone))
-                    .FirstOrDefaultAsync();
+                var conversation = conversations.FirstOrDefault();
+                if (conversation == null) return false;
 
-                if (conversations == null)
-                    return false;
+                var messages = await SupabaseService.GetAsync<ChatMessage>("ChatMessages",
+                    $"ConversationId=eq.{Uri.EscapeDataString(conversation.ConversationId)}&IsMessageRequest=eq.false");
 
-                var messageCount = await db.Table<ChatMessage>()
-                    .Where(m => m.ConversationId == conversations.ConversationId && m.IsMessageRequest == false)
-                    .CountAsync();
-
-                return messageCount > 0;
+                return messages.Any();
             }
             catch (Exception ex)
             {
@@ -49,9 +43,6 @@ namespace Lock.Chat.Services
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
                 var request = new MessageRequest
                 {
                     ConversationId = conversationId,
@@ -63,7 +54,7 @@ namespace Lock.Chat.Services
                     IsDeclined = false
                 };
 
-                await db.InsertAsync(request);
+                await SupabaseService.InsertAsync("MessageRequests", request);
 
                 var existingJson = Preferences.Get(MessageRequestsKey, "[]");
                 var requests = JsonSerializer.Deserialize<List<string>>(existingJson) ?? new List<string>();
@@ -84,17 +75,14 @@ namespace Lock.Chat.Services
         // Get or create conversation
         public static async Task<Conversation> GetOrCreateConversationAsync(string phoneA, string phoneB)
         {
-            await DatabaseService.InitializeAsync();
-            var db = DatabaseService.GetConnection();
-
             phoneA = (phoneA ?? "").Trim();
             phoneB = (phoneB ?? "").Trim();
 
-            var conv = await db.Table<Conversation>()
-                .Where(c =>
-                    (c.ParticipantA == phoneA && c.ParticipantB == phoneB) ||
-                    (c.ParticipantA == phoneB && c.ParticipantB == phoneA))
-                .FirstOrDefaultAsync();
+            var conversations = await SupabaseService.GetAsync<Conversation>("Conversations",
+                $"or(and(ParticipantA.eq.{Uri.EscapeDataString(phoneA)},ParticipantB.eq.{Uri.EscapeDataString(phoneB)})," +
+                $"and(ParticipantA.eq.{Uri.EscapeDataString(phoneB)},ParticipantB.eq.{Uri.EscapeDataString(phoneA)}))&limit=1");
+
+            var conv = conversations.FirstOrDefault();
 
             if (conv != null)
                 return conv;
@@ -109,8 +97,8 @@ namespace Lock.Chat.Services
                 LastMessagePreview = string.Empty
             };
 
-            await db.InsertAsync(conv);
-            return await db.GetAsync<Conversation>(conv.Id) ?? conv;
+            var inserted = await SupabaseService.InsertAndReturnAsync<Conversation>("Conversations", conv);
+            return inserted ?? conv;
         }
 
         // Add a message (with message request handling)
@@ -119,9 +107,6 @@ namespace Lock.Chat.Services
             if (message == null) throw new ArgumentNullException(nameof(message));
             if (string.IsNullOrEmpty(message.ConversationId))
                 throw new InvalidOperationException("Message must have a ConversationId");
-
-            await DatabaseService.InitializeAsync();
-            var db = DatabaseService.GetConnection();
 
             message.SentAt = DateTime.UtcNow;
 
@@ -136,18 +121,17 @@ namespace Lock.Chat.Services
                     message.IsBlocked = true;
                     message.IsDelivered = false;
                     message.IsRead = false;
-                    await db.InsertAsync(message);
+                    await SupabaseService.InsertAsync("ChatMessages", message);
                     return;
                 }
 
                 // Check if this is a message request (first message from non-contact)
                 bool isMessageRequest = false;
 
-                var existingMessages = await db.Table<ChatMessage>()
-                    .Where(m => m.ConversationId == message.ConversationId && !m.IsBlocked)
-                    .CountAsync();
+                var existingMessages = await SupabaseService.GetAsync<ChatMessage>("ChatMessages",
+                    $"ConversationId=eq.{Uri.EscapeDataString(message.ConversationId)}&IsBlocked=eq.false");
 
-                if (existingMessages == 0)
+                if (existingMessages.Count == 0)
                 {
                     var areContacts = await AreUsersContactsAsync(message.RecipientPhone, message.SenderPhone);
                     isMessageRequest = !areContacts;
@@ -203,10 +187,10 @@ namespace Lock.Chat.Services
                 }
 
                 // Insert the message
-                await db.InsertAsync(message);
+                await SupabaseService.InsertAsync("ChatMessages", message);
                 Debug.WriteLine($"Saved message ID: {message.Id}");
 
-                await UpdateConversationPreviewAsync(db, message.ConversationId);
+                await UpdateConversationPreviewAsync(message.ConversationId);
             }
             catch (Exception ex)
             {
@@ -217,28 +201,18 @@ namespace Lock.Chat.Services
 
         public static async Task<List<Conversation>> GetAllConversationsAsync(string userPhone)
         {
-            await DatabaseService.InitializeAsync();
-            var db = DatabaseService.GetConnection();
-
-            return await db.Table<Conversation>()
-                .Where(c => c.ParticipantA == userPhone || c.ParticipantB == userPhone)
-                .OrderByDescending(c => c.LastMessageAt)
-                .ToListAsync();
+            var conversations = await SupabaseService.GetAsync<Conversation>("Conversations",
+                $"or(ParticipantA.eq.{Uri.EscapeDataString(userPhone)},ParticipantB.eq.{Uri.EscapeDataString(userPhone)})&order=LastMessageAt.desc");
+            return conversations;
         }
 
         // Get messages for a conversation
         public static async Task<List<ChatMessage>> GetMessagesAsync(string conversationId, int max = 200)
         {
-            await DatabaseService.InitializeAsync();
-            var db = DatabaseService.GetConnection();
-
             try
             {
-                var messages = await db.Table<ChatMessage>()
-                    .Where(m => m.ConversationId == conversationId && !m.IsBlocked)
-                    .OrderBy(m => m.SentAt)
-                    .Take(max)
-                    .ToListAsync();
+                var messages = await SupabaseService.GetAsync<ChatMessage>("ChatMessages",
+                    $"ConversationId=eq.{Uri.EscapeDataString(conversationId)}&IsBlocked=eq.false&order=SentAt.asc&limit={max}");
 
                 // Deserialize MediaItems
                 foreach (var msg in messages)
@@ -285,7 +259,8 @@ namespace Lock.Chat.Services
                         if (msg.MediaItems.Count > 0)
                         {
                             msg.MediaItemsJson = JsonSerializer.Serialize(msg.MediaItems);
-                            await db.UpdateAsync(msg);
+                            await SupabaseService.UpdateAsync("ChatMessages", $"Id=eq.{msg.Id}",
+                                new { MediaItemsJson = msg.MediaItemsJson });
                         }
                     }
                 }
@@ -305,9 +280,6 @@ namespace Lock.Chat.Services
         {
             if (message == null) throw new ArgumentNullException(nameof(message));
 
-            await DatabaseService.InitializeAsync();
-            var db = DatabaseService.GetConnection();
-
             try
             {
                 // Update MediaItemsJson before saving
@@ -316,8 +288,8 @@ namespace Lock.Chat.Services
                     message.MediaItemsJson = JsonSerializer.Serialize(message.MediaItems);
                 }
 
-                await db.UpdateAsync(message);
-                await UpdateConversationPreviewAsync(db, message.ConversationId);
+                await SupabaseService.UpdateAsync("ChatMessages", $"Id=eq.{message.Id}", message);
+                await UpdateConversationPreviewAsync(message.ConversationId);
                 Debug.WriteLine($"Updated message with ID: {message.Id}");
             }
             catch (Exception ex)
@@ -332,13 +304,10 @@ namespace Lock.Chat.Services
         {
             if (message == null) throw new ArgumentNullException(nameof(message));
 
-            await DatabaseService.InitializeAsync();
-            var db = DatabaseService.GetConnection();
-
             try
             {
-                await db.DeleteAsync(message);
-                await UpdateConversationPreviewAsync(db, message.ConversationId);
+                await SupabaseService.DeleteAsync("ChatMessages", $"Id=eq.{message.Id}");
+                await UpdateConversationPreviewAsync(message.ConversationId);
                 Debug.WriteLine($"Deleted message with ID: {message.Id}");
             }
             catch (Exception ex)
@@ -349,22 +318,20 @@ namespace Lock.Chat.Services
         }
 
         // Update conversation preview after message changes
-        private static async Task UpdateConversationPreviewAsync(SQLiteAsyncConnection db, string conversationId)
+        private static async Task UpdateConversationPreviewAsync(string conversationId)
         {
             if (string.IsNullOrWhiteSpace(conversationId)) return;
 
             try
             {
-                var conversation = await db.Table<Conversation>()
-                    .Where(c => c.ConversationId == conversationId)
-                    .FirstOrDefaultAsync();
-
+                var conversations = await SupabaseService.GetAsync<Conversation>("Conversations",
+                    $"ConversationId=eq.{Uri.EscapeDataString(conversationId)}&limit=1");
+                var conversation = conversations.FirstOrDefault();
                 if (conversation == null) return;
 
-                var lastMsg = await db.Table<ChatMessage>()
-                    .Where(m => m.ConversationId == conversationId)
-                    .OrderByDescending(m => m.SentAt)
-                    .FirstOrDefaultAsync();
+                var lastMsgList = await SupabaseService.GetAsync<ChatMessage>("ChatMessages",
+                    $"ConversationId=eq.{Uri.EscapeDataString(conversationId)}&order=SentAt.desc&limit=1");
+                var lastMsg = lastMsgList.FirstOrDefault();
 
                 if (lastMsg != null)
                 {
@@ -406,7 +373,8 @@ namespace Lock.Chat.Services
                     conversation.LastMessagePreview = string.Empty;
                 }
 
-                await db.UpdateAsync(conversation);
+                await SupabaseService.UpdateAsync("Conversations", $"ConversationId=eq.{Uri.EscapeDataString(conversationId)}",
+                    new { LastMessageAt = conversation.LastMessageAt, LastMessagePreview = conversation.LastMessagePreview });
             }
             catch (Exception ex)
             {
@@ -421,12 +389,9 @@ namespace Lock.Chat.Services
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
-                return await db.Table<Conversation>()
-                    .Where(c => c.ConversationId == conversationId)
-                    .FirstOrDefaultAsync();
+                var conversations = await SupabaseService.GetAsync<Conversation>("Conversations",
+                    $"ConversationId=eq.{Uri.EscapeDataString(conversationId)}&limit=1");
+                return conversations.FirstOrDefault();
             }
             catch (Exception ex)
             {
@@ -444,21 +409,17 @@ namespace Lock.Chat.Services
 
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
-                var existing = await db.Table<Conversation>()
-                    .Where(c => c.ConversationId == conversation.ConversationId)
-                    .FirstOrDefaultAsync();
-
+                var existing = await GetConversationAsync(conversation.ConversationId);
                 if (existing != null)
                 {
                     conversation.Id = existing.Id;
-                    return await db.UpdateAsync(conversation);
+                    var success = await SupabaseService.UpdateAsync("Conversations", $"ConversationId=eq.{Uri.EscapeDataString(conversation.ConversationId)}", conversation);
+                    return success ? conversation.Id : 0;
                 }
                 else
                 {
-                    return await db.InsertAsync(conversation);
+                    var inserted = await SupabaseService.InsertAndReturnAsync<Conversation>("Conversations", conversation);
+                    return inserted?.Id ?? 0;
                 }
             }
             catch (Exception ex)
@@ -471,17 +432,11 @@ namespace Lock.Chat.Services
         // Get conversations for a user
         public static async Task<List<Conversation>> GetConversationsForUserAsync(string phone)
         {
-            await DatabaseService.InitializeAsync();
-            var db = DatabaseService.GetConnection();
-
             try
             {
                 phone = (phone ?? "").Trim();
-
-                return await db.Table<Conversation>()
-                    .Where(c => c.ParticipantA == phone || c.ParticipantB == phone)
-                    .OrderByDescending(c => c.LastMessageAt)
-                    .ToListAsync();
+                return await SupabaseService.GetAsync<Conversation>("Conversations",
+                    $"or(ParticipantA.eq.{Uri.EscapeDataString(phone)},ParticipantB.eq.{Uri.EscapeDataString(phone)})&order=LastMessageAt.desc");
             }
             catch (Exception ex)
             {
@@ -493,24 +448,12 @@ namespace Lock.Chat.Services
         // Mark messages as read
         public static async Task MarkMessagesReadAsync(string conversationId, string readerPhone)
         {
-            await DatabaseService.InitializeAsync();
-            var db = DatabaseService.GetConnection();
-
             try
             {
-                var toMark = await db.Table<ChatMessage>()
-                    .Where(m => m.ConversationId == conversationId &&
-                                m.RecipientPhone == readerPhone &&
-                                !m.IsRead)
-                    .ToListAsync();
-
-                foreach (var m in toMark)
-                {
-                    m.IsRead = true;
-                    await db.UpdateAsync(m);
-                }
-
-                Debug.WriteLine($"Marked {toMark.Count} messages as read");
+                await SupabaseService.UpdateAsync("ChatMessages",
+                    $"ConversationId=eq.{Uri.EscapeDataString(conversationId)}&RecipientPhone=eq.{Uri.EscapeDataString(readerPhone)}&IsRead=eq.false",
+                    new { IsRead = true });
+                Debug.WriteLine($"Marked messages as read for conversation {conversationId}");
             }
             catch (Exception ex)
             {
@@ -523,33 +466,19 @@ namespace Lock.Chat.Services
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
                 // 1. Update all messages to NOT be message requests
-                var messages = await db.Table<ChatMessage>()
-                    .Where(m => m.ConversationId == conversationId)
-                    .ToListAsync();
+                await SupabaseService.UpdateAsync("ChatMessages",
+                    $"ConversationId=eq.{Uri.EscapeDataString(conversationId)}",
+                    new { IsMessageRequest = false });
 
-                foreach (var msg in messages)
+                // 2. Update the conversation to ensure it's not archived
+                var conversations = await SupabaseService.GetAsync<Conversation>("Conversations",
+                    $"ConversationId=eq.{Uri.EscapeDataString(conversationId)}&limit=1");
+                var conversation = conversations.FirstOrDefault();
+                if (conversation != null && conversation.IsArchived)
                 {
-                    msg.IsMessageRequest = false;
-                    await db.UpdateAsync(msg);
-                }
-
-                // 2. CRITICAL: Update the conversation itself
-                var conversation = await db.Table<Conversation>()
-                    .Where(c => c.ConversationId == conversationId)
-                    .FirstOrDefaultAsync();
-
-                if (conversation != null)
-                {
-                    // Make sure it's not archived
-                    if (conversation.IsArchived)
-                    {
-                        conversation.IsArchived = false;
-                        await db.UpdateAsync(conversation);
-                    }
+                    await SupabaseService.UpdateAsync("Conversations", $"ConversationId=eq.{Uri.EscapeDataString(conversationId)}",
+                        new { IsArchived = false });
                 }
 
                 // 3. Remove from preferences
@@ -559,59 +488,36 @@ namespace Lock.Chat.Services
                 Preferences.Set(MessageRequestsKey, JsonSerializer.Serialize(requests));
 
                 // 4. Update MessageRequest table
-                var request = await db.Table<MessageRequest>()
-                    .Where(r => r.ConversationId == conversationId)
-                    .FirstOrDefaultAsync();
-
-                if (request != null)
-                {
-                    request.IsAccepted = true;
-                    request.AcceptedAt = DateTime.UtcNow;
-                    await db.UpdateAsync(request);
-                }
+                await SupabaseService.UpdateAsync("MessageRequests",
+                    $"ConversationId=eq.{Uri.EscapeDataString(conversationId)}",
+                    new { IsAccepted = true, AcceptedAt = DateTime.UtcNow });
 
                 Debug.WriteLine($"Accepted message request for conversation: {conversationId}");
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"Error accepting message request: {ex}");
-                throw; // THROW the exception so the UI knows it failed
+                throw;
             }
         }
+
         // Decline a message request
         public static async Task DeclineMessageRequestAsync(string conversationId)
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
                 var existingJson = Preferences.Get(MessageRequestsKey, "[]");
                 var requests = JsonSerializer.Deserialize<List<string>>(existingJson) ?? new List<string>();
                 requests.RemoveAll(r => r == conversationId);
                 Preferences.Set(MessageRequestsKey, JsonSerializer.Serialize(requests));
 
-                var request = await db.Table<MessageRequest>()
-                    .Where(r => r.ConversationId == conversationId)
-                    .FirstOrDefaultAsync();
+                await SupabaseService.UpdateAsync("MessageRequests",
+                    $"ConversationId=eq.{Uri.EscapeDataString(conversationId)}",
+                    new { IsDeclined = true, DeclinedAt = DateTime.UtcNow });
 
-                if (request != null)
-                {
-                    request.IsDeclined = true;
-                    request.DeclinedAt = DateTime.UtcNow;
-                    await db.UpdateAsync(request);
-                }
-
-                var messages = await db.Table<ChatMessage>()
-                    .Where(m => m.ConversationId == conversationId)
-                    .ToListAsync();
-
-                foreach (var msg in messages)
-                {
-                    msg.IsMessageRequest = false;
-                    msg.IsDeclined = true;
-                    await db.UpdateAsync(msg);
-                }
+                await SupabaseService.UpdateAsync("ChatMessages",
+                    $"ConversationId=eq.{Uri.EscapeDataString(conversationId)}",
+                    new { IsMessageRequest = false, IsDeclined = true });
 
                 Debug.WriteLine($"Declined message request for conversation: {conversationId}");
             }
@@ -626,12 +532,9 @@ namespace Lock.Chat.Services
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
-                return await db.Table<ChatMessage>()
-                    .Where(m => m.RecipientPhone == userPhone && m.IsMessageRequest == true)
-                    .CountAsync();
+                var messages = await SupabaseService.GetAsync<ChatMessage>("ChatMessages",
+                    $"RecipientPhone=eq.{Uri.EscapeDataString(userPhone)}&IsMessageRequest=eq.true");
+                return messages.Count;
             }
             catch (Exception ex)
             {
@@ -645,13 +548,8 @@ namespace Lock.Chat.Services
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
-                var messages = await db.Table<ChatMessage>()
-                    .Where(m => m.RecipientPhone == userPhone && m.IsMessageRequest == true)
-                    .OrderByDescending(m => m.SentAt)
-                    .ToListAsync();
+                var messages = await SupabaseService.GetAsync<ChatMessage>("ChatMessages",
+                    $"RecipientPhone=eq.{Uri.EscapeDataString(userPhone)}&IsMessageRequest=eq.true&order=SentAt.desc");
 
                 // Deserialize MediaItems
                 foreach (var msg in messages)
@@ -684,15 +582,8 @@ namespace Lock.Chat.Services
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
-                return await db.Table<MessageRequest>()
-                    .Where(r => r.RecipientPhone == userPhone &&
-                               !r.IsAccepted &&
-                               !r.IsDeclined)  // Explicitly check both flags
-                    .OrderByDescending(r => r.RequestedAt)
-                    .ToListAsync();
+                return await SupabaseService.GetAsync<MessageRequest>("MessageRequests",
+                    $"RecipientPhone=eq.{Uri.EscapeDataString(userPhone)}&IsAccepted=eq.false&IsDeclined=eq.false&order=RequestedAt.desc");
             }
             catch (Exception ex)
             {
@@ -700,19 +591,35 @@ namespace Lock.Chat.Services
                 return new List<MessageRequest>();
             }
         }
+
+
+        /// <summary>
+        /// Check if the recipient has blocked the sender
+        /// </summary>
+        public static async Task<bool> IsSenderBlockedByRecipientAsync(string senderPhone, string recipientPhone)
+        {
+            try
+            {
+                var blocked = await SupabaseService.GetAsync<BlockedUser>("BlockedUsers",
+                    $"UserPhone=eq.{Uri.EscapeDataString(recipientPhone)}&BlockedPhone=eq.{Uri.EscapeDataString(senderPhone)}&limit=1");
+                return blocked.Any();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"IsSenderBlockedByRecipientAsync error: {ex}");
+                return false;
+            }
+        }
+
         // Block a user
         public static async Task<bool> BlockUserAsync(string currentUserPhone, string userToBlockPhone)
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
+                var existing = await SupabaseService.GetAsync<BlockedUser>("BlockedUsers",
+                    $"UserPhone=eq.{Uri.EscapeDataString(currentUserPhone)}&BlockedPhone=eq.{Uri.EscapeDataString(userToBlockPhone)}&limit=1");
 
-                var existing = await db.Table<BlockedUser>()
-                    .Where(b => b.UserPhone == currentUserPhone && b.BlockedPhone == userToBlockPhone)
-                    .FirstOrDefaultAsync();
-
-                if (existing != null)
+                if (existing.Any())
                     return true;
 
                 var blockedUser = new BlockedUser
@@ -722,7 +629,7 @@ namespace Lock.Chat.Services
                     BlockedAt = DateTime.UtcNow
                 };
 
-                await db.InsertAsync(blockedUser);
+                await SupabaseService.InsertAsync("BlockedUsers", blockedUser);
                 Debug.WriteLine($"User {currentUserPhone} blocked {userToBlockPhone}");
                 return true;
             }
@@ -738,19 +645,9 @@ namespace Lock.Chat.Services
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
-                var blocked = await db.Table<BlockedUser>()
-                    .Where(b => b.UserPhone == currentUserPhone && b.BlockedPhone == userToUnblockPhone)
-                    .FirstOrDefaultAsync();
-
-                if (blocked != null)
-                {
-                    await db.DeleteAsync(blocked);
-                    Debug.WriteLine($"User {currentUserPhone} unblocked {userToUnblockPhone}");
-                }
-
+                await SupabaseService.DeleteAsync("BlockedUsers",
+                    $"UserPhone=eq.{Uri.EscapeDataString(currentUserPhone)}&BlockedPhone=eq.{Uri.EscapeDataString(userToUnblockPhone)}");
+                Debug.WriteLine($"User {currentUserPhone} unblocked {userToUnblockPhone}");
                 return true;
             }
             catch (Exception ex)
@@ -764,14 +661,9 @@ namespace Lock.Chat.Services
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
-                var blocked = await db.Table<BlockedUser>()
-                    .Where(b => b.UserPhone == currentUserPhone && b.BlockedPhone == otherUserPhone)
-                    .FirstOrDefaultAsync();
-
-                return blocked != null;
+                var blocked = await SupabaseService.GetAsync<BlockedUser>("BlockedUsers",
+                    $"UserPhone=eq.{Uri.EscapeDataString(currentUserPhone)}&BlockedPhone=eq.{Uri.EscapeDataString(otherUserPhone)}&limit=1");
+                return blocked.Any();
             }
             catch (Exception ex)
             {
@@ -780,39 +672,13 @@ namespace Lock.Chat.Services
             }
         }
 
-        // ADD THIS MISSING METHOD
-        public static async Task<bool> IsSenderBlockedByRecipientAsync(string senderPhone, string recipientPhone)
-        {
-            try
-            {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
-                var isBlocked = await db.Table<BlockedUser>()
-                    .Where(b => b.UserPhone == recipientPhone && b.BlockedPhone == senderPhone)
-                    .FirstOrDefaultAsync();
-
-                return isBlocked != null;
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error checking if sender is blocked by recipient: {ex}");
-                return false;
-            }
-        }
-
         public static async Task<bool> IsRecipientBlockingSenderAsync(string senderPhone, string recipientPhone)
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
-                var isBlocked = await db.Table<BlockedUser>()
-                    .Where(b => b.UserPhone == recipientPhone && b.BlockedPhone == senderPhone)
-                    .FirstOrDefaultAsync();
-
-                return isBlocked != null;
+                var isBlocked = await SupabaseService.GetAsync<BlockedUser>("BlockedUsers",
+                    $"UserPhone=eq.{Uri.EscapeDataString(recipientPhone)}&BlockedPhone=eq.{Uri.EscapeDataString(senderPhone)}&limit=1");
+                return isBlocked.Any();
             }
             catch (Exception ex)
             {
@@ -826,13 +692,8 @@ namespace Lock.Chat.Services
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
-                var blocked = await db.Table<BlockedUser>()
-                    .Where(b => b.UserPhone == userPhone)
-                    .ToListAsync();
-
+                var blocked = await SupabaseService.GetAsync<BlockedUser>("BlockedUsers",
+                    $"UserPhone=eq.{Uri.EscapeDataString(userPhone)}");
                 return blocked.Select(b => b.BlockedPhone).ToList();
             }
             catch (Exception ex)
@@ -847,14 +708,9 @@ namespace Lock.Chat.Services
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
-                var isBlocked = await db.Table<BlockedUser>()
-                    .Where(b => b.UserPhone == recipientPhone && b.BlockedPhone == senderPhone)
-                    .FirstOrDefaultAsync();
-
-                return isBlocked == null;
+                var isBlocked = await SupabaseService.GetAsync<BlockedUser>("BlockedUsers",
+                    $"UserPhone=eq.{Uri.EscapeDataString(recipientPhone)}&BlockedPhone=eq.{Uri.EscapeDataString(senderPhone)}&limit=1");
+                return !isBlocked.Any();
             }
             catch (Exception ex)
             {
@@ -863,65 +719,18 @@ namespace Lock.Chat.Services
             }
         }
 
-        // Add this method to ChatRepository.cs
-        public static async Task AddMediaItemsJsonColumnAsync()
-        {
-            try
-            {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
-                // Check if column exists by trying to query it
-                try
-                {
-                    // This will throw if column doesn't exist
-                    await db.QueryAsync<ChatMessage>("SELECT MediaItemsJson FROM ChatMessage LIMIT 1");
-                    Debug.WriteLine("MediaItemsJson column already exists");
-                    return;
-                }
-                catch
-                {
-                    // Column doesn't exist, add it
-                    Debug.WriteLine("Adding MediaItemsJson column to ChatMessage table");
-                    await db.ExecuteAsync("ALTER TABLE ChatMessage ADD COLUMN MediaItemsJson TEXT DEFAULT '[]'");
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error adding MediaItemsJson column: {ex}");
-            }
-        }
-
-        // Add this method to ChatRepository.cs
+        // Clear all messages in a conversation
         public static async Task ClearConversationMessagesAsync(string conversationId)
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
-                var messages = await db.Table<ChatMessage>()
-                    .Where(m => m.ConversationId == conversationId)
-                    .ToListAsync();
-
-                foreach (var message in messages)
-                {
-                    await db.DeleteAsync(message);
-                }
+                await SupabaseService.DeleteAsync("ChatMessages", $"ConversationId=eq.{Uri.EscapeDataString(conversationId)}");
 
                 // Update conversation preview
-                var conversation = await db.Table<Conversation>()
-                    .Where(c => c.ConversationId == conversationId)
-                    .FirstOrDefaultAsync();
+                await SupabaseService.UpdateAsync("Conversations", $"ConversationId=eq.{Uri.EscapeDataString(conversationId)}",
+                    new { LastMessageAt = DateTime.MinValue, LastMessagePreview = string.Empty });
 
-                if (conversation != null)
-                {
-                    conversation.LastMessageAt = DateTime.MinValue;
-                    conversation.LastMessagePreview = string.Empty;
-                    await db.UpdateAsync(conversation);
-                }
-
-                Debug.WriteLine($"Cleared {messages.Count} messages from conversation {conversationId}");
+                Debug.WriteLine($"Cleared messages from conversation {conversationId}");
             }
             catch (Exception ex)
             {
@@ -935,32 +744,7 @@ namespace Lock.Chat.Services
         /// </summary>
         public static async Task<int> SaveConversationSilentlyAsync(Conversation conversation)
         {
-            if (conversation == null) throw new ArgumentNullException(nameof(conversation));
-
-            try
-            {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
-                var existing = await db.Table<Conversation>()
-                    .Where(c => c.ConversationId == conversation.ConversationId)
-                    .FirstOrDefaultAsync();
-
-                if (existing != null)
-                {
-                    conversation.Id = existing.Id;
-                    return await db.UpdateAsync(conversation);
-                }
-                else
-                {
-                    return await db.InsertAsync(conversation);
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error in SaveConversationSilentlyAsync: {ex}");
-                throw;
-            }
+            return await SaveConversationAsync(conversation);
         }
     }
 }

@@ -4,50 +4,21 @@ using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using Lock.Models;
-using Lock.Chat.Services;
-using SQLite;
+using Lock.Services;
 
 namespace Lock.Data.Post
 {
     public static class CommentRepository
     {
-        public static async Task InitializeAsync()
-        {
-            await DatabaseService.InitializeAsync();
-            var db = DatabaseService.GetConnection();
-
-            // Create Comments table if it doesn't exist (with new columns)
-            await db.CreateTableAsync<Comment>();
-
-            // Add new columns if they don't exist (for existing databases)
-            try
-            {
-                await db.ExecuteAsync("ALTER TABLE Comments ADD COLUMN ParentCommentId INTEGER");
-            }
-            catch { /* Column may already exist */ }
-
-            try
-            {
-                await db.ExecuteAsync("ALTER TABLE Comments ADD COLUMN LoveCount INTEGER DEFAULT 0");
-                await db.ExecuteAsync("ALTER TABLE Comments ADD COLUMN LovedByJson TEXT DEFAULT '[]'");
-            }
-            catch { /* Columns may already exist */ }
-
-            Debug.WriteLine("Comments table initialized with love reactions and nesting");
-        }
+        // Note: Tables are managed in Supabase - no need to create them in code
 
         public static async Task<List<Comment>> GetCommentsForPostAsync(int postId, string currentUserPhone = "")
         {
             try
             {
-                await InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
-                // Get all comments for this post (including nested)
-                var allComments = await db.Table<Comment>()
-                    .Where(c => c.PostId == postId)
-                    .OrderByDescending(c => c.CreatedAt)
-                    .ToListAsync();
+                // Get all comments for this post from Supabase
+                var allComments = await SupabaseService.GetAsync<Comment>("Comments",
+                    $"PostId=eq.{postId}&order=CreatedAt.desc");
 
                 // Set love status AND ownership for current user
                 if (!string.IsNullOrEmpty(currentUserPhone))
@@ -58,7 +29,6 @@ namespace Lock.Data.Post
                         // CRITICAL: Set ownership flag
                         comment.IsOwnedByCurrentUser = comment.AuthorPhone == currentUserPhone;
 
-                        // Debug output to verify
                         Debug.WriteLine($"Comment {comment.Id}: Author={comment.AuthorPhone}, Current={currentUserPhone}, IsOwned={comment.IsOwnedByCurrentUser}");
                     }
                 }
@@ -98,23 +68,17 @@ namespace Lock.Data.Post
             }
         }
 
-
-        // Make sure this method exists in CommentRepository.cs
         public static async Task UpdateCommentAsync(int commentId, string newContent)
         {
             try
             {
-                await InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
-                var comment = await db.Table<Comment>()
-                    .Where(c => c.Id == commentId)
-                    .FirstOrDefaultAsync();
+                var comments = await SupabaseService.GetAsync<Comment>("Comments", $"Id=eq.{commentId}&limit=1");
+                var comment = comments.FirstOrDefault();
 
                 if (comment != null)
                 {
                     comment.Content = newContent;
-                    await db.UpdateAsync(comment);
+                    await SupabaseService.UpdateAsync("Comments", $"Id=eq.{commentId}", new { Content = newContent });
                 }
             }
             catch (Exception ex)
@@ -123,13 +87,11 @@ namespace Lock.Data.Post
                 throw;
             }
         }
-        public static async Task<Comment> AddCommentAsync(int postId, string authorPhone, string content, int? parentCommentId = null)
+
+        public static async Task<Comment?> AddCommentAsync(int postId, string authorPhone, string content, int? parentCommentId = null)
         {
             try
             {
-                await InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
                 var comment = new Comment
                 {
                     PostId = postId,
@@ -141,15 +103,16 @@ namespace Lock.Data.Post
                     LoveCount = 0
                 };
 
-                await db.InsertAsync(comment);
+                var inserted = await SupabaseService.InsertAndReturnAsync<Comment>("Comments", comment);
 
                 // Resolve author info before returning
-                await ResolveAuthorInfoAsync(new List<Comment> { comment });
+                if (inserted != null)
+                {
+                    await ResolveAuthorInfoAsync(new List<Comment> { inserted });
+                    inserted.IsOwnedByCurrentUser = true;
+                }
 
-                // Set ownership for the new comment
-                comment.IsOwnedByCurrentUser = true;
-
-                return comment;
+                return inserted;
             }
             catch (Exception ex)
             {
@@ -157,14 +120,13 @@ namespace Lock.Data.Post
                 throw;
             }
         }
+
         public static async Task ToggleLoveAsync(int commentId, string userPhone)
         {
             try
             {
-                await InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
-                var comment = await db.Table<Comment>().Where(c => c.Id == commentId).FirstOrDefaultAsync();
+                var comments = await SupabaseService.GetAsync<Comment>("Comments", $"Id=eq.{commentId}&limit=1");
+                var comment = comments.FirstOrDefault();
                 if (comment == null) return;
 
                 var lovedBy = comment.LovedBy;
@@ -174,9 +136,9 @@ namespace Lock.Data.Post
                 else
                     lovedBy.Add(userPhone);
 
-                comment.LovedBy = lovedBy; // Updates LoveCount and LovedByJson
-
-                await db.UpdateAsync(comment);
+                // Update the comment with new loved by list
+                await SupabaseService.UpdateAsync("Comments", $"Id=eq.{commentId}",
+                    new { LovedByJson = System.Text.Json.JsonSerializer.Serialize(lovedBy), LoveCount = lovedBy.Count });
 
                 Debug.WriteLine($"Toggled love for comment {commentId}: {lovedBy.Count} loves");
             }
@@ -190,21 +152,16 @@ namespace Lock.Data.Post
         {
             try
             {
-                await InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
                 // First delete all replies to this comment
-                var replies = await db.Table<Comment>()
-                    .Where(c => c.ParentCommentId == commentId)
-                    .ToListAsync();
+                var replies = await SupabaseService.GetAsync<Comment>("Comments", $"ParentCommentId=eq.{commentId}");
 
                 foreach (var reply in replies)
                 {
-                    await db.DeleteAsync(reply);
+                    await SupabaseService.DeleteAsync("Comments", $"Id=eq.{reply.Id}");
                 }
 
                 // Then delete the comment itself
-                await db.DeleteAsync<Comment>(commentId);
+                await SupabaseService.DeleteAsync("Comments", $"Id=eq.{commentId}");
             }
             catch (Exception ex)
             {
@@ -216,11 +173,9 @@ namespace Lock.Data.Post
         {
             try
             {
-                await InitializeAsync();
-                var db = DatabaseService.GetConnection();
-                return await db.Table<Comment>()
-                    .Where(c => c.PostId == postId && !c.ParentCommentId.HasValue) // Only count top-level comments
-                    .CountAsync();
+                var comments = await SupabaseService.GetAsync<Comment>("Comments",
+                    $"PostId=eq.{postId}&ParentCommentId=is.null");
+                return comments.Count;
             }
             catch (Exception ex)
             {
@@ -235,18 +190,15 @@ namespace Lock.Data.Post
 
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
                 var phones = comments.Select(c => c.AuthorPhone).Distinct().ToList();
-                var users = await db.Table<User>()
-                    .Where(u => phones.Contains(u.PhoneNumber))
-                    .ToListAsync();
+
+                // Get all users at once
+                var allUsers = await SupabaseService.GetAsync<User>("Users", "");
+                var userDict = allUsers.ToDictionary(u => u.PhoneNumber, u => u, StringComparer.OrdinalIgnoreCase);
 
                 foreach (var comment in comments)
                 {
-                    var user = users.FirstOrDefault(u => u.PhoneNumber == comment.AuthorPhone);
-                    if (user != null)
+                    if (userDict.TryGetValue(comment.AuthorPhone, out var user))
                     {
                         comment.AuthorDisplayName = string.IsNullOrWhiteSpace(user.Name) ? user.PhoneNumber : user.Name;
                         comment.AuthorProfileImagePath = user.ProfileImagePath ?? string.Empty;

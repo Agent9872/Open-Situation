@@ -4,15 +4,11 @@ using Lock.Models;
 
 namespace Lock.PageModels
 {
-    public partial class MainPageModel : ObservableObject, IProjectTaskPageModel
+    public partial class MainPageModel : ObservableObject
     {
         private bool _isNavigatedTo;
         private bool _dataLoaded;
-        private readonly ProjectRepository _projectRepository;
-        private readonly TaskRepository _taskRepository;
-        private readonly CategoryRepository _categoryRepository;
         private readonly ModalErrorHandler _errorHandler;
-        private readonly SeedDataService _seedDataService;
 
         [ObservableProperty]
         private List<CategoryChartData> _todoCategoryData = [];
@@ -38,14 +34,10 @@ namespace Lock.PageModels
         public bool HasCompletedTasks
             => Tasks?.Any(t => t.IsCompleted) ?? false;
 
-        public MainPageModel(SeedDataService seedDataService, ProjectRepository projectRepository,
-            TaskRepository taskRepository, CategoryRepository categoryRepository, ModalErrorHandler errorHandler)
+        // Remove the old constructor and replace with this:
+        public MainPageModel(ModalErrorHandler errorHandler)
         {
-            _projectRepository = projectRepository;
-            _taskRepository = taskRepository;
-            _categoryRepository = categoryRepository;
             _errorHandler = errorHandler;
-            _seedDataService = seedDataService;
         }
 
         private async Task LoadData()
@@ -54,26 +46,12 @@ namespace Lock.PageModels
             {
                 IsBusy = true;
 
-                Projects = await _projectRepository.ListAsync();
-
-                var chartData = new List<CategoryChartData>();
-                var chartColors = new List<Brush>();
-
-                var categories = await _categoryRepository.ListAsync();
-                foreach (var category in categories)
-                {
-                    chartColors.Add(category.ColorBrush);
-
-                    var ps = Projects.Where(p => p.CategoryID == category.ID).ToList();
-                    int tasksCount = ps.SelectMany(p => p.Tasks).Count();
-
-                    chartData.Add(new(category.Title, tasksCount));
-                }
-
-                TodoCategoryData = chartData;
-                TodoCategoryColors = chartColors;
-
-                Tasks = await _taskRepository.ListAsync();
+                // TODO: Load data from Supabase if needed for main page
+                // For now, just initialize empty lists
+                Projects = new List<Project>();
+                Tasks = new List<ProjectTask>();
+                TodoCategoryData = new List<CategoryChartData>();
+                TodoCategoryColors = new List<Brush>();
             }
             finally
             {
@@ -82,16 +60,9 @@ namespace Lock.PageModels
             }
         }
 
-        private async Task InitData(SeedDataService seedDataService)
+        private async Task InitData()
         {
-            bool isSeeded = Preferences.Default.ContainsKey("is_seeded");
-
-            if (!isSeeded)
-            {
-                await seedDataService.LoadSeedDataAsync();
-            }
-
-            Preferences.Default.Set("is_seeded", true);
+            // Remove seed data logic since it's no longer needed
             await Refresh();
         }
 
@@ -126,7 +97,7 @@ namespace Lock.PageModels
         {
             if (!_dataLoaded)
             {
-                await InitData(_seedDataService);
+                await InitData();
                 _dataLoaded = true;
                 await Refresh();
             }
@@ -141,7 +112,8 @@ namespace Lock.PageModels
         private Task TaskCompleted(ProjectTask task)
         {
             OnPropertyChanged(nameof(HasCompletedTasks));
-            return _taskRepository.SaveItemAsync(task);
+            // TODO: Update task in Supabase if needed
+            return Task.CompletedTask;
         }
 
         [RelayCommand]
@@ -162,7 +134,7 @@ namespace Lock.PageModels
             var completedTasks = Tasks.Where(t => t.IsCompleted).ToList();
             foreach (var task in completedTasks)
             {
-                await _taskRepository.DeleteItemAsync(task);
+                // TODO: Delete task from Supabase if needed
                 Tasks.Remove(task);
             }
 

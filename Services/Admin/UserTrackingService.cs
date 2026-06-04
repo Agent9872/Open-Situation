@@ -1,7 +1,5 @@
-﻿using Lock.Chat.Services;
-using Lock.Models;
+﻿using Lock.Models;
 using Lock.Models.Chat;
-using SQLite;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -24,9 +22,6 @@ namespace Lock.Services.Admin
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
                 var tracking = new UserMoodTracking
                 {
                     Id = Guid.NewGuid().ToString(),
@@ -37,7 +32,7 @@ namespace Lock.Services.Admin
                     Timestamp = DateTime.UtcNow
                 };
 
-                await db.InsertAsync(tracking);
+                await SupabaseService.InsertAsync("UserMoodTracking", tracking);
                 Debug.WriteLine($"[TRACKING] Mood change for {userPhone}: '{oldMood}' -> '{newMood}' at {tracking.Timestamp}");
             }
             catch (Exception ex)
@@ -51,14 +46,8 @@ namespace Lock.Services.Admin
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
-                return await db.Table<UserMoodTracking>()
-                    .Where(t => t.UserPhone == userPhone)
-                    .OrderByDescending(t => t.Timestamp)
-                    .Take(limit)
-                    .ToListAsync();
+                return await SupabaseService.GetAsync<UserMoodTracking>("UserMoodTracking",
+                    $"UserPhone=eq.{Uri.EscapeDataString(userPhone)}&order=Timestamp.desc&limit={limit}");
             }
             catch (Exception ex)
             {
@@ -72,13 +61,8 @@ namespace Lock.Services.Admin
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
-                return await db.Table<UserMoodTracking>()
-                    .OrderByDescending(t => t.Timestamp)
-                    .Take(limit)
-                    .ToListAsync();
+                return await SupabaseService.GetAsync<UserMoodTracking>("UserMoodTracking",
+                    $"order=Timestamp.desc&limit={limit}");
             }
             catch (Exception ex)
             {
@@ -96,9 +80,6 @@ namespace Lock.Services.Admin
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
                 // Only track if values are different
                 if (oldValue == newValue) return;
 
@@ -113,7 +94,7 @@ namespace Lock.Services.Admin
                     Timestamp = DateTime.UtcNow
                 };
 
-                await db.InsertAsync(tracking);
+                await SupabaseService.InsertAsync("UserProfileTracking", tracking);
                 Debug.WriteLine($"[TRACKING] Profile change for {userPhone}: {fieldName} changed");
             }
             catch (Exception ex)
@@ -122,67 +103,13 @@ namespace Lock.Services.Admin
             }
         }
 
-        // Track all profile changes at once
-        public async Task TrackAllProfileChangesAsync(User oldUser, User newUser)
-        {
-            if (oldUser == null || newUser == null) return;
-
-            // Compare all fields
-            await TrackProfileChangeAsync(newUser.PhoneNumber, "Name", oldUser.Name, newUser.Name, newUser.Name);
-            await TrackProfileChangeAsync(newUser.PhoneNumber, "DisplayName", oldUser.DisplayName, newUser.DisplayName, newUser.Name);
-            await TrackProfileChangeAsync(newUser.PhoneNumber, "Bio", oldUser.Bio, newUser.Bio, newUser.Name);
-            await TrackProfileChangeAsync(newUser.PhoneNumber, "Gender", oldUser.Gender, newUser.Gender, newUser.Name);
-            await TrackProfileChangeAsync(newUser.PhoneNumber, "Interest", oldUser.Interest, newUser.Interest, newUser.Name);
-            await TrackProfileChangeAsync(newUser.PhoneNumber, "Country", oldUser.Country, newUser.Country, newUser.Name);
-            await TrackProfileChangeAsync(newUser.PhoneNumber, "State", oldUser.State, newUser.State, newUser.Name);
-            await TrackProfileChangeAsync(newUser.PhoneNumber, "Occupation", oldUser.Occupation, newUser.Occupation, newUser.Name);
-            await TrackProfileChangeAsync(newUser.PhoneNumber, "Education", oldUser.Education, newUser.Education, newUser.Name);
-            await TrackProfileChangeAsync(newUser.PhoneNumber, "Height", oldUser.HeightCm?.ToString() ?? "", newUser.HeightCm?.ToString() ?? "", newUser.Name);
-            await TrackProfileChangeAsync(newUser.PhoneNumber, "BodyType", oldUser.BodyType, newUser.BodyType, newUser.Name);
-            await TrackProfileChangeAsync(newUser.PhoneNumber, "Ethnicity", oldUser.Ethnicity, newUser.Ethnicity, newUser.Name);
-            await TrackProfileChangeAsync(newUser.PhoneNumber, "Tribe", oldUser.Tribe, newUser.Tribe, newUser.Name);
-            await TrackProfileChangeAsync(newUser.PhoneNumber, "Religion", oldUser.Religion, newUser.Religion, newUser.Name);
-            await TrackProfileChangeAsync(newUser.PhoneNumber, "PoliticalViews", oldUser.PoliticalViews, newUser.PoliticalViews, newUser.Name);
-            await TrackProfileChangeAsync(newUser.PhoneNumber, "Drinks", oldUser.Drinks, newUser.Drinks, newUser.Name);
-            await TrackProfileChangeAsync(newUser.PhoneNumber, "Smokes", oldUser.Smokes.ToString(), newUser.Smokes.ToString(), newUser.Name);
-            await TrackProfileChangeAsync(newUser.PhoneNumber, "HasPets", oldUser.HasPets.ToString(), newUser.HasPets.ToString(), newUser.Name);
-            await TrackProfileChangeAsync(newUser.PhoneNumber, "MusicGenres", oldUser.MusicGenres, newUser.MusicGenres, newUser.Name);
-            await TrackProfileChangeAsync(newUser.PhoneNumber, "FavoriteArtists", oldUser.FavoriteArtists, newUser.FavoriteArtists, newUser.Name);
-            await TrackProfileChangeAsync(newUser.PhoneNumber, "FavoriteMovies", oldUser.FavoriteMovies, newUser.FavoriteMovies, newUser.Name);
-            await TrackProfileChangeAsync(newUser.PhoneNumber, "FavoriteBooks", oldUser.FavoriteBooks, newUser.FavoriteBooks, newUser.Name);
-            await TrackProfileChangeAsync(newUser.PhoneNumber, "Languages", oldUser.Languages, newUser.Languages, newUser.Name);
-            await TrackProfileChangeAsync(newUser.PhoneNumber, "Interests", oldUser.Interests, newUser.Interests, newUser.Name);
-            await TrackProfileChangeAsync(newUser.PhoneNumber, "PersonalityType", oldUser.PersonalityType, newUser.PersonalityType, newUser.Name);
-            await TrackProfileChangeAsync(newUser.PhoneNumber, "LoveLanguage", oldUser.LoveLanguage, newUser.LoveLanguage, newUser.Name);
-            await TrackProfileChangeAsync(newUser.PhoneNumber, "SexualOrientation", oldUser.SexualOrientation, newUser.SexualOrientation, newUser.Name);
-            await TrackProfileChangeAsync(newUser.PhoneNumber, "TopInterest", oldUser.TopInterest, newUser.TopInterest, newUser.Name);
-            await TrackProfileChangeAsync(newUser.PhoneNumber, "TopArtist", oldUser.TopArtist, newUser.TopArtist, newUser.Name);
-            await TrackProfileChangeAsync(newUser.PhoneNumber, "TopMovie", oldUser.TopMovie, newUser.TopMovie, newUser.Name);
-            await TrackProfileChangeAsync(newUser.PhoneNumber, "ProfileImage", oldUser.ProfileImagePath, newUser.ProfileImagePath, newUser.Name);
-            await TrackProfileChangeAsync(newUser.PhoneNumber, "CoverImage", oldUser.CoverImagePath, newUser.CoverImagePath, newUser.Name);
-            await TrackProfileChangeAsync(newUser.PhoneNumber, "Mood", oldUser.Mood, newUser.Mood, newUser.Name);
-            await TrackProfileChangeAsync(newUser.PhoneNumber, "EnergyLevel", oldUser.EnergyLevel, newUser.EnergyLevel, newUser.Name);
-            await TrackProfileChangeAsync(newUser.PhoneNumber, "DietaryPreference", oldUser.DietaryPreference, newUser.DietaryPreference, newUser.Name);
-            await TrackProfileChangeAsync(newUser.PhoneNumber, "ExerciseFrequency", oldUser.ExerciseFrequency, newUser.ExerciseFrequency, newUser.Name);
-            await TrackProfileChangeAsync(newUser.PhoneNumber, "KidsPreference", oldUser.KidsPreference, newUser.KidsPreference, newUser.Name);
-            await TrackProfileChangeAsync(newUser.PhoneNumber, "HasChildren", oldUser.HasChildren, newUser.HasChildren, newUser.Name);
-            await TrackProfileChangeAsync(newUser.PhoneNumber, "AllowMoodSearch", oldUser.AllowMoodSearch.ToString(), newUser.AllowMoodSearch.ToString(), newUser.Name);
-            await TrackProfileChangeAsync(newUser.PhoneNumber, "GhostModeMoodShield", oldUser.GhostModeMoodShield.ToString(), newUser.GhostModeMoodShield.ToString(), newUser.Name);
-        }
-
         // Get profile change history for a user
         public async Task<List<UserProfileTracking>> GetProfileChangeHistoryAsync(string userPhone, int limit = 100)
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
-                return await db.Table<UserProfileTracking>()
-                    .Where(t => t.UserPhone == userPhone)
-                    .OrderByDescending(t => t.Timestamp)
-                    .Take(limit)
-                    .ToListAsync();
+                return await SupabaseService.GetAsync<UserProfileTracking>("UserProfileTracking",
+                    $"UserPhone=eq.{Uri.EscapeDataString(userPhone)}&order=Timestamp.desc&limit={limit}");
             }
             catch (Exception ex)
             {
@@ -196,13 +123,8 @@ namespace Lock.Services.Admin
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
-                return await db.Table<UserProfileTracking>()
-                    .OrderByDescending(t => t.Timestamp)
-                    .Take(limit)
-                    .ToListAsync();
+                return await SupabaseService.GetAsync<UserProfileTracking>("UserProfileTracking",
+                    $"order=Timestamp.desc&limit={limit}");
             }
             catch (Exception ex)
             {
@@ -220,9 +142,6 @@ namespace Lock.Services.Admin
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
                 var tracking = new UserLoginTracking
                 {
                     Id = Guid.NewGuid().ToString(),
@@ -231,7 +150,7 @@ namespace Lock.Services.Admin
                     LoginTime = DateTime.UtcNow
                 };
 
-                await db.InsertAsync(tracking);
+                await SupabaseService.InsertAsync("UserLoginTracking", tracking);
                 Debug.WriteLine($"[TRACKING] User login: {userPhone} at {tracking.LoginTime}");
             }
             catch (Exception ex)
@@ -245,19 +164,17 @@ namespace Lock.Services.Admin
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
+                // Get the last login record without logout time
+                var logins = await SupabaseService.GetAsync<UserLoginTracking>("UserLoginTracking",
+                    $"UserPhone=eq.{Uri.EscapeDataString(userPhone)}&LogoutTime=is.null&order=LoginTime.desc&limit=1");
 
-                // Update the last login record with logout time
-                var lastLogin = await db.Table<UserLoginTracking>()
-                    .Where(t => t.UserPhone == userPhone && t.LogoutTime == null)
-                    .OrderByDescending(t => t.LoginTime)
-                    .FirstOrDefaultAsync();
+                var lastLogin = logins.FirstOrDefault();
 
                 if (lastLogin != null)
                 {
                     lastLogin.LogoutTime = DateTime.UtcNow;
-                    await db.UpdateAsync(lastLogin);
+                    await SupabaseService.UpdateAsync("UserLoginTracking", $"Id=eq.{lastLogin.Id}",
+                        new { LogoutTime = lastLogin.LogoutTime });
                     Debug.WriteLine($"[TRACKING] User logout: {userPhone} at {lastLogin.LogoutTime}");
                 }
             }
@@ -272,14 +189,8 @@ namespace Lock.Services.Admin
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
-                return await db.Table<UserLoginTracking>()
-                    .Where(t => t.UserPhone == userPhone)
-                    .OrderByDescending(t => t.LoginTime)
-                    .Take(limit)
-                    .ToListAsync();
+                return await SupabaseService.GetAsync<UserLoginTracking>("UserLoginTracking",
+                    $"UserPhone=eq.{Uri.EscapeDataString(userPhone)}&order=LoginTime.desc&limit={limit}");
             }
             catch (Exception ex)
             {
@@ -293,13 +204,8 @@ namespace Lock.Services.Admin
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
-                return await db.Table<UserLoginTracking>()
-                    .OrderByDescending(t => t.LoginTime)
-                    .Take(limit)
-                    .ToListAsync();
+                return await SupabaseService.GetAsync<UserLoginTracking>("UserLoginTracking",
+                    $"order=LoginTime.desc&limit={limit}");
             }
             catch (Exception ex)
             {
@@ -317,9 +223,6 @@ namespace Lock.Services.Admin
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
                 var tracking = new PostTracking
                 {
                     Id = Guid.NewGuid().ToString(),
@@ -331,7 +234,7 @@ namespace Lock.Services.Admin
                     Timestamp = DateTime.UtcNow
                 };
 
-                await db.InsertAsync(tracking);
+                await SupabaseService.InsertAsync("PostTracking", tracking);
                 Debug.WriteLine($"[TRACKING] Post created: {postId} by {authorPhone}");
             }
             catch (Exception ex)
@@ -345,9 +248,6 @@ namespace Lock.Services.Admin
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
                 var tracking = new PostTracking
                 {
                     Id = Guid.NewGuid().ToString(),
@@ -359,7 +259,7 @@ namespace Lock.Services.Admin
                     Timestamp = DateTime.UtcNow
                 };
 
-                await db.InsertAsync(tracking);
+                await SupabaseService.InsertAsync("PostTracking", tracking);
                 Debug.WriteLine($"[TRACKING] Post edited: {postId} by {authorPhone}");
             }
             catch (Exception ex)
@@ -373,9 +273,6 @@ namespace Lock.Services.Admin
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
                 var tracking = new PostTracking
                 {
                     Id = Guid.NewGuid().ToString(),
@@ -387,7 +284,7 @@ namespace Lock.Services.Admin
                     Timestamp = DateTime.UtcNow
                 };
 
-                await db.InsertAsync(tracking);
+                await SupabaseService.InsertAsync("PostTracking", tracking);
                 Debug.WriteLine($"[TRACKING] Post deleted: {postId} by {authorPhone}");
             }
             catch (Exception ex)
@@ -401,14 +298,8 @@ namespace Lock.Services.Admin
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
-                return await db.Table<PostTracking>()
-                    .Where(t => t.AuthorPhone == userPhone)
-                    .OrderByDescending(t => t.Timestamp)
-                    .Take(limit)
-                    .ToListAsync();
+                return await SupabaseService.GetAsync<PostTracking>("PostTracking",
+                    $"AuthorPhone=eq.{Uri.EscapeDataString(userPhone)}&order=Timestamp.desc&limit={limit}");
             }
             catch (Exception ex)
             {
@@ -422,13 +313,8 @@ namespace Lock.Services.Admin
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
-                return await db.Table<PostTracking>()
-                    .OrderByDescending(t => t.Timestamp)
-                    .Take(limit)
-                    .ToListAsync();
+                return await SupabaseService.GetAsync<PostTracking>("PostTracking",
+                    $"order=Timestamp.desc&limit={limit}");
             }
             catch (Exception ex)
             {
@@ -446,9 +332,6 @@ namespace Lock.Services.Admin
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
                 var tracking = new GroupTracking
                 {
                     Id = Guid.NewGuid().ToString(),
@@ -460,7 +343,7 @@ namespace Lock.Services.Admin
                     Timestamp = DateTime.UtcNow
                 };
 
-                await db.InsertAsync(tracking);
+                await SupabaseService.InsertAsync("GroupTracking", tracking);
                 Debug.WriteLine($"[TRACKING] Group created: {group.Name} by {creatorPhone}");
             }
             catch (Exception ex)
@@ -474,9 +357,6 @@ namespace Lock.Services.Admin
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
                 var tracking = new GroupTracking
                 {
                     Id = Guid.NewGuid().ToString(),
@@ -489,7 +369,7 @@ namespace Lock.Services.Admin
                     Timestamp = DateTime.UtcNow
                 };
 
-                await db.InsertAsync(tracking);
+                await SupabaseService.InsertAsync("GroupTracking", tracking);
                 Debug.WriteLine($"[TRACKING] Group membership: {userPhone} {action} {groupName}");
             }
             catch (Exception ex)
@@ -503,9 +383,6 @@ namespace Lock.Services.Admin
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
                 var tracking = new GroupTracking
                 {
                     Id = Guid.NewGuid().ToString(),
@@ -517,7 +394,7 @@ namespace Lock.Services.Admin
                     Timestamp = DateTime.UtcNow
                 };
 
-                await db.InsertAsync(tracking);
+                await SupabaseService.InsertAsync("GroupTracking", tracking);
                 Debug.WriteLine($"[TRACKING] Group updated: {groupName} - {fieldChanged} changed");
             }
             catch (Exception ex)
@@ -531,13 +408,8 @@ namespace Lock.Services.Admin
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
-                return await db.Table<GroupTracking>()
-                    .Where(t => t.GroupId == groupId)
-                    .OrderByDescending(t => t.Timestamp)
-                    .ToListAsync();
+                return await SupabaseService.GetAsync<GroupTracking>("GroupTracking",
+                    $"GroupId=eq.{Uri.EscapeDataString(groupId)}&order=Timestamp.desc");
             }
             catch (Exception ex)
             {
@@ -551,13 +423,8 @@ namespace Lock.Services.Admin
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
-                return await db.Table<GroupTracking>()
-                    .OrderByDescending(t => t.Timestamp)
-                    .Take(limit)
-                    .ToListAsync();
+                return await SupabaseService.GetAsync<GroupTracking>("GroupTracking",
+                    $"order=Timestamp.desc&limit={limit}");
             }
             catch (Exception ex)
             {
@@ -592,14 +459,11 @@ namespace Lock.Services.Admin
 
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
+                var itemsPerType = limit / 5;
 
                 // Get all mood changes
-                var moodChanges = await db.Table<UserMoodTracking>()
-                    .OrderByDescending(t => t.Timestamp)
-                    .Take(limit / 4)
-                    .ToListAsync();
+                var moodChanges = await SupabaseService.GetAsync<UserMoodTracking>("UserMoodTracking",
+                    $"order=Timestamp.desc&limit={itemsPerType}");
 
                 foreach (var item in moodChanges)
                 {
@@ -616,10 +480,8 @@ namespace Lock.Services.Admin
                 }
 
                 // Get all profile changes
-                var profileChanges = await db.Table<UserProfileTracking>()
-                    .OrderByDescending(t => t.Timestamp)
-                    .Take(limit / 4)
-                    .ToListAsync();
+                var profileChanges = await SupabaseService.GetAsync<UserProfileTracking>("UserProfileTracking",
+                    $"order=Timestamp.desc&limit={itemsPerType}");
 
                 foreach (var item in profileChanges)
                 {
@@ -637,10 +499,8 @@ namespace Lock.Services.Admin
                 }
 
                 // Get all logins
-                var logins = await db.Table<UserLoginTracking>()
-                    .OrderByDescending(t => t.LoginTime)
-                    .Take(limit / 4)
-                    .ToListAsync();
+                var logins = await SupabaseService.GetAsync<UserLoginTracking>("UserLoginTracking",
+                    $"order=LoginTime.desc&limit={itemsPerType}");
 
                 foreach (var item in logins)
                 {
@@ -650,17 +510,15 @@ namespace Lock.Services.Admin
                         Type = "Login",
                         UserPhone = item.UserPhone,
                         Title = "User Logged In",
-                        Description = $"Logged in from device {item.DeviceId?[..8]}...",
+                        Description = $"Logged in from device {item.DeviceId?[..Math.Min(8, item.DeviceId?.Length ?? 0)]}...",
                         Icon = "🔑",
                         Timestamp = item.LoginTime
                     });
                 }
 
                 // Get all group activities
-                var groupActivities = await db.Table<GroupTracking>()
-                    .OrderByDescending(t => t.Timestamp)
-                    .Take(limit / 4)
-                    .ToListAsync();
+                var groupActivities = await SupabaseService.GetAsync<GroupTracking>("GroupTracking",
+                    $"order=Timestamp.desc&limit={itemsPerType}");
 
                 foreach (var item in groupActivities)
                 {
@@ -672,6 +530,24 @@ namespace Lock.Services.Admin
                         Title = $"Group {item.Action}",
                         Description = item.Details,
                         Icon = "👥",
+                        Timestamp = item.Timestamp
+                    });
+                }
+
+                // Get all post activities
+                var postActivities = await SupabaseService.GetAsync<PostTracking>("PostTracking",
+                    $"order=Timestamp.desc&limit={itemsPerType}");
+
+                foreach (var item in postActivities)
+                {
+                    activities.Add(new AdminActivityItem
+                    {
+                        Id = item.Id,
+                        Type = $"Post {item.Action}",
+                        UserPhone = item.AuthorPhone,
+                        Title = $"Post {item.Action}",
+                        Description = item.Content,
+                        Icon = "📝",
                         Timestamp = item.Timestamp
                     });
                 }
@@ -697,31 +573,13 @@ namespace Lock.Services.Admin
             return value.Length > maxLength ? value.Substring(0, maxLength) + "..." : value;
         }
 
-        // Get user name by phone
-        private async Task<string> GetUserNameAsync(string userPhone)
-        {
-            try
-            {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-                var user = await db.Table<User>().Where(u => u.PhoneNumber == userPhone).FirstOrDefaultAsync();
-                return user?.Name ?? userPhone;
-            }
-            catch
-            {
-                return userPhone;
-            }
-        }
-
         #endregion
     }
 
-    #region Tracking Models
+    #region Tracking Models (Updated - No SQLite Attributes)
 
-    [Table("UserMoodTracking")]
     public class UserMoodTracking
     {
-        [PrimaryKey]
         public string Id { get; set; } = string.Empty;
         public string UserPhone { get; set; } = string.Empty;
         public string OldMood { get; set; } = string.Empty;
@@ -730,10 +588,8 @@ namespace Lock.Services.Admin
         public DateTime Timestamp { get; set; }
     }
 
-    [Table("UserProfileTracking")]
     public class UserProfileTracking
     {
-        [PrimaryKey]
         public string Id { get; set; } = string.Empty;
         public string UserPhone { get; set; } = string.Empty;
         public string UserName { get; set; } = string.Empty;
@@ -743,10 +599,8 @@ namespace Lock.Services.Admin
         public DateTime Timestamp { get; set; }
     }
 
-    [Table("UserLoginTracking")]
     public class UserLoginTracking
     {
-        [PrimaryKey]
         public string Id { get; set; } = string.Empty;
         public string UserPhone { get; set; } = string.Empty;
         public string DeviceId { get; set; } = string.Empty;
@@ -754,10 +608,8 @@ namespace Lock.Services.Admin
         public DateTime? LogoutTime { get; set; }
     }
 
-    [Table("PostTracking")]
     public class PostTracking
     {
-        [PrimaryKey]
         public string Id { get; set; } = string.Empty;
         public int PostId { get; set; }
         public string AuthorPhone { get; set; } = string.Empty;
@@ -767,10 +619,8 @@ namespace Lock.Services.Admin
         public DateTime Timestamp { get; set; }
     }
 
-    [Table("GroupTracking")]
     public class GroupTracking
     {
-        [PrimaryKey]
         public string Id { get; set; } = string.Empty;
         public string GroupId { get; set; } = string.Empty;
         public string GroupName { get; set; } = string.Empty;

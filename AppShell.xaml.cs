@@ -1,6 +1,5 @@
 ﻿using CommunityToolkit.Maui.Alerts;
 using CommunityToolkit.Maui.Core;
-using Lock.Chat.Services;
 using Lock.Models;
 using Lock.Pages;
 using Lock.Pages.Admin;
@@ -42,16 +41,9 @@ namespace Lock
                 if (!string.IsNullOrEmpty(savedPhone))
                 {
                     await InitializeSignalRAsync(savedPhone);
-                    await LoadUserProfileAsync(savedPhone); // roles guaranteed correct now
+                    await LoadUserProfileAsync(savedPhone);
                 }
             });
-
-            //var savedPhone = Preferences.Get(CurrentUserPhoneKey, string.Empty)?.Trim();
-            //if (!string.IsNullOrEmpty(savedPhone))
-            //{
-            //    _ = Task.Run(async () => await InitializeSignalRAsync(savedPhone));
-            //}
-
 
             // Forced logout (ban applied while user is active)
             MessagingCenter.Subscribe<object, string>(this, "UserForcedLogout", async (sender, note) =>
@@ -70,7 +62,7 @@ namespace Lock
                 await MainThread.InvokeOnMainThreadAsync(async () =>
                 {
                     await DisplayAlert("Warning from Moderation Team", note, "I Understand");
-                    var phone = Services.AuthService.GetCurrentUserPhone();
+                    var phone = AuthService.GetCurrentUserPhone();
                     if (!string.IsNullOrEmpty(phone))
                         await UserService.AcknowledgeWarningAsync(phone);
                 });
@@ -280,15 +272,13 @@ namespace Lock
         }
 
         // ─────────────────────────────────────────────
-        // Flyout menu item toggle — THE core fix
+        // Flyout menu item toggle
         // ─────────────────────────────────────────────
 
         private void UpdateFlyoutMenuItems(bool isLoggedIn)
         {
             try
             {
-                // These are now plain Grid elements inside Shell.FlyoutContent
-                // IsVisible works perfectly on them — no Shell rendering bug
                 var menuSignIn = this.FindByName<Grid>("MenuSignIn");
                 var menuRegister = this.FindByName<Grid>("MenuRegister");
                 var menuHome = this.FindByName<Grid>("MenuHome");
@@ -322,16 +312,16 @@ namespace Lock
         }
 
         // ─────────────────────────────────────────────
-        // Load user profile into flyout
+        // Load user profile into flyout using Supabase
         // ─────────────────────────────────────────────
 
         public async Task LoadUserProfileAsync(string phone)
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-                var user = await db.Table<User>().Where(u => u.PhoneNumber == phone).FirstOrDefaultAsync();
+                var users = await SupabaseService.GetAsync<User>("Users",
+                    $"PhoneNumber=eq.{Uri.EscapeDataString(phone)}&limit=1");
+                var user = users.FirstOrDefault();
 
                 Debug.WriteLine($"Loading profile for phone: {phone}, User found: {(user != null ? "Yes" : "No")}");
 
@@ -361,11 +351,9 @@ namespace Lock
                     var adminButton = this.FindByName<Border>("AdminButton");
                     if (adminButton != null)
                     {
-                        // ✅ Read directly from DB user object — bypass Preferences entirely
                         bool isAdmin = isLoggedIn && (user?.Role == "Admin");
                         adminButton.IsVisible = isAdmin;
 
-                        // Also sync Preferences to match DB truth
                         if (isLoggedIn && user != null)
                             Preferences.Set("current_user_role", user.Role);
 
@@ -383,9 +371,7 @@ namespace Lock
                     {
                         bool imageLoaded = false;
 
-                        if (isLoggedIn
-                            && !string.IsNullOrWhiteSpace(user!.ProfileImagePath)
-                            && File.Exists(user.ProfileImagePath))
+                        if (isLoggedIn && !string.IsNullOrWhiteSpace(user!.ProfileImagePath) && File.Exists(user.ProfileImagePath))
                         {
                             try
                             {
@@ -455,7 +441,6 @@ namespace Lock
                 var adminButton = this.FindByName<Border>("AdminButton");
                 if (adminButton != null) adminButton.IsVisible = false;
 
-                // Menu items + force flyout rebuild
                 UpdateFlyoutMenuItems(false);
             });
         }
@@ -490,9 +475,9 @@ namespace Lock
                     return;
                 }
 
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-                var user = await db.Table<User>().Where(u => u.PhoneNumber == savedPhone).FirstOrDefaultAsync();
+                var users = await SupabaseService.GetAsync<User>("Users",
+                    $"PhoneNumber=eq.{Uri.EscapeDataString(savedPhone)}&limit=1");
+                var user = users.FirstOrDefault();
 
                 if (user != null)
                 {
@@ -586,7 +571,7 @@ namespace Lock
                 if (!string.IsNullOrEmpty(savedPhone))
                     _ = Task.Run(async () => await LoadUserProfileAsync(savedPhone));
                 else
-                    MainThread.BeginInvokeOnMainThread(() => ClearFlyoutProfile()); // ✅ ensure on main thread
+                    MainThread.BeginInvokeOnMainThread(() => ClearFlyoutProfile());
             }
             catch (Exception ex)
             {
@@ -609,7 +594,7 @@ namespace Lock
                 if (!confirm) return;
 
                 AuthService.Logout();
-                ClearFlyoutProfile();        // ✅ Call this directly here, don't wait for message
+                ClearFlyoutProfile();
                 ClearPageCache();
                 MessagingCenter.Send<object>(this, "UserLoggedOut");
                 await NavigateFastAsync("//login");
@@ -620,7 +605,7 @@ namespace Lock
                 try
                 {
                     AuthService.Logout();
-                    ClearFlyoutProfile();    // ✅ Also here in the catch
+                    ClearFlyoutProfile();
                     await NavigateFastAsync("//login");
                 }
                 catch { }
@@ -694,9 +679,9 @@ namespace Lock
                     return;
                 }
 
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-                var user = await db.Table<User>().Where(u => u.PhoneNumber == savedPhone).FirstOrDefaultAsync();
+                var users = await SupabaseService.GetAsync<User>("Users",
+                    $"PhoneNumber=eq.{Uri.EscapeDataString(savedPhone)}&limit=1");
+                var user = users.FirstOrDefault();
 
                 if (user != null)
                     await NavigateFastAsync($"profilepage?phone={Uri.EscapeDataString(savedPhone)}&viewOnly=false");
@@ -716,7 +701,6 @@ namespace Lock
 
         private async void OnAdminButtonClicked(object sender, EventArgs e)
         {
-            // ✅ Double-check role before allowing navigation
             if (!AuthService.IsCurrentUserAdmin())
             {
                 await DisplayAlert("Access Denied", "You do not have admin privileges.", "OK");

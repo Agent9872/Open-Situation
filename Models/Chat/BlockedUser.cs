@@ -1,20 +1,19 @@
-﻿// Add this to Lock.Models namespace (create a new file: BlockedUser.cs)
-using SQLite;
+﻿using Newtonsoft.Json;
+using System;
 
 namespace Lock.Models
 {
-    [Table("BlockedUsers")]
     public class BlockedUser
     {
-        [PrimaryKey, AutoIncrement]
         public int Id { get; set; }
 
-        [Indexed]
-        public string UserPhone { get; set; } = string.Empty; // The user who blocked
+        [JsonProperty("user_phone")]
+        public string UserPhone { get; set; } = string.Empty;
 
-        [Indexed]
-        public string BlockedPhone { get; set; } = string.Empty; // The user being blocked
+        [JsonProperty("blocked_phone")]
+        public string BlockedPhone { get; set; } = string.Empty;
 
+        [JsonProperty("blocked_at")]
         public DateTime BlockedAt { get; set; } = DateTime.UtcNow;
     }
 }

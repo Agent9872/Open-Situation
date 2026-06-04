@@ -268,16 +268,18 @@ namespace Lock.Pages.Post
                 var mutedPhones = MuteUserService.GetMutedPhones(currentUserPhone);
                 _mutedUsers.Clear();
 
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
+                // Remove this SQLite code:
+                // await DatabaseService.InitializeAsync();
+                // var db = DatabaseService.GetConnection();
 
                 foreach (var phone in mutedPhones)
                 {
                     try
                     {
-                        var user = await db.Table<Lock.Models.User>()
-                            .Where(u => u.PhoneNumber == phone)
-                            .FirstOrDefaultAsync();
+                        // Replace with Supabase code:
+                        var users = await SupabaseService.GetAsync<Lock.Models.User>("Users",
+                            $"PhoneNumber=eq.{Uri.EscapeDataString(phone)}&limit=1");
+                        var user = users.FirstOrDefault();
 
                         _mutedUsers.Add(new MutedUserInfo
                         {
@@ -308,11 +310,17 @@ namespace Lock.Pages.Post
             {
                 if (string.IsNullOrEmpty(post.AuthorPhone)) return;
 
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-                var user = await db.Table<Lock.Models.User>()
-                    .Where(u => u.PhoneNumber == post.AuthorPhone)
-                    .FirstOrDefaultAsync();
+                // Remove this SQLite code:
+                // await DatabaseService.InitializeAsync();
+                // var db = DatabaseService.GetConnection();
+                // var user = await db.Table<Lock.Models.User>()
+                //     .Where(u => u.PhoneNumber == post.AuthorPhone)
+                //     .FirstOrDefaultAsync();
+
+                // Replace with Supabase code:
+                var users = await SupabaseService.GetAsync<Lock.Models.User>("Users",
+                    $"PhoneNumber=eq.{Uri.EscapeDataString(post.AuthorPhone)}&limit=1");
+                var user = users.FirstOrDefault();
 
                 if (user != null)
                 {

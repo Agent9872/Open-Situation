@@ -25,7 +25,7 @@ namespace Lock.Services
         private HubConnection _hubConnection;
         private string _currentUserPhone;
         private DateTime _lastChecked = DateTime.UtcNow;
-        private HashSet<int> _processedMessageIds = new HashSet<int>();
+        private HashSet<string> _processedMessageIds = new HashSet<string>(); // Changed from int to string
         private ISystemNotificationService _systemNotificationService;
         private bool _isConnected = false;
         private readonly HttpClient _httpClient;
@@ -71,7 +71,7 @@ namespace Lock.Services
                     .WithUrl(ApiConfig.HubUrl, options =>
                     {
                         options.Transports = Microsoft.AspNetCore.Http.Connections.HttpTransportType.WebSockets;
-                        options.SkipNegotiation = true; // Force WebSockets only
+                        options.SkipNegotiation = true;
                         options.HttpMessageHandlerFactory = handler =>
                         {
                             if (handler is HttpClientHandler clientHandler)
@@ -85,7 +85,6 @@ namespace Lock.Services
                     .WithAutomaticReconnect(new[] { TimeSpan.Zero, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(10) })
                     .Build();
 
-                // Handle connection events
                 _hubConnection.Reconnecting += (error) =>
                 {
                     Debug.WriteLine($"SignalR reconnecting: {error?.Message ?? "Unknown error"}");
@@ -96,7 +95,6 @@ namespace Lock.Services
                 {
                     Debug.WriteLine($"SignalR reconnected: {connectionId}");
                     _isConnected = true;
-                    // Re-register user identifier after reconnect
                     Task.Run(async () => await _hubConnection.SendAsync("SetUserIdentifier", userPhone));
                     return Task.CompletedTask;
                 };
@@ -105,12 +103,10 @@ namespace Lock.Services
                 {
                     Debug.WriteLine($"SignalR closed: {error?.Message ?? "Connection closed"}");
                     _isConnected = false;
-                    // Attempt to reconnect after 5 seconds
                     Task.Delay(5000).ContinueWith(_ => InitializeSignalRConnection(userPhone));
                     return Task.CompletedTask;
                 };
 
-                // Register message handlers
                 _hubConnection.On<object>("ReceiveMessage", async (messageData) =>
                 {
                     await HandleReceivedMessage(messageData);
@@ -124,7 +120,6 @@ namespace Lock.Services
                 _hubConnection.On<string, string, bool>("UserTyping", async (conversationId, senderPhone, isTyping) =>
                 {
                     Debug.WriteLine($"User {senderPhone} is {(isTyping ? "typing" : "stopped typing")} in conversation {conversationId}");
-                    // You can raise an event here for UI updates
                     MessagingCenter.Send(this, "UserTyping", new { ConversationId = conversationId, UserPhone = senderPhone, IsTyping = isTyping });
                 });
 
@@ -140,11 +135,8 @@ namespace Lock.Services
                     MessagingCenter.Send(this, "UserOffline", userPhone);
                 });
 
-                // Start the connection
                 await _hubConnection.StartAsync();
                 _isConnected = true;
-
-                // Set user identifier for the connection
                 await _hubConnection.SendAsync("SetUserIdentifier", userPhone);
 
                 Debug.WriteLine($"✅ SignalR connected successfully for user: {userPhone}");
@@ -155,7 +147,6 @@ namespace Lock.Services
                 Debug.WriteLine($"❌ SignalR connection failed: {ex.Message}");
                 Debug.WriteLine($"   Stack trace: {ex.StackTrace}");
                 _isConnected = false;
-                // Retry connection after 10 seconds
                 Task.Delay(10000).ContinueWith(_ => InitializeSignalRConnection(userPhone));
             }
         }
@@ -164,7 +155,6 @@ namespace Lock.Services
         {
             try
             {
-                // Parse the message from SignalR
                 var messageJson = System.Text.Json.JsonSerializer.Serialize(messageData);
                 var message = System.Text.Json.JsonSerializer.Deserialize<ChatMessage>(messageJson);
 
@@ -174,7 +164,6 @@ namespace Lock.Services
                 Debug.WriteLine($"   Content: {message.Content ?? "[Media message]"}");
                 Debug.WriteLine($"   Conversation: {message.ConversationId}");
 
-                // Process the message
                 await ProcessNewMessage(message);
             }
             catch (Exception ex)
@@ -187,46 +176,46 @@ namespace Lock.Services
         {
             try
             {
+                string messageId = message.Id.ToString();
+
                 // Check if already processed
-                if (_processedMessageIds.Contains(message.Id))
+                if (_processedMessageIds.Contains(messageId))
                 {
-                    Debug.WriteLine($"Message {message.Id} already processed, skipping");
+                    Debug.WriteLine($"Message {messageId} already processed, skipping");
                     return;
                 }
 
-                _processedMessageIds.Add(message.Id);
+                _processedMessageIds.Add(messageId);
 
-                // Save to local database
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
-                var existingMessage = await db.Table<ChatMessage>()
-                    .Where(m => m.Id == message.Id)
-                    .FirstOrDefaultAsync();
+                // Check if message already exists in Supabase
+                var existingMessages = await SupabaseService.GetAsync<ChatMessage>("ChatMessages",
+                    $"Id=eq.{messageId}&limit=1");
+                var existingMessage = existingMessages.FirstOrDefault();
 
                 if (existingMessage == null)
                 {
-                    await db.InsertAsync(message);
-                    Debug.WriteLine($"Message {message.Id} saved to local database");
+                    // Save to Supabase
+                    await SupabaseService.InsertAsync("ChatMessages", message);
+                    Debug.WriteLine($"Message {messageId} saved to Supabase");
                 }
                 else
                 {
-                    Debug.WriteLine($"Message {message.Id} already exists in database");
+                    Debug.WriteLine($"Message {messageId} already exists in database");
                 }
 
                 // Get sender name and avatar
                 var senderName = await GetUserDisplayName(message.SenderPhone);
                 var senderAvatar = await GetUserAvatarPath(message.SenderPhone);
 
-                // Get unread count for badge
+                // Get unread count for badge from Supabase
                 var currentUserPhone = Preferences.Get("current_user_phone", string.Empty);
-                var unreadCount = await db.Table<ChatMessage>()
-                    .Where(m => m.RecipientPhone == currentUserPhone && !m.IsRead)
-                    .CountAsync();
+                var unreadMessages = await SupabaseService.GetAsync<ChatMessage>("ChatMessages",
+                    $"RecipientPhone=eq.{Uri.EscapeDataString(currentUserPhone)}&IsRead=eq.false");
+                var unreadCount = unreadMessages.Count;
 
                 Debug.WriteLine($"Unread count: {unreadCount}");
 
-                // Show system notification (pass avatar path)
+                // Show system notification
                 _systemNotificationService?.ShowNewMessageNotification(message, senderName, unreadCount, senderAvatar);
 
                 // Fire the in-app popup event
@@ -240,8 +229,8 @@ namespace Lock.Services
                 {
                     try
                     {
-                        await _hubConnection.SendAsync("MarkMessageAsRead", message.Id, message.ConversationId);
-                        Debug.WriteLine($"Sent read receipt for message {message.Id}");
+                        await _hubConnection.SendAsync("MarkMessageAsRead", message.Id.ToString(), message.ConversationId);
+                        Debug.WriteLine($"Sent read receipt for message {messageId}");
                     }
                     catch (Exception ex)
                     {
@@ -293,21 +282,15 @@ namespace Lock.Services
 
                 Debug.WriteLine("Polling for new messages (fallback mode)");
 
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
                 var currentUserPhone = Preferences.Get("current_user_phone", string.Empty);
                 if (string.IsNullOrEmpty(currentUserPhone)) return;
 
-                var unreadMessages = await db.Table<ChatMessage>()
-                    .Where(m => m.RecipientPhone == currentUserPhone
-                                && !m.IsRead
-                                && m.SenderPhone != currentUserPhone)
-                    .OrderBy(m => m.SentAt)
-                    .ToListAsync();
+                // Get unread messages from Supabase
+                var unreadMessages = await SupabaseService.GetAsync<ChatMessage>("ChatMessages",
+                    $"RecipientPhone=eq.{Uri.EscapeDataString(currentUserPhone)}&IsRead=eq.false&order=SentAt.asc");
 
                 var newMessages = unreadMessages
-                    .Where(m => m.SentAt > _lastChecked && !_processedMessageIds.Contains(m.Id))
+                    .Where(m => m.SentAt > _lastChecked && !_processedMessageIds.Contains(m.Id.ToString()))
                     .ToList();
 
                 if (newMessages.Any())
@@ -332,11 +315,9 @@ namespace Lock.Services
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-                var user = await db.Table<Lock.Models.User>()
-                    .Where(u => u.PhoneNumber == phone)
-                    .FirstOrDefaultAsync();
+                var users = await SupabaseService.GetAsync<Lock.Models.User>("Users",
+                    $"PhoneNumber=eq.{Uri.EscapeDataString(phone)}&limit=1");
+                var user = users.FirstOrDefault();
                 return user?.Name ?? phone;
             }
             catch (Exception ex)
@@ -350,11 +331,9 @@ namespace Lock.Services
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-                var user = await db.Table<Lock.Models.User>()
-                    .Where(u => u.PhoneNumber == phone)
-                    .FirstOrDefaultAsync();
+                var users = await SupabaseService.GetAsync<Lock.Models.User>("Users",
+                    $"PhoneNumber=eq.{Uri.EscapeDataString(phone)}&limit=1");
+                var user = users.FirstOrDefault();
                 return user?.ProfileImagePath ?? string.Empty;
             }
             catch (Exception ex)
@@ -364,7 +343,6 @@ namespace Lock.Services
             }
         }
 
-        // Method to send a message via SignalR
         public async Task<bool> SendMessageViaSignalR(SendMessageRequest request)
         {
             try
@@ -378,7 +356,6 @@ namespace Lock.Services
                 else
                 {
                     Debug.WriteLine("SignalR not connected, using HTTP fallback");
-                    // Fallback to HTTP API
                     var response = await _httpClient.PostAsJsonAsync(ApiConfig.Endpoints.SendMessage, request);
                     return response.IsSuccessStatusCode;
                 }
@@ -390,7 +367,6 @@ namespace Lock.Services
             }
         }
 
-        // Method to send typing indicator
         public async Task SendTypingIndicator(string conversationId, string recipientPhone, bool isTyping)
         {
             try
@@ -417,7 +393,6 @@ namespace Lock.Services
         }
     }
 
-    // Add this class if you don't have it
     public class SendMessageRequest
     {
         public string ConversationId { get; set; } = string.Empty;

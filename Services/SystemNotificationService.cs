@@ -43,9 +43,19 @@ namespace Lock.Services
                     MessageId = message.Id
                 });
 
+                // Fix: Convert string Id to int using hash code or use a different approach
+                // Option 1: Use GetHashCode() to generate a consistent integer ID
+                int notificationId = Math.Abs(message.Id.GetHashCode());
+
+                // Option 2: Use a static counter (not recommended for production)
+                // int notificationId = DateTime.Now.Millisecond + new Random().Next(1, 9999);
+
+                // Option 3: Use the length of the string as fallback
+                // int notificationId = message.Id.Length > 0 ? message.Id.Length : 1;
+
                 var notification = new NotificationRequest
                 {
-                    NotificationId = message.Id,
+                    NotificationId = notificationId,  // Now using int from hash code
                     Title = senderName,
                     Description = description,
                     BadgeNumber = unreadCount,

@@ -54,9 +54,15 @@ namespace Lock.Pages.Admin
             {
                 await ShowLoading(true);
 
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-                _user = await db.Table<User>().Where(u => u.PhoneNumber == _userPhone).FirstOrDefaultAsync();
+                // Replace this SQLite code:
+                // await DatabaseService.InitializeAsync();
+                // var db = DatabaseService.GetConnection();
+                // _user = await db.Table<User>().Where(u => u.PhoneNumber == _userPhone).FirstOrDefaultAsync();
+
+                // With this Supabase code:
+                var users = await SupabaseService.GetAsync<User>("Users",
+                    $"PhoneNumber=eq.{Uri.EscapeDataString(_userPhone)}&limit=1");
+                _user = users.FirstOrDefault();
 
                 if (_user == null)
                 {

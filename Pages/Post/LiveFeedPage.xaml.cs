@@ -810,10 +810,12 @@ namespace Lock.Pages.Discover
 
                 var currentPhone = Preferences.Get("current_user_phone", string.Empty);
 
-                var sessions = (await db.Table<LiveSession>().ToListAsync())
-                    .Where(s => s.IsLive && s.EndedAt == null
-                             && !string.Equals(s.UserPhoneNumber, currentPhone,
-                                               StringComparison.OrdinalIgnoreCase))
+                var allSessions = await SupabaseService.GetAsync<LiveSession>("LiveSessions",
+      $"IsLive=eq.true&EndedAt=is.null");
+
+                var sessions = allSessions
+                    .Where(s => !string.Equals(s.UserPhoneNumber, currentPhone,
+                                              StringComparison.OrdinalIgnoreCase))
                     .GroupBy(s => s.UserPhoneNumber)
                     .Select(g => g.First())
                     .ToList();
@@ -832,13 +834,20 @@ namespace Lock.Pages.Discover
                             Debug.WriteLine($"Session expired for {session.UserPhoneNumber}");
                             session.IsLive = false;
                             session.EndedAt = DateTime.UtcNow;
-                            await db.UpdateAsync(session);
+                            // Replace: await db.UpdateAsync(session);
+                            await SupabaseService.UpdateAsync("LiveSessions", $"Id=eq.{session.Id}", session);
                             continue;
                         }
 
-                        var user = await db.Table<User>()
-                            .Where(u => u.PhoneNumber == session.UserPhoneNumber)
-                            .FirstOrDefaultAsync();
+                        // Remove this SQLite code:
+                        // var user = await db.Table<User>()
+                        //     .Where(u => u.PhoneNumber == session.UserPhoneNumber)
+                        //     .FirstOrDefaultAsync();
+
+                        // Replace with Supabase code:
+                        var users = await SupabaseService.GetAsync<User>("Users",
+                            $"PhoneNumber=eq.{Uri.EscapeDataString(session.UserPhoneNumber)}&limit=1");
+                        var user = users.FirstOrDefault();
 
                         if (user == null) continue;
 

@@ -266,11 +266,9 @@ namespace Lock.Pages.Chat
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-                var user = await db.Table<User>()
-                    .Where(u => u.PhoneNumber == vm.UserPhone)
-                    .FirstOrDefaultAsync();
+                var users = await SupabaseService.GetAsync<User>("Users",
+                    $"PhoneNumber=eq.{Uri.EscapeDataString(vm.UserPhone)}&limit=1");
+                var user = users.FirstOrDefault();
 
                 if (user != null)
                 {
@@ -303,6 +301,9 @@ namespace Lock.Pages.Chat
                 Debug.WriteLine($"EnrichPendingRequest error: {ex}");
             }
         }
+
+
+
         // ??????????????????????????????????????????????????????????????????????
         // SEARCH  (Members tab only)
         // ??????????????????????????????????????????????????????????????????????
@@ -584,11 +585,9 @@ namespace Lock.Pages.Chat
                                member.Role != GroupMemberRole.Creator
             };
 
-            await DatabaseService.InitializeAsync();
-            var db = DatabaseService.GetConnection();
-            var user = await db.Table<User>()
-                .Where(u => u.PhoneNumber == member.UserPhone)
-                .FirstOrDefaultAsync();
+            var users = await SupabaseService.GetAsync<User>("Users",
+                $"PhoneNumber=eq.{Uri.EscapeDataString(member.UserPhone)}&limit=1");
+            var user = users.FirstOrDefault();
 
             if (user != null)
             {
@@ -628,11 +627,14 @@ namespace Lock.Pages.Chat
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
+                var meUsers = await SupabaseService.GetAsync<User>("Users",
+                    $"PhoneNumber=eq.{Uri.EscapeDataString(_currentUserPhone)}&limit=1");
+                var me = meUsers.FirstOrDefault();
 
-                var me = await db.Table<User>().Where(u => u.PhoneNumber == _currentUserPhone).FirstOrDefaultAsync();
-                var target = await db.Table<User>().Where(u => u.PhoneNumber == targetPhone).FirstOrDefaultAsync();
+                var targetUsers = await SupabaseService.GetAsync<User>("Users",
+                    $"PhoneNumber=eq.{Uri.EscapeDataString(targetPhone)}&limit=1");
+                var target = targetUsers.FirstOrDefault();
+
                 if (me == null || target == null) return "0%";
 
                 var score = await CompatibilityService.CalculateCompatibilityScoreAsync(me, target);

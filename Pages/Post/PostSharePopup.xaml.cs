@@ -8,6 +8,7 @@ using Microsoft.Maui.ApplicationModel;
 using Microsoft.Maui.Storage;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using PostModel = Lock.Models.Post;
 
@@ -102,7 +103,7 @@ public partial class PostSharePopup : Popup
         }
     }
 
-    // ===== SHARE WITH APP CONTACT (Copied from ChatOptionsPopup) =====
+    // ===== SHARE WITH APP CONTACT =====
     private async Task ShowContactPickerForSharingAsync()
     {
         try
@@ -141,14 +142,12 @@ public partial class PostSharePopup : Popup
     {
         try
         {
-            await DatabaseService.InitializeAsync();
-            var db = DatabaseService.GetConnection();
+            // Check if conversation already exists in Supabase
+            var existingConversations = await SupabaseService.GetAsync<Conversation>("Conversations",
+                $"(ParticipantA=eq.{Uri.EscapeDataString(userPhone)}&ParticipantB=eq.{Uri.EscapeDataString(contactPhone)})" +
+                $"or(ParticipantA=eq.{Uri.EscapeDataString(contactPhone)}&ParticipantB=eq.{Uri.EscapeDataString(userPhone)})&limit=1");
 
-            // Check if conversation already exists
-            var existingConversation = await db.Table<Conversation>()
-                .Where(c => (c.ParticipantA == userPhone && c.ParticipantB == contactPhone) ||
-                           (c.ParticipantA == contactPhone && c.ParticipantB == userPhone))
-                .FirstOrDefaultAsync();
+            var existingConversation = existingConversations.FirstOrDefault();
 
             if (existingConversation != null)
                 return existingConversation.ConversationId;
@@ -165,7 +164,7 @@ public partial class PostSharePopup : Popup
                 CreatedAt = DateTime.UtcNow
             };
 
-            await db.InsertAsync(conversation);
+            await SupabaseService.InsertAsync("Conversations", conversation);
             return conversationId;
         }
         catch (Exception ex)
@@ -184,16 +183,16 @@ public partial class PostSharePopup : Popup
 
             var postMessage = new ChatMessage
             {
+                Id = Guid.NewGuid().ToString(),
                 ConversationId = targetConversationId,
                 SenderPhone = currentUserPhone,
                 RecipientPhone = targetUserPhone,
                 MessageType = "post",
                 Content = !string.IsNullOrEmpty(_post.Content) ? _post.Content : postPreview,
-                PostId = _post.Id,
+                PostId = null,  // This should work since PostId is int?
                 PostAuthor = _post.AuthorDisplayName ?? "Unknown",
                 PostPreview = postPreview,
                 PostImageCount = _post.ImagePathsList?.Length ?? 0,
-                // Store the original post author's phone for image lookup
                 PostAuthorPhone = _post.AuthorPhone ?? string.Empty,
                 SentAt = DateTime.UtcNow,
                 IsDelivered = true,
@@ -220,21 +219,21 @@ public partial class PostSharePopup : Popup
                 postMessage.MediaItemsJson = System.Text.Json.JsonSerializer.Serialize(mediaItems);
             }
 
-            await ChatRepository.AddMessageAsync(postMessage);
+            // Insert message to Supabase using ChatRepository or directly
+            await SupabaseService.InsertAsync("ChatMessages", postMessage);
 
-            await DatabaseService.InitializeAsync();
-            var db = DatabaseService.GetConnection();
+            // Update conversation
+            var conversations = await SupabaseService.GetAsync<Conversation>("Conversations",
+                $"ConversationId=eq.{Uri.EscapeDataString(targetConversationId)}&limit=1");
 
-            var conversation = await db.Table<Conversation>()
-                .Where(c => c.ConversationId == targetConversationId)
-                .FirstOrDefaultAsync();
+            var conversation = conversations.FirstOrDefault();
 
             if (conversation != null)
             {
                 conversation.LastMessagePreview = $"?? Post: {postPreview}";
                 conversation.LastMessageAt = DateTime.UtcNow;
                 conversation.LastMessageType = "post";
-                await db.UpdateAsync(conversation);
+                await SupabaseService.UpdateAsync("Conversations", $"ConversationId=eq.{Uri.EscapeDataString(targetConversationId)}", conversation);
             }
 
             MessagingCenter.Send(this, "MessagesUpdated");

@@ -562,7 +562,11 @@ namespace Lock.Pages.Admin
                     _ => null
                 };
 
-                await DatabaseService.InitializeAsync();
+                // Replace this:
+                // await DatabaseService.InitializeAsync();
+                // var rawReports = await ReportService.GetAllReportsAsync(status);
+
+                // With this (ReportService already uses Supabase, so just call it):
                 var rawReports = await ReportService.GetAllReportsAsync(status);
 
                 var vms = rawReports
@@ -593,12 +597,17 @@ namespace Lock.Pages.Admin
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
+                // Replace this SQLite code:
+                // await DatabaseService.InitializeAsync();
+                // var db = DatabaseService.GetConnection();
+                // var adminUser = await db.Table<Lock.Models.User>()
+                //     .Where(u => u.PhoneNumber == "08088206738")
+                //     .FirstOrDefaultAsync();
 
-                var adminUser = await db.Table<Lock.Models.User>()
-                    .Where(u => u.PhoneNumber == "08088206738")
-                    .FirstOrDefaultAsync();
+                // With this Supabase code:
+                var adminUsers = await SupabaseService.GetAsync<Lock.Models.User>("Users",
+                    "PhoneNumber=eq.08088206738&limit=1");
+                var adminUser = adminUsers.FirstOrDefault();
 
                 if (adminUser != null)
                 {
@@ -609,7 +618,8 @@ namespace Lock.Pages.Admin
                     adminUser.AppealStatus = null;
                     adminUser.ModerationNote = null;
 
-                    await db.UpdateAsync(adminUser);
+                    // Replace: await db.UpdateAsync(adminUser);
+                    await SupabaseService.UpdateAsync("Users", "PhoneNumber=eq.08088206738", adminUser);
 
                     await DisplayAlert("Success", $"Admin user {adminUser.Name} has been unbanned!", "OK");
                 }
@@ -660,15 +670,19 @@ namespace Lock.Pages.Admin
                 LoadingState.IsVisible = true;
                 EmptyState.IsVisible = false;
 
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
+                // Replace this SQLite code:
+                // await DatabaseService.InitializeAsync();
+                // var db = DatabaseService.GetConnection();
+                // var usersWithAppeals = await db.Table<Lock.Models.User>()
+                //     .Where(u => u.AppealStatus == "pending" ||
+                //                 u.AppealStatus == "approved" ||
+                //                 u.AppealStatus == "rejected")
+                //     .OrderByDescending(u => u.AppealSubmittedAt)
+                //     .ToListAsync();
 
-                var usersWithAppeals = await db.Table<Lock.Models.User>()
-                    .Where(u => u.AppealStatus == "pending" ||
-                                u.AppealStatus == "approved" ||
-                                u.AppealStatus == "rejected")
-                    .OrderByDescending(u => u.AppealSubmittedAt)
-                    .ToListAsync();
+                // With this Supabase code:
+                var usersWithAppeals = await SupabaseService.GetAsync<Lock.Models.User>("Users",
+                    "or(AppealStatus.eq.pending,AppealStatus.eq.approved,AppealStatus.eq.rejected)&order=AppealSubmittedAt.desc");
 
                 Appeals.Clear();
                 foreach (var user in usersWithAppeals)
@@ -709,13 +723,17 @@ namespace Lock.Pages.Admin
                 LoadingState.IsVisible = true;
                 EmptyState.IsVisible = false;
 
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
+                // Replace this SQLite code:
+                // await DatabaseService.InitializeAsync();
+                // var db = DatabaseService.GetConnection();
+                // _allUsersCache = await db.Table<Lock.Models.User>()
+                //     .OrderBy(u => u.Country)
+                //     .ThenBy(u => u.State)
+                //     .ToListAsync();
 
-                _allUsersCache = await db.Table<Lock.Models.User>()
-                    .OrderBy(u => u.Country)
-                    .ThenBy(u => u.State)
-                    .ToListAsync();
+                // With this Supabase code:
+                _allUsersCache = await SupabaseService.GetAsync<Lock.Models.User>("Users",
+                    "order=Country.asc,State.asc");
 
                 _availableCountries = _allUsersCache
                     .Where(u => !string.IsNullOrWhiteSpace(u.Country))
@@ -741,7 +759,6 @@ namespace Lock.Pages.Admin
                     UsersBannedLabel.Text = _allUsersCache.Count(u => u.IsBanned && (u.Role ?? "User") != "Admin").ToString();
                     UsersActiveLabel.Text = _allUsersCache.Count(u => !u.IsBanned && (u.Role ?? "User") != "Admin").ToString();
 
-                    // ? Apply filters HERE — cache and filter state are both ready
                     ApplyUsersFilters();
                 });
             }
@@ -931,11 +948,11 @@ namespace Lock.Pages.Admin
 
                         await UserService.UnbanUserAsync(user.PhoneNumber);
 
-                        await DatabaseService.InitializeAsync();
-                        var db = DatabaseService.GetConnection();
-                        var dbUser = await db.Table<Lock.Models.User>()
-                            .Where(u => u.PhoneNumber == user.PhoneNumber)
-                            .FirstOrDefaultAsync();
+                        // FIXED: Use Supabase instead of SQLite
+                        var dbUsers = await SupabaseService.GetAsync<Lock.Models.User>("Users",
+                            $"PhoneNumber=eq.{Uri.EscapeDataString(user.PhoneNumber)}&limit=1");
+                        var dbUser = dbUsers.FirstOrDefault();
+
                         if (dbUser != null)
                         {
                             dbUser.AppealStatus = "approved";
@@ -943,7 +960,8 @@ namespace Lock.Pages.Admin
                             dbUser.AppealReviewedAt = DateTime.UtcNow;
                             dbUser.ModerationNote = $"Your appeal was approved. {approveNote}";
                             dbUser.ModerationUpdatedAt = DateTime.UtcNow;
-                            await db.UpdateAsync(dbUser);
+
+                            await SupabaseService.UpdateAsync("Users", $"PhoneNumber=eq.{Uri.EscapeDataString(user.PhoneNumber)}", dbUser);
                         }
 
                         await LoadAppealsAsync();
@@ -961,17 +979,18 @@ namespace Lock.Pages.Admin
                             $"Reject {user.Name}'s appeal and keep the ban?", "Reject", "Cancel");
                         if (!confirmReject) break;
 
-                        await DatabaseService.InitializeAsync();
-                        var db = DatabaseService.GetConnection();
-                        var dbUser = await db.Table<Lock.Models.User>()
-                            .Where(u => u.PhoneNumber == user.PhoneNumber)
-                            .FirstOrDefaultAsync();
+                        // FIXED: Use Supabase instead of SQLite
+                        var dbUsers = await SupabaseService.GetAsync<Lock.Models.User>("Users",
+                            $"PhoneNumber=eq.{Uri.EscapeDataString(user.PhoneNumber)}&limit=1");
+                        var dbUser = dbUsers.FirstOrDefault();
+
                         if (dbUser != null)
                         {
                             dbUser.AppealStatus = "rejected";
                             dbUser.AppealAdminResponse = rejectNote ?? string.Empty;
                             dbUser.AppealReviewedAt = DateTime.UtcNow;
-                            await db.UpdateAsync(dbUser);
+
+                            await SupabaseService.UpdateAsync("Users", $"PhoneNumber=eq.{Uri.EscapeDataString(user.PhoneNumber)}", dbUser);
                         }
 
                         await LoadAppealsAsync();
@@ -988,6 +1007,7 @@ namespace Lock.Pages.Admin
                     break;
             }
         }
+
 
         // ??????????????????????????????????????????????????????????????
         // USER LOCATION ACTIONS
@@ -1277,14 +1297,19 @@ namespace Lock.Pages.Admin
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
+                // Replace this SQLite code:
+                // await DatabaseService.InitializeAsync();
+                // var db = DatabaseService.GetConnection();
 
                 if (!string.IsNullOrEmpty(Report.ReportedUserPhone))
                 {
-                    var reportedUser = await db.Table<Lock.Models.User>()
-                        .Where(u => u.PhoneNumber == Report.ReportedUserPhone)
-                        .FirstOrDefaultAsync();
+                    // Replace: var reportedUser = await db.Table<Lock.Models.User>()
+                    //     .Where(u => u.PhoneNumber == Report.ReportedUserPhone)
+                    //     .FirstOrDefaultAsync();
+
+                    var reportedUsers = await SupabaseService.GetAsync<Lock.Models.User>("Users",
+                        $"PhoneNumber=eq.{Uri.EscapeDataString(Report.ReportedUserPhone)}&limit=1");
+                    var reportedUser = reportedUsers.FirstOrDefault();
 
                     ReportedUserAvatar = reportedUser != null
                         && !string.IsNullOrEmpty(reportedUser.ProfileImagePath)
@@ -1295,9 +1320,13 @@ namespace Lock.Pages.Admin
 
                 if (!string.IsNullOrEmpty(Report.ReporterPhone))
                 {
-                    var reporter = await db.Table<Lock.Models.User>()
-                        .Where(u => u.PhoneNumber == Report.ReporterPhone)
-                        .FirstOrDefaultAsync();
+                    // Replace: var reporter = await db.Table<Lock.Models.User>()
+                    //     .Where(u => u.PhoneNumber == Report.ReporterPhone)
+                    //     .FirstOrDefaultAsync();
+
+                    var reporters = await SupabaseService.GetAsync<Lock.Models.User>("Users",
+                        $"PhoneNumber=eq.{Uri.EscapeDataString(Report.ReporterPhone)}&limit=1");
+                    var reporter = reporters.FirstOrDefault();
 
                     ReporterAvatar = reporter != null
                         && !string.IsNullOrEmpty(reporter.ProfileImagePath)

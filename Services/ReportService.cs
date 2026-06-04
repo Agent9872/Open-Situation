@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace Lock.Services
@@ -13,69 +14,50 @@ namespace Lock.Services
         private static readonly string ReportsFolder =
             Path.Combine(FileSystem.AppDataDirectory, "reports");
 
-        private static bool _tablesEnsured = false;
-
         static ReportService()
         {
             if (!Directory.Exists(ReportsFolder))
                 Directory.CreateDirectory(ReportsFolder);
         }
 
-        // ── Ensure both tables exist (safe to call multiple times) ──
-        private static async Task EnsureTablesAsync()
-        {
-            if (_tablesEnsured) return;
-
-            await DatabaseService.InitializeAsync();
-            var db = DatabaseService.GetConnection();
-
-            // CreateTableAsync is idempotent — creates only if not exists
-            await db.CreateTableAsync<Report>();
-            await db.CreateTableAsync<ReportImage>();
-
-            _tablesEnsured = true;
-            Debug.WriteLine("ReportService: tables ensured");
-        }
-
         public static async Task<bool> SubmitReportAsync(Report report)
         {
             try
             {
-                await EnsureTablesAsync();
-                var db = DatabaseService.GetConnection();
-
-                // Snapshot images before insert (InsertAsync sets report.Id)
+                // Snapshot images before insert
                 var images = new List<ReportImage>(report.Images ?? new List<ReportImage>());
 
-                // Clear the [Ignore] list so SQLite doesn't get confused
+                // Clear the list so it doesn't get serialized into the report
                 report.Images = new List<ReportImage>();
                 report.ReportedAt = report.ReportedAt == default ? DateTime.UtcNow : report.ReportedAt;
 
                 Debug.WriteLine($"Inserting report for: {report.ReportedUserName}, category: {report.Category}");
 
-                int rows = await db.InsertAsync(report);
+                // Insert report into Supabase
+                var insertedReport = await SupabaseService.InsertAndReturnAsync<Report>("Reports", report);
 
-                Debug.WriteLine($"InsertAsync result: {rows}, new Id: {report.Id}");
-
-                if (rows <= 0)
+                if (insertedReport == null || insertedReport.Id == 0)
                 {
-                    Debug.WriteLine("Report insert returned 0 rows — failed silently");
+                    Debug.WriteLine("Report insert failed — returned null");
                     return false;
                 }
+
+                Debug.WriteLine($"Insert successful, new Id: {insertedReport.Id}");
 
                 // Now save each image with the correct ReportId
                 foreach (var image in images)
                 {
-                    image.ReportId = report.Id;
+                    image.ReportId = insertedReport.Id;
                     image.AddedAt = image.AddedAt == default ? DateTime.UtcNow : image.AddedAt;
-                    await db.InsertAsync(image);
+                    await SupabaseService.InsertAsync("ReportImages", image);
                     Debug.WriteLine($"Inserted image: {image.LocalPath}");
                 }
 
                 // Restore images on the object for caller use
                 report.Images = images;
+                report.Id = insertedReport.Id;
 
-                Debug.WriteLine($"Report submitted successfully. Id: {report.Id}");
+                Debug.WriteLine($"Report submitted successfully. Id: {insertedReport.Id}");
                 return true;
             }
             catch (Exception ex)
@@ -93,27 +75,24 @@ namespace Lock.Services
         {
             try
             {
-                await EnsureTablesAsync();
-                var db = DatabaseService.GetConnection();
-
-                List<Report> reports;
-
+                string filter = "";
                 if (status.HasValue)
-                    reports = await db.Table<Report>()
-                        .Where(r => r.Status == status.Value)
-                        .OrderByDescending(r => r.ReportedAt)
-                        .ToListAsync();
+                {
+                    filter = $"Status=eq.{(int)status.Value}&order=ReportedAt.desc";
+                }
                 else
-                    reports = await db.Table<Report>()
-                        .OrderByDescending(r => r.ReportedAt)
-                        .ToListAsync();
+                {
+                    filter = "order=ReportedAt.desc";
+                }
+
+                var reports = await SupabaseService.GetAsync<Report>("Reports", filter);
 
                 // Load images for each report
                 foreach (var report in reports)
                 {
-                    report.Images = await db.Table<ReportImage>()
-                        .Where(i => i.ReportId == report.Id)
-                        .ToListAsync();
+                    var images = await SupabaseService.GetAsync<ReportImage>("ReportImages",
+                        $"ReportId=eq.{report.Id}");
+                    report.Images = images.ToList();
                 }
 
                 return reports;
@@ -129,18 +108,16 @@ namespace Lock.Services
         {
             try
             {
-                await EnsureTablesAsync();
-                var db = DatabaseService.GetConnection();
+                var reports = await SupabaseService.GetAsync<Report>("Reports",
+                    $"Id=eq.{reportId}&limit=1");
 
-                var report = await db.Table<Report>()
-                    .Where(r => r.Id == reportId)
-                    .FirstOrDefaultAsync();
+                var report = reports.FirstOrDefault();
 
                 if (report != null)
                 {
-                    report.Images = await db.Table<ReportImage>()
-                        .Where(i => i.ReportId == reportId)
-                        .ToListAsync();
+                    var images = await SupabaseService.GetAsync<ReportImage>("ReportImages",
+                        $"ReportId=eq.{reportId}");
+                    report.Images = images.ToList();
                 }
 
                 return report;
@@ -160,12 +137,10 @@ namespace Lock.Services
         {
             try
             {
-                await EnsureTablesAsync();
-                var db = DatabaseService.GetConnection();
+                var reports = await SupabaseService.GetAsync<Report>("Reports",
+                    $"Id=eq.{reportId}&limit=1");
 
-                var report = await db.Table<Report>()
-                    .Where(r => r.Id == reportId)
-                    .FirstOrDefaultAsync();
+                var report = reports.FirstOrDefault();
 
                 if (report == null)
                 {
@@ -184,9 +159,9 @@ namespace Lock.Services
                 if (status == ReportStatus.Resolved || status == ReportStatus.ActionTaken)
                     report.ResolvedAt = DateTime.UtcNow;
 
-                int updated = await db.UpdateAsync(report);
-                Debug.WriteLine($"UpdateReportStatusAsync: updated {updated} rows for report {reportId}");
-                return updated > 0;
+                bool updated = await SupabaseService.UpdateAsync("Reports", $"Id=eq.{reportId}", report);
+                Debug.WriteLine($"UpdateReportStatusAsync: updated {updated} for report {reportId}");
+                return updated;
             }
             catch (Exception ex)
             {
@@ -226,16 +201,89 @@ namespace Lock.Services
         {
             try
             {
-                await EnsureTablesAsync();
-                var db = DatabaseService.GetConnection();
-                return await db.Table<Report>()
-                    .Where(r => r.Status == ReportStatus.Pending || r.Status == ReportStatus.UnderReview)
-                    .CountAsync();
+                var pendingReports = await SupabaseService.GetAsync<Report>("Reports",
+                    $"Status=eq.{(int)ReportStatus.Pending}");
+
+                var underReviewReports = await SupabaseService.GetAsync<Report>("Reports",
+                    $"Status=eq.{(int)ReportStatus.UnderReview}");
+
+                return pendingReports.Count + underReviewReports.Count;
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"GetPendingReportsCountAsync error: {ex.Message}");
                 return 0;
+            }
+        }
+
+        // Helper method to delete a report and its images (if needed)
+        public static async Task<bool> DeleteReportAsync(int reportId)
+        {
+            try
+            {
+                // First delete all images associated with the report
+                await SupabaseService.DeleteAsync("ReportImages", $"ReportId=eq.{reportId}");
+
+                // Then delete the report itself
+                await SupabaseService.DeleteAsync("Reports", $"Id=eq.{reportId}");
+
+                Debug.WriteLine($"Report {reportId} deleted successfully");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"DeleteReportAsync error: {ex.Message}");
+                return false;
+            }
+        }
+
+        // Helper method to get reports by reporter phone
+        public static async Task<List<Report>> GetReportsByReporterAsync(string reporterPhone)
+        {
+            try
+            {
+                var reports = await SupabaseService.GetAsync<Report>("Reports",
+                    $"ReporterPhone=eq.{Uri.EscapeDataString(reporterPhone)}&order=ReportedAt.desc");
+
+                // Load images for each report
+                foreach (var report in reports)
+                {
+                    var images = await SupabaseService.GetAsync<ReportImage>("ReportImages",
+                        $"ReportId=eq.{report.Id}");
+                    report.Images = images.ToList();
+                }
+
+                return reports;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"GetReportsByReporterAsync error: {ex.Message}");
+                return new List<Report>();
+            }
+        }
+
+        // Helper method to get reports by reported user
+        public static async Task<List<Report>> GetReportsByReportedUserAsync(string reportedUserPhone)
+        {
+            try
+            {
+                var reports = await SupabaseService.GetAsync<Report>("Reports",
+                    $"ReportedUserPhone=eq.{Uri.EscapeDataString(reportedUserPhone)}&order=ReportedAt.desc");
+
+                // Load images for each report
+                foreach (var report in reports)
+                {
+                    var images = await SupabaseService.GetAsync<ReportImage>("ReportImages",
+                        $"ReportId=eq.{report.Id}");
+                    report.Images = images.ToList();
+                }
+
+                return reports;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"GetReportsByReportedUserAsync error: {ex.Message}");
+                return new List<Report>();
             }
         }
     }

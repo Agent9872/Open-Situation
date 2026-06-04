@@ -288,9 +288,7 @@ namespace Lock.Pages.Post
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-                _allUsers = await db.Table<User>().ToListAsync();
+                _allUsers = await SupabaseService.GetAsync<User>("Users", "");
                 var me = Preferences.Get("current_user_phone", string.Empty);
 
                 // LOAD ALL POSTS FOR TEXT SEARCH
@@ -316,7 +314,7 @@ namespace Lock.Pages.Post
                 // Load match percentages in background for all users
                 _ = Task.Run(async () =>
                 {
-                    foreach (var user in _filteredUsers.Take(50)) // Limit to 50 for performance
+                    foreach (var user in _filteredUsers.Take(50))
                     {
                         var vm = AllUsers.FirstOrDefault(u => u.PhoneNumber == user.PhoneNumber);
                         if (vm != null)
@@ -352,15 +350,14 @@ namespace Lock.Pages.Post
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
                 var phones = _allPosts.Select(p => p.AuthorPhone).Distinct().ToList();
                 var nameMap = new Dictionary<string, string>();
 
                 foreach (var phone in phones)
                 {
-                    var user = await db.Table<User>().Where(u => u.PhoneNumber == phone).FirstOrDefaultAsync();
+                    var users = await SupabaseService.GetAsync<User>("Users",
+                        $"PhoneNumber=eq.{Uri.EscapeDataString(phone)}&limit=1");
+                    var user = users.FirstOrDefault();
                     if (user != null)
                     {
                         nameMap[phone] = string.IsNullOrWhiteSpace(user.Name) ? phone : user.Name;
@@ -387,14 +384,12 @@ namespace Lock.Pages.Post
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-                _allUsers = await db.Table<User>().ToListAsync();
+                _allUsers = await SupabaseService.GetAsync<User>("Users", "");
                 var me = Preferences.Get("current_user_phone", string.Empty);
 
                 _filteredUsers = _allUsers
                     .Where(u => !string.Equals(u.PhoneNumber, me, StringComparison.OrdinalIgnoreCase)
-                                && !u.GhostModeMoodShield)   // Ghost Mode + Mood Shield → hidden
+                                && !u.GhostModeMoodShield)
                     .ToList();
             }
             catch (Exception ex)
@@ -1039,27 +1034,21 @@ namespace Lock.Pages.Post
             card.Content = root;
             return card;
         }
-        
+
         // Add a method to search for posts by hashtag
         public async Task SearchByHashtagAsync(string hashtag)
         {
             try
             {
-                // Remove the # symbol if present for searching
                 string searchTerm = hashtag.StartsWith("#") ? hashtag.Substring(1) : hashtag;
 
-                // Set the search bar text
                 if (SearchBar != null)
                 {
                     SearchBar.Text = hashtag;
                 }
 
-                // Search for posts containing this hashtag
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
                 // Get all posts
-                var allPosts = await db.Table<Lock.Models.Post>().ToListAsync();
+                var allPosts = await SupabaseService.GetAsync<Lock.Models.Post>("Posts", "");
 
                 // Filter posts that contain the hashtag in their content
                 var hashtagPattern = $"#{searchTerm}";
@@ -1072,19 +1061,15 @@ namespace Lock.Pages.Post
                 // Load author info for these posts
                 await LoadPostAuthorInfo(matchingPosts);
 
-                // Update UI on main thread
                 await MainThread.InvokeOnMainThreadAsync(() =>
                 {
-                    // Hide user sections
                     AllUsersSection.IsVisible = false;
                     SearchResultsSection.IsVisible = false;
 
-                    // Show post results section
                     var postResultsSection = this.FindByName<ScrollView>("PostResultsSection");
                     if (postResultsSection != null)
                         postResultsSection.IsVisible = true;
 
-                    // Clear and populate post results
                     PostSearchResults.Clear();
                     foreach (var post in matchingPosts)
                     {
@@ -1092,7 +1077,6 @@ namespace Lock.Pages.Post
                         PostSearchResults.Add(vm);
                     }
 
-                    // Show empty state if no results
                     EmptyContainer.IsVisible = !matchingPosts.Any();
                     if (!matchingPosts.Any())
                     {
@@ -1115,20 +1099,21 @@ namespace Lock.Pages.Post
             }
         }
 
+
+
         // Helper method to load author info for posts
         private async Task LoadPostAuthorInfo(List<Lock.Models.Post> posts)
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
                 var authorPhones = posts.Select(p => p.AuthorPhone).Distinct().ToList();
                 var authorInfo = new Dictionary<string, (string Name, string ProfileImage)>();
 
                 foreach (var phone in authorPhones)
                 {
-                    var user = await db.Table<User>().Where(u => u.PhoneNumber == phone).FirstOrDefaultAsync();
+                    var users = await SupabaseService.GetAsync<User>("Users",
+                        $"PhoneNumber=eq.{Uri.EscapeDataString(phone)}&limit=1");
+                    var user = users.FirstOrDefault();
                     if (user != null)
                     {
                         authorInfo[phone] = (user.Name ?? phone, user.ProfileImagePath ?? "");
@@ -1645,7 +1630,6 @@ namespace Lock.Pages.Post
             {
                 var currentUserPhone = Preferences.Get("current_user_phone", string.Empty)?.Trim();
 
-                // Don't calculate for self
                 if (string.Equals(currentUserPhone, _user.PhoneNumber, StringComparison.OrdinalIgnoreCase))
                 {
                     MatchPercent = 0;
@@ -1658,19 +1642,17 @@ namespace Lock.Pages.Post
                     return;
                 }
 
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
+                var currentUsers = await SupabaseService.GetAsync<User>("Users",
+                    $"PhoneNumber=eq.{Uri.EscapeDataString(currentUserPhone)}&limit=1");
+                var currentUser = currentUsers.FirstOrDefault();
 
-                var currentUser = await db.Table<User>().Where(u => u.PhoneNumber == currentUserPhone).FirstOrDefaultAsync();
-                var targetUser = _user;
-
-                if (currentUser == null || targetUser == null)
+                if (currentUser == null)
                 {
                     MatchPercent = 0;
                     return;
                 }
 
-                MatchPercent = await CompatibilityService.CalculateCompatibilityScoreAsync(currentUser, targetUser);
+                MatchPercent = await CompatibilityService.CalculateCompatibilityScoreAsync(currentUser, _user);
             }
             catch (Exception ex)
             {

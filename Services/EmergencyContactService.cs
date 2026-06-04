@@ -2,7 +2,6 @@
 using Lock.Models;
 using Lock.Models.Chat;
 using Lock.Chat.Services;
-using SQLite;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -20,14 +19,8 @@ namespace Lock.Services
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
-                return await db.Table<EmergencyContact>()
-                    .Where(e => e.UserPhone == userPhone)
-                    .OrderByDescending(e => e.IsPrimary)
-                    .ThenBy(e => e.Name)
-                    .ToListAsync();
+                return await SupabaseService.GetAsync<EmergencyContact>("EmergencyContacts",
+                    $"UserPhone=eq.{Uri.EscapeDataString(userPhone)}&order=IsPrimary.desc,Name.asc");
             }
             catch (Exception ex)
             {
@@ -46,20 +39,18 @@ namespace Lock.Services
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
                 // If this is primary, remove primary flag from other contacts
                 if (isPrimary)
                 {
-                    var existingPrimary = await db.Table<EmergencyContact>()
-                        .Where(e => e.UserPhone == userPhone && e.IsPrimary)
-                        .FirstOrDefaultAsync();
+                    var existingPrimary = await SupabaseService.GetAsync<EmergencyContact>("EmergencyContacts",
+                        $"UserPhone=eq.{Uri.EscapeDataString(userPhone)}&IsPrimary=eq.true&limit=1");
 
-                    if (existingPrimary != null)
+                    if (existingPrimary.Any())
                     {
-                        existingPrimary.IsPrimary = false;
-                        await db.UpdateAsync(existingPrimary);
+                        var primary = existingPrimary.First();
+                        primary.IsPrimary = false;
+                        await SupabaseService.UpdateAsync("EmergencyContacts", $"Id=eq.{primary.Id}",
+                            new { IsPrimary = false });
                     }
                 }
 
@@ -74,8 +65,8 @@ namespace Lock.Services
                     CreatedAt = DateTime.UtcNow
                 };
 
-                await db.InsertAsync(contact);
-                return contact;
+                var inserted = await SupabaseService.InsertAndReturnAsync<EmergencyContact>("EmergencyContacts", contact);
+                return inserted;
             }
             catch (Exception ex)
             {
@@ -88,25 +79,22 @@ namespace Lock.Services
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
                 // If setting as primary, remove primary flag from other contacts
                 if (contact.IsPrimary)
                 {
-                    var existingPrimary = await db.Table<EmergencyContact>()
-                        .Where(e => e.UserPhone == contact.UserPhone && e.IsPrimary && e.Id != contact.Id)
-                        .FirstOrDefaultAsync();
+                    var existingPrimary = await SupabaseService.GetAsync<EmergencyContact>("EmergencyContacts",
+                        $"UserPhone=eq.{Uri.EscapeDataString(contact.UserPhone)}&IsPrimary=eq.true&Id=ne.{contact.Id}&limit=1");
 
-                    if (existingPrimary != null)
+                    if (existingPrimary.Any())
                     {
-                        existingPrimary.IsPrimary = false;
-                        await db.UpdateAsync(existingPrimary);
+                        var primary = existingPrimary.First();
+                        primary.IsPrimary = false;
+                        await SupabaseService.UpdateAsync("EmergencyContacts", $"Id=eq.{primary.Id}",
+                            new { IsPrimary = false });
                     }
                 }
 
-                await db.UpdateAsync(contact);
-                return true;
+                return await SupabaseService.UpdateAsync("EmergencyContacts", $"Id=eq.{contact.Id}", contact);
             }
             catch (Exception ex)
             {
@@ -119,20 +107,7 @@ namespace Lock.Services
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
-                var contact = await db.Table<EmergencyContact>()
-                    .Where(e => e.Id == contactId)
-                    .FirstOrDefaultAsync();
-
-                if (contact != null)
-                {
-                    await db.DeleteAsync(contact);
-                    return true;
-                }
-
-                return false;
+                return await SupabaseService.DeleteAsync("EmergencyContacts", $"Id=eq.{contactId}");
             }
             catch (Exception ex)
             {
@@ -151,21 +126,19 @@ namespace Lock.Services
             try
             {
                 // Get current user's details
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-                var user = await db.Table<User>().Where(u => u.PhoneNumber == userPhone).FirstOrDefaultAsync();
+                var users = await SupabaseService.GetAsync<User>("Users",
+                    $"PhoneNumber=eq.{Uri.EscapeDataString(userPhone)}&limit=1");
+                var user = users.FirstOrDefault();
                 string userName = user?.Name ?? "Someone";
                 string userPhoneNumber = user?.PhoneNumber ?? userPhone;
 
                 // Get current location if possible
                 string locationInfo = await GetCurrentLocationAsync();
 
-                // Create the in-app message (send first!)
+                // Create the in-app message
                 string inAppMessage = CreateInAppSOSMessage(userName, locationInfo, customMessage);
 
                 System.Diagnostics.Debug.WriteLine($"Sending SOS in-app messages to {contacts.Count} contacts");
-
-                // In SendEmergencyAlertAsync, replace the in-app send block:
 
                 foreach (var contact in contacts)
                 {
@@ -176,20 +149,17 @@ namespace Lock.Services
                         InAppMessageSent = false,
                     };
 
-                    // Always attempt in-app message — no longer skips non-Lock users
-                    bool inAppSent = await SendInAppMessageToContactAsync(
-                        userPhone, contact, inAppMessage);
+                    // Attempt in-app message
+                    bool inAppSent = await SendInAppMessageToContactAsync(userPhone, contact, inAppMessage);
                     contactResult.InAppMessageSent = inAppSent;
 
-                    // Count as success if the local message was written,
-                    // even if SMS hasn't been sent yet
                     result.SuccessfulContacts.Add(contactResult);
                 }
-                // Create SMS message (for manual sending)
+
+                // Create SMS message
                 string smsMessage = CreateSOSMessage(userName, userPhoneNumber, locationInfo, DateTime.Now, customMessage);
 
-                // SECOND: Now show SMS composition for each contact (only for successful in-app sends)
-                // This allows user to manually send SMS if they choose
+                // Show SMS composition for each contact
                 foreach (var contactResult in result.SuccessfulContacts.ToList())
                 {
                     bool smsSent = await ShowSMSCompositionDialogAsync(contactResult.Contact, smsMessage, userName);
@@ -211,12 +181,10 @@ namespace Lock.Services
             return result;
         }
 
-        // Add this new method to show SMS composition dialog for each contact
         private static async Task<bool> ShowSMSCompositionDialogAsync(EmergencyContact contact, string message, string userName)
         {
             try
             {
-                // Clean the phone number
                 string cleanPhone = CleanPhoneNumber(contact.PhoneNumber);
 
                 if (string.IsNullOrEmpty(cleanPhone))
@@ -225,7 +193,6 @@ namespace Lock.Services
                     return false;
                 }
 
-                // On Android, we can use Sms.ComposeAsync
                 if (DeviceInfo.Platform == DevicePlatform.Android)
                 {
                     try
@@ -238,7 +205,6 @@ namespace Lock.Services
                     catch (Exception ex)
                     {
                         System.Diagnostics.Debug.WriteLine($"SMS compose failed: {ex}");
-                        // Fallback to opening messaging app
                         var uri = $"sms:{cleanPhone}?body={Uri.EscapeDataString(message)}";
                         await Launcher.OpenAsync(uri);
                         return true;
@@ -246,7 +212,6 @@ namespace Lock.Services
                 }
                 else
                 {
-                    // For iOS and other platforms, open messaging app with pre-filled message
                     var uri = $"sms:{cleanPhone}?body={Uri.EscapeDataString(message)}";
                     await Launcher.OpenAsync(uri);
                     System.Diagnostics.Debug.WriteLine($"Opened messaging app for {contact.Name}");
@@ -258,13 +223,6 @@ namespace Lock.Services
                 System.Diagnostics.Debug.WriteLine($"ShowSMSCompositionDialogAsync error for {contact.Name}: {ex}");
                 return false;
             }
-        }
-
-        // Keep the original SendMessageToContactAsync method for compatibility
-        private static async Task<bool> SendMessageToContactAsync(EmergencyContact contact, string message, string userName)
-        {
-            // This method now just opens SMS composition
-            return await ShowSMSCompositionDialogAsync(contact, message, userName);
         }
 
         private static string CreateSOSMessage(string userName, string userPhone, string locationInfo, DateTime timestamp, string customMessage = null)
@@ -324,11 +282,11 @@ namespace Lock.Services
 
             return sb.ToString().Trim();
         }
+
         private static async Task<string> GetCurrentLocationAsync()
         {
             try
             {
-                // Check if location permission is granted
                 var status = await Permissions.CheckStatusAsync<Permissions.LocationWhenInUse>();
 
                 if (status != PermissionStatus.Granted)
@@ -346,7 +304,6 @@ namespace Lock.Services
 
                     if (location != null)
                     {
-                        // Use reverse geocoding to get address
                         var placemarks = await Geocoding.GetPlacemarksAsync(location.Latitude, location.Longitude);
                         var placemark = placemarks?.FirstOrDefault();
 
@@ -369,10 +326,6 @@ namespace Lock.Services
             return string.Empty;
         }
 
-
-        // In EmergencyContactService.cs
-        // Replace SendInAppMessageToContactAsync with this version
-
         private static async Task<bool> SendInAppMessageToContactAsync(
             string senderPhone,
             EmergencyContact contact,
@@ -380,10 +333,7 @@ namespace Lock.Services
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
-                // Get or create conversation regardless of whether contact is a Lock user
+                // Get or create conversation
                 string conversationId = await GetOrCreateConversationAsync(senderPhone, contact.PhoneNumber);
 
                 // Create the SOS chat message
@@ -399,50 +349,47 @@ namespace Lock.Services
                     IsLocalOutgoing = true,
                     IsEncrypted = false,
                     MessageType = "sos_alert",
-                    IsBlocked = false,
                 };
 
-                await db.InsertAsync(sosChatMessage);
+                await SupabaseService.InsertAsync("ChatMessages", sosChatMessage);
 
                 // Update the conversation's last-message preview
-                var conversation = await db.Table<Conversation>()
-                    .Where(c => c.ConversationId == conversationId)
-                    .FirstOrDefaultAsync();
+                var conversations = await SupabaseService.GetAsync<Conversation>("Conversations",
+                    $"ConversationId=eq.{Uri.EscapeDataString(conversationId)}&limit=1");
+                var conversation = conversations.FirstOrDefault();
 
                 if (conversation != null)
                 {
-                    conversation.LastMessagePreview = "🚨 SOS ALERT: Emergency assistance needed";
-                    conversation.LastMessageAt = DateTime.UtcNow;
-                    conversation.LastMessageType = "sos_alert";
-                    await db.UpdateAsync(conversation);
+                    await SupabaseService.UpdateAsync("Conversations", $"ConversationId=eq.{Uri.EscapeDataString(conversationId)}",
+                        new
+                        {
+                            LastMessagePreview = "🚨 SOS ALERT: Emergency assistance needed",
+                            LastMessageAt = DateTime.UtcNow,
+                            LastMessageType = "sos_alert"
+                        });
                 }
 
-                System.Diagnostics.Debug.WriteLine(
-                    $"SOS chat message saved for {contact.Name} (conversationId: {conversationId})");
+                System.Diagnostics.Debug.WriteLine($"SOS chat message saved for {contact.Name} (conversationId: {conversationId})");
                 return true;
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine(
-                    $"SendInAppMessageToContactAsync error for {contact.Name}: {ex}");
+                System.Diagnostics.Debug.WriteLine($"SendInAppMessageToContactAsync error for {contact.Name}: {ex}");
                 return false;
             }
         }
+
         private static async Task<string> GetOrCreateConversationAsync(string userPhone, string contactPhone)
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
                 // Check if conversation already exists
-                var existingConversation = await db.Table<Conversation>()
-                    .Where(c => (c.ParticipantA == userPhone && c.ParticipantB == contactPhone) ||
-                               (c.ParticipantA == contactPhone && c.ParticipantB == userPhone))
-                    .FirstOrDefaultAsync();
+                var existingConvs = await SupabaseService.GetAsync<Conversation>("Conversations",
+                    $"or(and(ParticipantA.eq.{Uri.EscapeDataString(userPhone)},ParticipantB.eq.{Uri.EscapeDataString(contactPhone)})," +
+                    $"and(ParticipantA.eq.{Uri.EscapeDataString(contactPhone)},ParticipantB.eq.{Uri.EscapeDataString(userPhone)}))&limit=1");
 
-                if (existingConversation != null)
-                    return existingConversation.ConversationId;
+                if (existingConvs.Any())
+                    return existingConvs.First().ConversationId;
 
                 // Create new conversation
                 string conversationId = Guid.NewGuid().ToString();
@@ -456,7 +403,7 @@ namespace Lock.Services
                     CreatedAt = DateTime.UtcNow
                 };
 
-                await db.InsertAsync(conversation);
+                await SupabaseService.InsertAsync("Conversations", conversation);
                 return conversationId;
             }
             catch (Exception ex)
@@ -471,9 +418,7 @@ namespace Lock.Services
             if (string.IsNullOrEmpty(phoneNumber))
                 return phoneNumber;
 
-            // Remove all non-digit characters except '+'
             var cleaned = new string(phoneNumber.Where(c => char.IsDigit(c) || c == '+').ToArray());
-
             return cleaned;
         }
 
@@ -481,17 +426,11 @@ namespace Lock.Services
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
-                // Log to console
                 System.Diagnostics.Debug.WriteLine($"SOS Alert logged for {userPhone}: {result.SuccessfulContacts.Count} sent, {result.FailedContacts.Count} failed");
 
-                // Log to file
                 string logPath = Path.Combine(FileSystem.AppDataDirectory, "sos_log.txt");
                 string logEntry = $"{DateTime.Now:yyyy-MM-dd HH:mm:ss} - SOS Alert from {userPhone} - Sent: {result.SuccessfulContacts.Count}, Failed: {result.FailedContacts.Count}\n";
 
-                // Add details of each contact
                 foreach (var contactResult in result.SuccessfulContacts)
                 {
                     logEntry += $"  ✓ {contactResult.Contact.Name}: SMS={contactResult.SmsSent}, InApp={contactResult.InAppMessageSent}\n";
@@ -513,12 +452,9 @@ namespace Lock.Services
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
-                return await db.Table<EmergencyContact>()
-                    .Where(e => e.UserPhone == userPhone && e.IsPrimary)
-                    .FirstOrDefaultAsync();
+                var contacts = await SupabaseService.GetAsync<EmergencyContact>("EmergencyContacts",
+                    $"UserPhone=eq.{Uri.EscapeDataString(userPhone)}&IsPrimary=eq.true&limit=1");
+                return contacts.FirstOrDefault();
             }
             catch (Exception ex)
             {

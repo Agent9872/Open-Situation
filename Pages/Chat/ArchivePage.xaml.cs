@@ -6,10 +6,9 @@ using System.Threading.Tasks;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Storage;
 using Microsoft.Maui.ApplicationModel;
-using Lock.Chat.Services;
 using Lock.Models;
 using Lock.Models.Chat;
-using ChatDatabaseService = Lock.Chat.Services.DatabaseService;
+using Lock.Services;
 
 namespace Lock.Pages.Chat
 {
@@ -71,14 +70,11 @@ namespace Lock.Pages.Chat
                     return;
                 }
 
-                await ChatDatabaseService.InitializeAsync();
-                var db = ChatDatabaseService.GetConnection();
-
-                // ?? Load ghosted phones (users with Ghost Mode + Mood Shield ON) ??
+                // Load ghosted phones (users with Ghost Mode + Mood Shield ON)
                 var ghostedPhones = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 try
                 {
-                    var allUsers = await db.Table<User>().ToListAsync();
+                    var allUsers = await SupabaseService.GetAsync<User>("Users", "");
                     ghostedPhones = allUsers
                         .Where(u => u.GhostModeMoodShield)
                         .Select(u => (u.PhoneNumber ?? "").Trim())
@@ -93,17 +89,17 @@ namespace Lock.Pages.Chat
                     System.Diagnostics.Debug.WriteLine($"Archive ghost filter load error: {ex.Message}");
                 }
 
-                var convs = await db.Table<Conversation>()
-                    .Where(c => c.IsArchived == true && (c.ParticipantA == me || c.ParticipantB == me))
-                    .ToListAsync();
+                // Get archived conversations from Supabase
+                var convs = await SupabaseService.GetAsync<Conversation>("Conversations",
+                    $"IsArchived=eq.true&or(ParticipantA.eq.{Uri.EscapeDataString(me)},ParticipantB.eq.{Uri.EscapeDataString(me)})&order=LastMessageAt.desc");
 
                 _items.Clear();
 
-                foreach (var c in convs.OrderByDescending(c => c.LastMessageAt))
+                foreach (var c in convs)
                 {
                     var other = c.ParticipantA == me ? c.ParticipantB : c.ParticipantA;
 
-                    // ?? Skip ghosted users ????????????????????????????????????????
+                    // Skip ghosted users
                     var cleanOtherForGhost = other.Contains("·")
                         ? other.Split(new[] { '·' }, StringSplitOptions.RemoveEmptyEntries)
                                .Skip(1).FirstOrDefault()?.Trim() ?? other.Trim()
@@ -114,14 +110,14 @@ namespace Lock.Pages.Chat
                         System.Diagnostics.Debug.WriteLine($"Skipping ghosted user archived conversation: {other}");
                         continue;
                     }
-                    // ?? END ghost skip ????????????????????????????????????????????
 
                     var displayName = other;
                     var avatarUrl = $"https://ui-avatars.com/api/?name={Uri.EscapeDataString(displayName)}&background=2F3337&color=E6E6E6&size=128";
 
                     try
                     {
-                        var user = await db.Table<User>().Where(u => u.PhoneNumber == other).FirstOrDefaultAsync();
+                        var users = await SupabaseService.GetAsync<User>("Users", $"PhoneNumber=eq.{Uri.EscapeDataString(other)}&limit=1");
+                        var user = users.FirstOrDefault();
                         if (user != null)
                         {
                             displayName = string.IsNullOrEmpty(user.Name) ? other : user.Name;
@@ -140,12 +136,12 @@ namespace Lock.Pages.Chat
                         UnreadCount = 0
                     };
 
-                    // load unread count for this conversation (recipient = current user)
+                    // Load unread count for this conversation
                     try
                     {
-                        item.UnreadCount = await db.Table<ChatMessage>()
-                            .Where(m => m.ConversationId == c.ConversationId && m.RecipientPhone == me && m.IsRead == false)
-                            .CountAsync();
+                        var unreadMessages = await SupabaseService.GetAsync<ChatMessage>("ChatMessages",
+                            $"ConversationId=eq.{Uri.EscapeDataString(c.ConversationId)}&RecipientPhone=eq.{Uri.EscapeDataString(me)}&IsRead=eq.false");
+                        item.UnreadCount = unreadMessages.Count;
                     }
                     catch
                     {
@@ -155,7 +151,7 @@ namespace Lock.Pages.Chat
                     _items.Add(item);
                 }
 
-                // show/hide empty state grid
+                // Show/hide empty state grid
                 var emptyGrid = this.FindByName<Grid>("EmptyStateGrid");
                 if (emptyGrid != null)
                     emptyGrid.IsVisible = _items.Count == 0;
@@ -181,11 +177,9 @@ namespace Lock.Pages.Chat
                 var me = Preferences.Get(CurrentUserPhoneKey, string.Empty);
                 var other = conv.ParticipantA == me ? conv.ParticipantB : conv.ParticipantA;
 
-                await ChatDatabaseService.InitializeAsync();
-                var db = ChatDatabaseService.GetConnection();
-
                 // Check if user is ghosted
-                var otherUser = await db.Table<User>().Where(u => u.PhoneNumber == other).FirstOrDefaultAsync();
+                var users = await SupabaseService.GetAsync<User>("Users", $"PhoneNumber=eq.{Uri.EscapeDataString(other)}&limit=1");
+                var otherUser = users.FirstOrDefault();
                 if (otherUser?.GhostModeMoodShield == true)
                 {
                     await DisplayAlert("Cannot Unarchive",
@@ -197,7 +191,8 @@ namespace Lock.Pages.Chat
                 try
                 {
                     conv.IsArchived = false;
-                    try { await db.UpdateAsync(conv); } catch { try { await db.InsertAsync(conv); } catch { } }
+                    var success = await SupabaseService.UpdateAsync("Conversations", $"ConversationId=eq.{Uri.EscapeDataString(conv.ConversationId)}",
+                        new { IsArchived = false });
 
                     await LoadArchivedAsync();
                 }
@@ -208,7 +203,7 @@ namespace Lock.Pages.Chat
             }
         }
 
-        // Handle SwipeItem.Invoked (signature expected by XAML: Invoked="UnarchiveButton_Invoked")
+        // Handle SwipeItem.Invoked
         private async void UnarchiveButton_Invoked(object? sender, EventArgs e)
         {
             // SwipeItem is the sender for Invoked; retrieve CommandParameter
@@ -218,11 +213,9 @@ namespace Lock.Pages.Chat
                 var me = Preferences.Get(CurrentUserPhoneKey, string.Empty);
                 var other = conv.ParticipantA == me ? conv.ParticipantB : conv.ParticipantA;
 
-                await ChatDatabaseService.InitializeAsync();
-                var db = ChatDatabaseService.GetConnection();
-
                 // Check if user is ghosted
-                var otherUser = await db.Table<User>().Where(u => u.PhoneNumber == other).FirstOrDefaultAsync();
+                var users = await SupabaseService.GetAsync<User>("Users", $"PhoneNumber=eq.{Uri.EscapeDataString(other)}&limit=1");
+                var otherUser = users.FirstOrDefault();
                 if (otherUser?.GhostModeMoodShield == true)
                 {
                     await DisplayAlert("Cannot Unarchive",
@@ -234,7 +227,8 @@ namespace Lock.Pages.Chat
                 try
                 {
                     conv.IsArchived = false;
-                    try { await db.UpdateAsync(conv); } catch { try { await db.InsertAsync(conv); } catch { } }
+                    await SupabaseService.UpdateAsync("Conversations", $"ConversationId=eq.{Uri.EscapeDataString(conv.ConversationId)}",
+                        new { IsArchived = false });
 
                     await LoadArchivedAsync();
                 }
@@ -272,10 +266,8 @@ namespace Lock.Pages.Chat
             var me = Preferences.Get(CurrentUserPhoneKey, string.Empty);
             var other = selected.OtherPhone;
 
-            await ChatDatabaseService.InitializeAsync();
-            var db = ChatDatabaseService.GetConnection();
-
-            var otherUser = await db.Table<User>().Where(u => u.PhoneNumber == other).FirstOrDefaultAsync();
+            var users = await SupabaseService.GetAsync<User>("Users", $"PhoneNumber=eq.{Uri.EscapeDataString(other)}&limit=1");
+            var otherUser = users.FirstOrDefault();
             if (otherUser?.GhostModeMoodShield == true)
             {
                 await DisplayAlert("Cannot Open Chat",
@@ -294,7 +286,7 @@ namespace Lock.Pages.Chat
 
             try
             {
-                // Navigate first (same approach used by ConversationsPage)
+                // Navigate first
                 try
                 {
                     await Shell.Current.GoToAsync(route);
@@ -306,7 +298,6 @@ namespace Lock.Pages.Chat
                 }
 
                 // After successful navigation, close the archive modal if it was presented modally.
-                // PopModalAsync is awaited here so the modal is removed cleanly; failure is swallowed.
                 try { await Navigation.PopModalAsync(); } catch { }
             }
             finally

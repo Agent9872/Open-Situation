@@ -5,7 +5,6 @@ using System.Net.Http;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Lock.Models;
-using SQLite;
 using Microsoft.Maui.Storage;
 using Lock.Chat.Services;
 using System.Diagnostics;
@@ -43,13 +42,8 @@ namespace Lock.Services
             if (string.IsNullOrWhiteSpace(phone))
                 return string.Empty;
 
-            // Check if it starts with + (international format)
             bool hasPlus = phone.Trim().StartsWith("+");
-
-            // Remove all non-digit characters
             var digits = new string(phone.Where(c => char.IsDigit(c)).ToArray());
-
-            // Add back the + if it was present
             return hasPlus ? "+" + digits : digits;
         }
 
@@ -65,15 +59,13 @@ namespace Lock.Services
                 if (DateTime.TryParse(expiryStr, out var expiry))
                     _tokenExpiry = expiry;
 
-                // ✅ Re-sync role from DB on app restart (in case Preferences was cleared)
+                // ✅ Re-sync role from Supabase on app restart
                 var phone = Preferences.Get(CurrentUserPhoneKey, string.Empty);
                 if (!string.IsNullOrEmpty(phone))
                 {
-                    await DatabaseService.InitializeAsync();
-                    var db = DatabaseService.GetConnection();
-                    var user = await db.Table<User>()
-                                       .Where(u => u.PhoneNumber == phone)
-                                       .FirstOrDefaultAsync();
+                    var users = await SupabaseService.GetAsync<User>("Users",
+                        $"PhoneNumber=eq.{Uri.EscapeDataString(phone)}&limit=1");
+                    var user = users.FirstOrDefault();
                     if (user != null)
                         Preferences.Set("current_user_role", user.Role);
                 }
@@ -93,13 +85,11 @@ namespace Lock.Services
         // Get valid token (auto-refresh if needed)
         public static async Task<string?> GetValidTokenAsync()
         {
-            // Check if token is still valid (with 5-minute buffer)
             if (!string.IsNullOrEmpty(_currentToken) && _tokenExpiry > DateTime.UtcNow.AddMinutes(5))
             {
                 return _currentToken;
             }
 
-            // Try to refresh token if we have a refresh token
             if (!string.IsNullOrEmpty(_currentRefreshToken))
             {
                 if (await RefreshTokenAsync())
@@ -128,7 +118,6 @@ namespace Lock.Services
                     _currentRefreshToken = result.GetProperty("refreshToken").GetString();
                     _tokenExpiry = result.GetProperty("expiresAt").GetDateTime();
 
-                    // Store updated tokens
                     await SecureStorage.SetAsync(AuthTokenKey, _currentToken);
                     await SecureStorage.SetAsync(RefreshTokenKey, _currentRefreshToken);
                     await SecureStorage.SetAsync(TokenExpiryKey, _tokenExpiry.ToString("O"));
@@ -145,47 +134,45 @@ namespace Lock.Services
             return false;
         }
 
-        // Async register that persists to local SQLite AND backend API
+        // Async register that persists to Supabase AND backend API
         public static async Task<(bool Success, string Error)> RegisterAsync(
-       string name,
-       string phone,
-       string password,
-       DateTime dob,
-       string gender,
-       string interest = "",
-       string profileImagePath = "",
-       string coverImagePath = "",
-       string mood = "",
-       string energyLevel = "",
-       string country = "",
-       string state = "",
-       string bio = "",
-       string interests = "",
-       string drinks = "",
-       bool smokes = false,
-       bool hasPets = false,
-       string religion = "",
-       string politicalViews = "",
-       string musicGenres = "",
-       string favoriteArtists = "",
-       string favoriteMovies = "",
-       string favoriteBooks = "",
-       string languages = "",
-       string occupation = "",
-       string education = "",
-       string prompts = "",
-       string dealbreakers = "",
-       string topInterest = "",
-       string topArtist = "",
-       string topMovie = "",
-       string sexualOrientation = "",
-       bool isVerified = false,
-       bool allowMoodSearch = true,
-       bool ghostModeMoodShield = false,
-       string ipAddress = "")
+            string name,
+            string phone,
+            string password,
+            DateTime dob,
+            string gender,
+            string interest = "",
+            string profileImagePath = "",
+            string coverImagePath = "",
+            string mood = "",
+            string energyLevel = "",
+            string country = "",
+            string state = "",
+            string bio = "",
+            string interests = "",
+            string drinks = "",
+            bool smokes = false,
+            bool hasPets = false,
+            string religion = "",
+            string politicalViews = "",
+            string musicGenres = "",
+            string favoriteArtists = "",
+            string favoriteMovies = "",
+            string favoriteBooks = "",
+            string languages = "",
+            string occupation = "",
+            string education = "",
+            string prompts = "",
+            string dealbreakers = "",
+            string topInterest = "",
+            string topArtist = "",
+            string topMovie = "",
+            string sexualOrientation = "",
+            bool isVerified = false,
+            bool allowMoodSearch = true,
+            bool ghostModeMoodShield = false,
+            string ipAddress = "")
         {
-            await DatabaseService.InitializeAsync();
-
             if (string.IsNullOrWhiteSpace(name))
                 return (false, "Full name is required.");
 
@@ -207,22 +194,23 @@ namespace Lock.Services
             if (string.IsNullOrWhiteSpace(gender))
                 return (false, "Please select your gender.");
 
-            var db = DatabaseService.GetConnection();
-
-            // Check if user already exists locally
-            var existing = await db.Table<User>()
-                .Where(u => u.PhoneNumber == normalizedPhone)
-                .FirstOrDefaultAsync();
+            // Check if user already exists in Supabase
+            var existingUsers = await SupabaseService.GetAsync<User>("Users",
+                $"PhoneNumber=eq.{Uri.EscapeDataString(normalizedPhone)}&limit=1");
+            var existing = existingUsers.FirstOrDefault();
 
             if (existing != null)
             {
-                // Block permanently banned phone numbers from re-registering
                 if (existing.IsBanned && existing.BanType == "permanent")
                     return (false,
                         $"This phone number has been permanently banned and cannot be used to create an account.\nReason: {(string.IsNullOrEmpty(existing.BanReason) ? "Violation of terms of service" : existing.BanReason)}");
 
                 return (false, "A user with this phone number already exists.");
             }
+
+            // Get total user count for role assignment
+            var allUsers = await SupabaseService.GetAsync<User>("Users", "");
+            var totalUsers = allUsers.Count;
 
             // Create user object
             var user = new User(
@@ -264,16 +252,15 @@ namespace Lock.Services
             user.AllowMoodSearch = allowMoodSearch;
             user.GhostModeMoodShield = ghostModeMoodShield;
             user.IsVerified = isVerified;
-
-            // Store captured IP address
             user.IpAddress = ipAddress ?? string.Empty;
-            Debug.WriteLine($"[AUTH] Registering user: {normalizedPhone} | IP: {(string.IsNullOrEmpty(ipAddress) ? "unavailable" : ipAddress)}");
-
-            // First user ever = Admin, everyone else = User
-            var totalUsers = await db.Table<User>().CountAsync();
             user.Role = totalUsers == 0 ? "Admin" : "User";
 
-            await db.InsertAsync(user);
+            Debug.WriteLine($"[AUTH] Registering user: {normalizedPhone} | IP: {(string.IsNullOrEmpty(ipAddress) ? "unavailable" : ipAddress)}");
+
+            // Insert into Supabase
+            var inserted = await SupabaseService.InsertAndReturnAsync<User>("Users", user);
+            if (inserted == null)
+                return (false, "Failed to create user account.");
 
             // Also register/login to backend API to get JWT token
             var loginResult = await LoginWithApiAsync(normalizedPhone, password);
@@ -303,15 +290,11 @@ namespace Lock.Services
                     _currentRefreshToken = result.GetProperty("refreshToken").GetString();
                     _tokenExpiry = result.GetProperty("expiresAt").GetDateTime();
 
-                    // Store tokens securely
                     await SecureStorage.SetAsync(AuthTokenKey, _currentToken);
                     await SecureStorage.SetAsync(RefreshTokenKey, _currentRefreshToken);
                     await SecureStorage.SetAsync(TokenExpiryKey, _tokenExpiry.ToString("O"));
 
-                    // Get user info from response
-                    var userInfo = result.GetProperty("user");
                     var user = await GetUserByPhoneAsync(phone);
-
                     return (true, string.Empty, user);
                 }
                 else
@@ -326,11 +309,9 @@ namespace Lock.Services
             }
         }
 
-        // Async login that checks credentials against backend API and local SQLite
+        // Async login that checks credentials against backend API and Supabase
         public static async Task<(bool Success, string Error, User? User)> LoginAsync(string phone, string password)
         {
-            await DatabaseService.InitializeAsync();
-
             if (string.IsNullOrWhiteSpace(phone))
                 return (false, "Phone number is required.", null);
 
@@ -339,10 +320,9 @@ namespace Lock.Services
 
             string normalizedPhone = NormalizePhoneNumber(phone);
 
-            var db = DatabaseService.GetConnection();
-            var user = await db.Table<User>()
-                .Where(u => u.PhoneNumber == normalizedPhone)
-                .FirstOrDefaultAsync();
+            var users = await SupabaseService.GetAsync<User>("Users",
+                $"PhoneNumber=eq.{Uri.EscapeDataString(normalizedPhone)}&limit=1");
+            var user = users.FirstOrDefault();
 
             if (user == null)
                 return (false, "User not found. Please check your phone number.", null);
@@ -351,15 +331,14 @@ namespace Lock.Services
                 return (false, "Incorrect password.", null);
 
             // ── BAN CHECK ──────────────────────────────────────────────────────────
-            // Auto-lift expired temporary ban first
             if (user.IsBanned && user.BanType == "temporary" && user.BanExpiresAt.HasValue
                 && DateTime.UtcNow >= user.BanExpiresAt.Value)
             {
                 await UserService.UnbanUserAsync(normalizedPhone);
-                // Ban has expired — re-fetch user with cleared ban fields
-                user = await db.Table<User>()
-                    .Where(u => u.PhoneNumber == normalizedPhone)
-                    .FirstOrDefaultAsync();
+                // Refresh user data
+                var refreshedUsers = await SupabaseService.GetAsync<User>("Users",
+                    $"PhoneNumber=eq.{Uri.EscapeDataString(normalizedPhone)}&limit=1");
+                user = refreshedUsers.FirstOrDefault();
             }
             else if (user.IsBanned && user.BanType == "permanent")
             {
@@ -383,12 +362,12 @@ namespace Lock.Services
             }
 
             // Update last active timestamp
-            user.LastActive = DateTime.UtcNow;
-            await db.UpdateAsync(user);
+            await SupabaseService.UpdateAsync("Users", $"Id=eq.{user.Id}",
+                new { LastActive = DateTime.UtcNow });
 
             // Store current user phone + role in preferences
             Preferences.Set(CurrentUserPhoneKey, normalizedPhone);
-            Preferences.Set("current_user_role", user.Role); // ✅ THIS was missing
+            Preferences.Set("current_user_role", user.Role);
 
             // ========== TRACK USER LOGIN ==========
             try
@@ -405,17 +384,12 @@ namespace Lock.Services
             return (true, string.Empty, user);
         }
 
-        // In AuthService.cs — replace MigrateExistingUserRolesAsync
+        // Migrate existing user roles (needed if coming from SQLite, otherwise can be removed)
         public static async Task MigrateExistingUserRolesAsync()
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
-                var allUsers = await db.Table<User>()
-                                       .OrderBy(u => u.JoinDate)
-                                       .ToListAsync();
+                var allUsers = await SupabaseService.GetAsync<User>("Users", "order=JoinDate.asc");
 
                 if (allUsers.Count == 0) return;
 
@@ -426,18 +400,14 @@ namespace Lock.Services
                     var user = allUsers[i];
                     string correctRole = i == 0 ? "Admin" : (string.IsNullOrEmpty(user.Role) ? "User" : user.Role);
 
-                    // Fix first user always (in case they were registered before role logic existed)
-                    // Fix any user with empty/null role
                     if (user.Role != correctRole)
                     {
-                        user.Role = correctRole;
-                        await db.UpdateAsync(user);
+                        await SupabaseService.UpdateAsync("Users", $"Id=eq.{user.Id}", new { Role = correctRole });
                         anyFixed = true;
-                        Debug.WriteLine($"[MIGRATION] Fixed {user.PhoneNumber} → {user.Role}");
+                        Debug.WriteLine($"[MIGRATION] Fixed {user.PhoneNumber} → {correctRole}");
                     }
                 }
 
-                // Always re-sync Preferences for the current logged-in user
                 var currentPhone = Preferences.Get(CurrentUserPhoneKey, string.Empty);
                 if (!string.IsNullOrEmpty(currentPhone))
                 {
@@ -457,17 +427,14 @@ namespace Lock.Services
 
         public static void Logout()
         {
-            // Capture before clearing
             var refreshTokenToInvalidate = _currentRefreshToken;
 
-            // ✅ Synchronous cleanup FIRST
             Preferences.Remove(CurrentUserPhoneKey);
             Preferences.Remove("current_user_role");
             _currentToken = null;
             _currentRefreshToken = null;
             _tokenExpiry = DateTime.MinValue;
 
-            // Async cleanup in background
             _ = Task.Run(async () =>
             {
                 try
@@ -491,7 +458,6 @@ namespace Lock.Services
             });
         }
 
-        // Quick role checks — call these anywhere in the app
         public static string GetCurrentUserRole()
             => Preferences.Get("current_user_role", "User");
 
@@ -505,12 +471,7 @@ namespace Lock.Services
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
-                var allUsers = await db.Table<User>()
-                                       .OrderBy(u => u.JoinDate)
-                                       .ToListAsync();
+                var allUsers = await SupabaseService.GetAsync<User>("Users", "order=JoinDate.asc");
 
                 Debug.WriteLine("========== ADMIN DIAGNOSIS ==========");
                 Debug.WriteLine($"Total users in DB: {allUsers.Count}");
@@ -532,26 +493,18 @@ namespace Lock.Services
             }
         }
 
-        /// <summary>
-        /// Checks ban status for a phone number.
-        /// Returns IsBanned, BanType, Reason, and ExpiresAt (null = permanent).
-        /// Also auto-lifts expired temporary bans.
-        /// </summary>
         public static async Task<(bool IsBanned, string BanType, string Reason, DateTime? ExpiresAt)> CheckBanStatusAsync(string phone)
         {
             try
             {
                 if (string.IsNullOrEmpty(phone)) return (false, "", "", null);
 
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-                var user = await db.Table<User>()
-                    .Where(u => u.PhoneNumber == phone)
-                    .FirstOrDefaultAsync();
+                var users = await SupabaseService.GetAsync<User>("Users",
+                    $"PhoneNumber=eq.{Uri.EscapeDataString(phone)}&limit=1");
+                var user = users.FirstOrDefault();
 
                 if (user == null) return (false, "", "", null);
 
-                // Auto-lift expired temporary ban
                 if (user.IsBanned && user.BanType == "temporary" && user.BanExpiresAt.HasValue
                     && DateTime.UtcNow >= user.BanExpiresAt.Value)
                 {
@@ -576,20 +529,16 @@ namespace Lock.Services
             }
         }
 
-      
-        // Check if user is logged in (has valid token)
         public static bool IsUserLoggedIn()
         {
             return IsAuthenticated && !string.IsNullOrEmpty(Preferences.Get(CurrentUserPhoneKey, string.Empty));
         }
 
-        // Get current user phone
         public static string GetCurrentUserPhone()
         {
             return Preferences.Get(CurrentUserPhoneKey, string.Empty);
         }
 
-        // Get current user details from local DB
         public static async Task<User?> GetCurrentUserAsync()
         {
             var phone = GetCurrentUserPhone();
@@ -599,63 +548,44 @@ namespace Lock.Services
             return await GetUserByPhoneAsync(phone);
         }
 
-        // Get user by phone number
         private static async Task<User?> GetUserByPhoneAsync(string phone)
         {
-            await DatabaseService.InitializeAsync();
-            var db = DatabaseService.GetConnection();
-            return await db.Table<User>()
-                .Where(u => u.PhoneNumber == phone)
-                .FirstOrDefaultAsync();
+            var users = await SupabaseService.GetAsync<User>("Users",
+                $"PhoneNumber=eq.{Uri.EscapeDataString(phone)}&limit=1");
+            return users.FirstOrDefault();
         }
 
-        // Check if phone number is already registered
         public static async Task<bool> IsPhoneRegisteredAsync(string phone)
         {
             if (string.IsNullOrWhiteSpace(phone))
                 return false;
 
             string normalizedPhone = NormalizePhoneNumber(phone);
-
-            await DatabaseService.InitializeAsync();
-            var db = DatabaseService.GetConnection();
-
-            var user = await db.Table<User>()
-                .Where(u => u.PhoneNumber == normalizedPhone)
-                .FirstOrDefaultAsync();
-
-            return user != null;
+            var users = await SupabaseService.GetAsync<User>("Users",
+                $"PhoneNumber=eq.{Uri.EscapeDataString(normalizedPhone)}&limit=1");
+            return users.Any();
         }
 
-        // Search for users by phone (useful for NewChatPage)
         public static async Task<User?> FindUserByPhoneAsync(string phone)
         {
             if (string.IsNullOrWhiteSpace(phone))
                 return null;
 
             string normalizedPhone = NormalizePhoneNumber(phone);
-
-            await DatabaseService.InitializeAsync();
-            var db = DatabaseService.GetConnection();
-
-            return await db.Table<User>()
-                .Where(u => u.PhoneNumber == normalizedPhone)
-                .FirstOrDefaultAsync();
+            var users = await SupabaseService.GetAsync<User>("Users",
+                $"PhoneNumber=eq.{Uri.EscapeDataString(normalizedPhone)}&limit=1");
+            return users.FirstOrDefault();
         }
 
-        // Search for users by partial phone or name
         public static async Task<List<User>> SearchUsersAsync(string searchText, string currentUserPhone)
         {
             if (string.IsNullOrWhiteSpace(searchText))
                 return new List<User>();
 
-            await DatabaseService.InitializeAsync();
-            var db = DatabaseService.GetConnection();
-
             string normalizedSearch = NormalizePhoneNumber(searchText);
             string searchLower = searchText.ToLowerInvariant().Trim();
 
-            var allUsers = await db.Table<User>().ToListAsync();
+            var allUsers = await SupabaseService.GetAsync<User>("Users", "");
 
             return allUsers
                 .Where(u => u.PhoneNumber != currentUserPhone)
@@ -668,19 +598,11 @@ namespace Lock.Services
                 .ToList();
         }
 
-        // Add this method to your AuthService class
         public static async Task<List<User>> GetAllUsersAsync()
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
-                var allUsers = await db.Table<User>()
-                    .OrderByDescending(u => u.JoinDate)
-                    .ToListAsync();
-
-                return allUsers;
+                return await SupabaseService.GetAsync<User>("Users", "order=JoinDate.desc");
             }
             catch (Exception ex)
             {
@@ -689,22 +611,12 @@ namespace Lock.Services
             }
         }
 
-        // Get users with pagination
         public static async Task<List<User>> GetUsersPaginatedAsync(int pageNumber, int pageSize = 20)
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
                 var skip = (pageNumber - 1) * pageSize;
-                var users = await db.Table<User>()
-                    .OrderByDescending(u => u.JoinDate)
-                    .Skip(skip)
-                    .Take(pageSize)
-                    .ToListAsync();
-
-                return users;
+                return await SupabaseService.GetAsync<User>("Users", $"order=JoinDate.desc&limit={pageSize}&offset={skip}");
             }
             catch (Exception ex)
             {
@@ -713,14 +625,12 @@ namespace Lock.Services
             }
         }
 
-        // Get user count
         public static async Task<int> GetUserCountAsync()
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-                return await db.Table<User>().CountAsync();
+                var users = await SupabaseService.GetAsync<User>("Users", "select=Id");
+                return users.Count;
             }
             catch (Exception ex)
             {
@@ -729,7 +639,6 @@ namespace Lock.Services
             }
         }
 
-        // Search users with filters
         public static async Task<List<User>> SearchUsersWithFiltersAsync(
             string searchText = "",
             string genderFilter = "",
@@ -738,53 +647,34 @@ namespace Lock.Services
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
+                var allUsers = await SupabaseService.GetAsync<User>("Users", "");
 
-                var query = db.Table<User>();
+                var filtered = allUsers.AsEnumerable();
 
                 if (!string.IsNullOrWhiteSpace(searchText))
                 {
                     var searchLower = searchText.ToLowerInvariant();
-                    var allUsers = await query.ToListAsync();
-                    return allUsers.Where(u =>
+                    filtered = filtered.Where(u =>
                         u.Name.ToLowerInvariant().Contains(searchLower) ||
-                        u.PhoneNumber.Contains(searchText))
-                        .ToList();
+                        u.PhoneNumber.Contains(searchText));
                 }
 
                 if (!string.IsNullOrWhiteSpace(genderFilter) && genderFilter != "All")
                 {
-                    var allUsers = await query.ToListAsync();
-                    var filtered = allUsers.Where(u => u.Gender == genderFilter).ToList();
-
-                    if (minAge.HasValue || maxAge.HasValue)
-                    {
-                        filtered = filtered.Where(u =>
-                        {
-                            var age = u.GetAge();
-                            return (!minAge.HasValue || age >= minAge.Value) &&
-                                   (!maxAge.HasValue || age <= maxAge.Value);
-                        }).ToList();
-                    }
-
-                    return filtered.OrderByDescending(u => u.JoinDate).ToList();
+                    filtered = filtered.Where(u => u.Gender == genderFilter);
                 }
 
-                var users = await query.ToListAsync();
-
-                // Apply age filter (calculated in memory since Age is computed)
                 if (minAge.HasValue || maxAge.HasValue)
                 {
-                    users = users.Where(u =>
+                    filtered = filtered.Where(u =>
                     {
                         var age = u.GetAge();
                         return (!minAge.HasValue || age >= minAge.Value) &&
                                (!maxAge.HasValue || age <= maxAge.Value);
-                    }).ToList();
+                    });
                 }
 
-                return users.OrderByDescending(u => u.JoinDate).ToList();
+                return filtered.OrderByDescending(u => u.JoinDate).ToList();
             }
             catch (Exception ex)
             {
@@ -793,24 +683,20 @@ namespace Lock.Services
             }
         }
 
-        // Update user profile
         public static async Task<(bool Success, string Error)> UpdateUserAsync(User updatedUser)
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
-                var existing = await db.Table<User>()
-                    .Where(u => u.PhoneNumber == updatedUser.PhoneNumber)
-                    .FirstOrDefaultAsync();
+                var existingUsers = await SupabaseService.GetAsync<User>("Users",
+                    $"PhoneNumber=eq.{Uri.EscapeDataString(updatedUser.PhoneNumber)}&limit=1");
+                var existing = existingUsers.FirstOrDefault();
 
                 if (existing == null)
                     return (false, "User not found.");
 
                 updatedUser.Id = existing.Id;
-                await db.UpdateAsync(updatedUser);
-                return (true, string.Empty);
+                var success = await SupabaseService.UpdateAsync("Users", $"Id=eq.{updatedUser.Id}", updatedUser);
+                return success ? (true, string.Empty) : (false, "Update failed.");
             }
             catch (Exception ex)
             {
@@ -818,18 +704,14 @@ namespace Lock.Services
             }
         }
 
-        // Change password
         public static async Task<(bool Success, string Error)> ChangePasswordAsync(string phone, string oldPassword, string newPassword)
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
                 string normalizedPhone = NormalizePhoneNumber(phone);
-                var user = await db.Table<User>()
-                    .Where(u => u.PhoneNumber == normalizedPhone)
-                    .FirstOrDefaultAsync();
+                var users = await SupabaseService.GetAsync<User>("Users",
+                    $"PhoneNumber=eq.{Uri.EscapeDataString(normalizedPhone)}&limit=1");
+                var user = users.FirstOrDefault();
 
                 if (user == null)
                     return (false, "User not found.");
@@ -840,10 +722,8 @@ namespace Lock.Services
                 if (newPassword.Length < 4)
                     return (false, "New password must be at least 4 characters.");
 
-                user.Password = newPassword;
-                await db.UpdateAsync(user);
-
-                return (true, string.Empty);
+                var success = await SupabaseService.UpdateAsync("Users", $"Id=eq.{user.Id}", new { Password = newPassword });
+                return success ? (true, string.Empty) : (false, "Password change failed.");
             }
             catch (Exception ex)
             {
@@ -851,18 +731,14 @@ namespace Lock.Services
             }
         }
 
-        // Delete user account
         public static async Task<(bool Success, string Error)> DeleteAccountAsync(string phone, string password)
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
                 string normalizedPhone = NormalizePhoneNumber(phone);
-                var user = await db.Table<User>()
-                    .Where(u => u.PhoneNumber == normalizedPhone)
-                    .FirstOrDefaultAsync();
+                var users = await SupabaseService.GetAsync<User>("Users",
+                    $"PhoneNumber=eq.{Uri.EscapeDataString(normalizedPhone)}&limit=1");
+                var user = users.FirstOrDefault();
 
                 if (user == null)
                     return (false, "User not found.");
@@ -870,14 +746,14 @@ namespace Lock.Services
                 if (user.Password != password)
                     return (false, "Incorrect password.");
 
-                await db.DeleteAsync(user);
+                var success = await SupabaseService.DeleteAsync("Users", $"Id=eq.{user.Id}");
 
                 if (GetCurrentUserPhone() == normalizedPhone)
                 {
                     Logout();
                 }
 
-                return (true, string.Empty);
+                return success ? (true, string.Empty) : (false, "Account deletion failed.");
             }
             catch (Exception ex)
             {
@@ -885,9 +761,6 @@ namespace Lock.Services
             }
         }
 
-      
-
-        // Get device ID for API
         private static async Task<string> GetDeviceId()
         {
             var deviceId = await SecureStorage.GetAsync("device_id");
@@ -899,7 +772,6 @@ namespace Lock.Services
             return deviceId;
         }
 
-        // Get authorization header for API calls
         public static async Task<HttpClient> GetAuthenticatedHttpClientAsync()
         {
             var token = await GetValidTokenAsync();

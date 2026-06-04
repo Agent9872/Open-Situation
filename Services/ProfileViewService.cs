@@ -1,8 +1,8 @@
-﻿using Lock.Chat.Services;
-using Lock.Models;
-using SQLite;
+﻿using Lock.Models;
+using Lock.Services;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -16,13 +16,11 @@ namespace Lock.Services
             {
                 if (viewerId == viewedId) return; // Don't record self-views
 
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
                 // Check if already viewed in last 24 hours
-                var existingView = await db.Table<ProfileView>()
-                    .Where(v => v.ViewerUserId == viewerId && v.ViewedUserId == viewedId && v.ViewedAt > DateTime.UtcNow.AddHours(-24))
-                    .FirstOrDefaultAsync();
+                var existingViews = await SupabaseService.GetAsync<ProfileView>("ProfileViews",
+                    $"ViewerUserId=eq.{viewerId}&ViewedUserId=eq.{viewedId}&ViewedAt=gt.{DateTime.UtcNow.AddHours(-24):yyyy-MM-ddTHH:mm:ssZ}&limit=1");
+
+                var existingView = existingViews.FirstOrDefault();
 
                 if (existingView == null)
                 {
@@ -35,12 +33,13 @@ namespace Lock.Services
                         ViewedAt = DateTime.UtcNow,
                         IsNew = true
                     };
-                    await db.InsertAsync(view);
+                    await SupabaseService.InsertAsync("ProfileViews", view);
+                    Debug.WriteLine($"Recorded profile view: {viewerPhone} viewed {viewedPhone}");
                 }
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"RecordProfileViewAsync error: {ex}");
+                Debug.WriteLine($"RecordProfileViewAsync error: {ex}");
             }
         }
 
@@ -48,15 +47,13 @@ namespace Lock.Services
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-                return await db.Table<ProfileView>()
-                    .Where(v => v.ViewedUserId == userId)
-                    .CountAsync();
+                var views = await SupabaseService.GetAsync<ProfileView>("ProfileViews",
+                    $"ViewedUserId=eq.{userId}");
+                return views.Count;
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"GetProfileViewCountAsync error: {ex}");
+                Debug.WriteLine($"GetProfileViewCountAsync error: {ex}");
                 return 0;
             }
         }
@@ -65,40 +62,81 @@ namespace Lock.Services
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-                return await db.Table<ProfileView>()
-                    .Where(v => v.ViewedUserId == userId)
-                    .OrderByDescending(v => v.ViewedAt)
-                    .Take(limit)
-                    .ToListAsync();
+                return await SupabaseService.GetAsync<ProfileView>("ProfileViews",
+                    $"ViewedUserId=eq.{userId}&order=ViewedAt.desc&limit={limit}");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"GetRecentProfileViewsAsync error: {ex}");
+                Debug.WriteLine($"GetRecentProfileViewsAsync error: {ex}");
                 return new List<ProfileView>();
             }
         }
 
-        public static async Task MarkViewsAsSeenAsync(int userId)
+        public static async Task<int> GetNewProfileViewsCountAsync(int userId)
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-                var views = await db.Table<ProfileView>()
-                    .Where(v => v.ViewedUserId == userId && v.IsNew)
-                    .ToListAsync();
-
-                foreach (var view in views)
-                {
-                    view.IsNew = false;
-                    await db.UpdateAsync(view);
-                }
+                var views = await SupabaseService.GetAsync<ProfileView>("ProfileViews",
+                    $"ViewedUserId=eq.{userId}&IsNew=eq.true");
+                return views.Count;
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"MarkViewsAsSeenAsync error: {ex}");
+                Debug.WriteLine($"GetNewProfileViewsCountAsync error: {ex}");
+                return 0;
+            }
+        }
+
+        public static async Task<bool> MarkViewsAsSeenAsync(int userId)
+        {
+            try
+            {
+                var success = await SupabaseService.UpdateAsync("ProfileViews",
+                    $"ViewedUserId=eq.{userId}&IsNew=eq.true",
+                    new { IsNew = false });
+
+                if (success)
+                {
+                    Debug.WriteLine($"Marked profile views as seen for user {userId}");
+                }
+                return success;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"MarkViewsAsSeenAsync error: {ex}");
+                return false;
+            }
+        }
+
+        public static async Task<List<ProfileView>> GetViewsByViewerAsync(int viewerId, int limit = 10)
+        {
+            try
+            {
+                return await SupabaseService.GetAsync<ProfileView>("ProfileViews",
+                    $"ViewerUserId=eq.{viewerId}&order=ViewedAt.desc&limit={limit}");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"GetViewsByViewerAsync error: {ex}");
+                return new List<ProfileView>();
+            }
+        }
+
+        public static async Task<bool> DeleteOldProfileViewsAsync(int daysOld = 30)
+        {
+            try
+            {
+                var cutoffDate = DateTime.UtcNow.AddDays(-daysOld);
+                var success = await SupabaseService.DeleteAsync("ProfileViews",
+                    $"ViewedAt=lt.{cutoffDate:yyyy-MM-ddTHH:mm:ssZ}");
+
+                Debug.WriteLine($"Deleted profile views older than {daysOld} days");
+                return success;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"DeleteOldProfileViewsAsync error: {ex}");
+                return false;
             }
         }
     }

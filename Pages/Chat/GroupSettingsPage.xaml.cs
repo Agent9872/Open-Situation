@@ -446,9 +446,16 @@ namespace Lock.Pages.Chat
 
                 if (!confirm) return;
 
-                var db = GroupDatabaseService.GetConnection();
+                // Remove this SQLite code:
+                // var db = GroupDatabaseService.GetConnection();
+                // admin.Role = GroupMemberRole.Member;
+                // await db.UpdateAsync(admin);
+
+                // Replace with Supabase code:
                 admin.Role = GroupMemberRole.Member;
-                await db.UpdateAsync(admin);
+                await SupabaseService.UpdateAsync("GroupMembers",
+                    $"GroupId=eq.{Uri.EscapeDataString(admin.GroupId)}&UserPhone=eq.{Uri.EscapeDataString(admin.UserPhone)}",
+                    admin);
 
                 await DisplayAlert("Done",
                     $"{admin.UserName} is no longer an admin.", "OK");

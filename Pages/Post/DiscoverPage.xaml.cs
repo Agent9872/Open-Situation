@@ -439,11 +439,17 @@ namespace Lock.Pages.Discover
                 _currentUserPhone = Preferences.Get("current_user_phone", string.Empty);
                 if (string.IsNullOrEmpty(_currentUserPhone)) return;
 
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-                var user = await db.Table<User>()
-                                   .Where(u => u.PhoneNumber == _currentUserPhone)
-                                   .FirstOrDefaultAsync();
+                // Replace this:
+                // await DatabaseService.InitializeAsync();
+                // var db = DatabaseService.GetConnection();
+                // var user = await db.Table<User>()
+                //     .Where(u => u.PhoneNumber == _currentUserPhone)
+                //     .FirstOrDefaultAsync();
+
+                // With this:
+                var users = await SupabaseService.GetAsync<User>("Users",
+                    $"PhoneNumber=eq.{Uri.EscapeDataString(_currentUserPhone)}&limit=1");
+                var user = users.FirstOrDefault();
 
                 if (user == null) return;
 
@@ -483,10 +489,16 @@ namespace Lock.Pages.Discover
         {
             try
             {
-                var db = DatabaseService.GetConnection();
-                var activeSession = await db.Table<LiveSession>()
-                    .Where(s => s.UserPhoneNumber == _currentUserPhone && s.IsLive && s.EndedAt == null)
-                    .FirstOrDefaultAsync();
+                // Replace this:
+                // var db = DatabaseService.GetConnection();
+                // var activeSession = await db.Table<LiveSession>()
+                //     .Where(s => s.UserPhoneNumber == _currentUserPhone && s.IsLive && s.EndedAt == null)
+                //     .FirstOrDefaultAsync();
+
+                // With this:
+                var activeSessions = await SupabaseService.GetAsync<LiveSession>("LiveSessions",
+                    $"UserPhoneNumber=eq.{Uri.EscapeDataString(_currentUserPhone)}&IsLive=eq.true&EndedAt=is.null&limit=1");
+                var activeSession = activeSessions.FirstOrDefault();
 
                 if (activeSession != null)
                 {
@@ -494,7 +506,8 @@ namespace Lock.Pages.Discover
                     {
                         activeSession.IsLive = false;
                         activeSession.EndedAt = DateTime.UtcNow;
-                        await db.UpdateAsync(activeSession);
+                        // Replace: await db.UpdateAsync(activeSession);
+                        await SupabaseService.UpdateAsync("LiveSessions", $"Id=eq.{activeSession.Id}", activeSession);
                         return;
                     }
 
@@ -521,8 +534,6 @@ namespace Lock.Pages.Discover
                             _liveSessionImagePaths = new List<string>();
                         }
                     }
-
-                    SelectMood(activeSession.Mood);
 
                     SelectMood(activeSession.Mood);
 
@@ -784,16 +795,24 @@ namespace Lock.Pages.Discover
                     IsTimedLive = true,
                     ViewCount = 0,
                     ConnectionCount = 0,
-                    ImagePathsJson = imagesJson  // ? save images to DB
+                    ImagePathsJson = imagesJson
                 };
 
-                var db = DatabaseService.GetConnection();
-                _currentLiveSessionId = await db.InsertAsync(liveSession);
+                // Replace this:
+                // var db = DatabaseService.GetConnection();
+                // _currentLiveSessionId = await db.InsertAsync(liveSession);
+
+                // With this:
+                var insertedSession = await SupabaseService.InsertAndReturnAsync<LiveSession>("LiveSessions", liveSession);
+                if (insertedSession != null)
+                    _currentLiveSessionId = insertedSession.Id;
+                else
+                    _currentLiveSessionId = 0;
 
                 // Snapshot for preview, then clear the upload picker UI
                 _liveSessionImagePaths = new List<string>(_selectedImagePaths);
                 _selectedImagePaths.Clear();
-                UpdateImagesPreview(); // clears upload strip only
+                UpdateImagesPreview();
 
                 GoLiveLabel.Text = "Go Offline";
                 GoLiveToggle.BackgroundColor = Color.FromArgb("#1A2A1A");
@@ -802,7 +821,7 @@ namespace Lock.Pages.Discover
                 UpdateMainButtonState(true);
                 LiveStatusBadge.IsVisible = true;
                 StartLiveBlinking();
-                ShowPreview(); // now reads _liveSessionImagePaths
+                ShowPreview();
 
                 PreviewCountdownBadge.IsVisible = true;
                 UpdatePreviewCountdown(scheduledEndTime - DateTime.UtcNow);
@@ -936,36 +955,39 @@ namespace Lock.Pages.Discover
                 _durationTimerCts?.Dispose();
                 _durationTimerCts = null;
 
-                var db = DatabaseService.GetConnection();
-                var liveSession = await db.Table<LiveSession>()
-                    .Where(s => s.Id == _currentLiveSessionId)
-                    .FirstOrDefaultAsync();
+                // Replace this:
+                // var db = DatabaseService.GetConnection();
+                // var liveSession = await db.Table<LiveSession>()
+                //     .Where(s => s.Id == _currentLiveSessionId)
+                //     .FirstOrDefaultAsync();
+
+                // With this:
+                var liveSessions = await SupabaseService.GetAsync<LiveSession>("LiveSessions",
+                    $"Id=eq.{_currentLiveSessionId}&limit=1");
+                var liveSession = liveSessions.FirstOrDefault();
 
                 if (liveSession != null)
                 {
                     liveSession.IsLive = false;
                     liveSession.EndedAt = DateTime.UtcNow;
-                    await db.UpdateAsync(liveSession);
+                    // Replace: await db.UpdateAsync(liveSession);
+                    await SupabaseService.UpdateAsync("LiveSessions", $"Id=eq.{liveSession.Id}", liveSession);
                 }
 
                 _isLive = false;
                 _currentLiveSessionId = 0;
 
-                // ?? Clear image lists and upload UI ??
                 _selectedImagePaths.Clear();
                 _liveSessionImagePaths.Clear();
                 UpdateImagesPreview();
                 ClearPreviewCard();
 
-                // ?? Reset Go Live toggle button (top strip) ??
                 GoLiveLabel.Text = "Go Live";
                 GoLiveToggle.BackgroundColor = Color.FromArgb("#C05050");
                 GoLiveLabel.TextColor = Colors.White;
 
-                // ?? Hide live dot on avatar ??
                 LiveDot.IsVisible = false;
 
-                // ?? Reset availability borders back to unselected ??
                 _chatSelected = false;
                 _voiceSelected = false;
                 _videoSelected = false;
@@ -973,13 +995,10 @@ namespace Lock.Pages.Discover
                 SetAvailabilityStyle(VoiceBorder, VoiceIcon, VoiceLabel, false);
                 SetAvailabilityStyle(VideoBorder, VideoIcon, VideoLabel, false);
 
-                // ?? Reset Live Status Badge ??
                 StopLiveBlinking();
                 LiveStatusBadge.IsVisible = false;
                 LiveStatusBadge.Opacity = 1.0;
 
-                // Restore badge content to original "Live now" text
-                // (UpdateLiveBadgeWithCountdown may have replaced it with a countdown)
                 if (LiveStatusBadge.Content is HorizontalStackLayout badgeStack)
                 {
                     badgeStack.Children.Clear();
@@ -993,11 +1012,9 @@ namespace Lock.Pages.Discover
                     });
                 }
 
-                // ?? Reset main bottom button ??
                 UpdateMainButtonState(false);
                 MainButtonLabel.Text = "Go Live Now";
 
-                // ?? Hide preview section and countdown ??
                 PreviewSection.IsVisible = false;
                 PreviewCountdownBadge.IsVisible = false;
                 PreviewCountdownLabel.Text = string.Empty;
@@ -1007,11 +1024,9 @@ namespace Lock.Pages.Discover
                 PreviewCountdownBadge.Stroke = Color.FromArgb("#4CAF50");
                 PreviewCountdownLabel.TextColor = Color.FromArgb("#4CAF50");
 
-                // ?? Reset message and location fields ??
                 MessageEditor.Text = string.Empty;
                 LocationEntry.Text = string.Empty;
 
-                // ?? Rebuild mood chips to clear selected state ??
                 BuildMoodChips();
                 SelectMood(AllMoods[0]);
 
@@ -1118,7 +1133,7 @@ namespace Lock.Pages.Discover
 
             await StartLiveSession();
         }
-        
+
         // ?? Build preview card ????????????????????????????????????????????
         private async void ShowPreview()
         {
@@ -1137,10 +1152,10 @@ namespace Lock.Pages.Discover
             {
                 try
                 {
-                    var db = DatabaseService.GetConnection();
-                    var liveSession = await db.Table<LiveSession>()
-                        .Where(s => s.Id == _currentLiveSessionId)
-                        .FirstOrDefaultAsync();
+                    // FIXED: Use Supabase instead of SQLite
+                    var liveSessions = await SupabaseService.GetAsync<LiveSession>("LiveSessions",
+                        $"Id=eq.{_currentLiveSessionId}&limit=1");
+                    var liveSession = liveSessions.FirstOrDefault();
 
                     if (liveSession?.ScheduledEndTime.HasValue == true)
                     {
@@ -1169,10 +1184,10 @@ namespace Lock.Pages.Discover
             User user = null;
             try
             {
-                var db = DatabaseService.GetConnection();
-                user = await db.Table<User>()
-                    .Where(u => u.PhoneNumber == _currentUserPhone)
-                    .FirstOrDefaultAsync();
+                // FIXED: Use Supabase instead of SQLite
+                var users = await SupabaseService.GetAsync<User>("Users",
+                    $"PhoneNumber=eq.{Uri.EscapeDataString(_currentUserPhone)}&limit=1");
+                user = users.FirstOrDefault();
 
                 if (user != null && PreviewSection.Children.LastOrDefault() is Border previewCard &&
                     previewCard.Content is VerticalStackLayout cardContent)
@@ -1525,7 +1540,8 @@ namespace Lock.Pages.Discover
                 Debug.WriteLine($"ShowPreview: Error loading profile details: {ex}");
             }
 
-            PreviewAvailability.Children.Clear();
+
+        PreviewAvailability.Children.Clear();
 
             void AddAvailIcon(string svgPath, string label, string colorHex = "#008080")
             {
@@ -1726,14 +1742,14 @@ namespace Lock.Pages.Discover
         {
             try
             {
-                var db = DatabaseService.GetConnection();
                 var currentPhone = Preferences.Get("current_user_phone", string.Empty);
 
-                var liveSessions = await db.Table<LiveSession>().ToListAsync();
-                var count = liveSessions.Count(s => s.IsLive
-                                                 && s.EndedAt == null
-                                                 && !string.Equals(s.UserPhoneNumber, currentPhone,
-                                                                   StringComparison.OrdinalIgnoreCase));
+                // FIXED: Use Supabase instead of SQLite
+                var liveSessions = await SupabaseService.GetAsync<LiveSession>("LiveSessions",
+                    "IsLive=eq.true&EndedAt=is.null");
+
+                var count = liveSessions.Count(s => !string.Equals(s.UserPhoneNumber, currentPhone,
+                                                            StringComparison.OrdinalIgnoreCase));
 
                 await MainThread.InvokeOnMainThreadAsync(() =>
                 {

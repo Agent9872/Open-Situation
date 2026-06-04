@@ -164,13 +164,14 @@ namespace Lock.Pages.Chat
                         : $"?? {_imagePaths.Count} photos";
                 }
 
+                // Fix: Convert int? to string? (or pass null)
                 var msg = await GroupRepository.SendMessageAsync(
                     _groupId,
                     _currentUserPhone,
                     messageContent,
                     GroupMessageType.Image,
                     mediaPaths: _imagePaths,
-                    replyToMessageId: _replyToMessageId ?? 0);
+                    replyToMessageId: _replyToMessageId?.ToString());  // Convert to string? using ToString()
 
                 msg.IsOutgoing = true;
                 msg.ShowAvatar = false;

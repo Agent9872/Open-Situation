@@ -1,20 +1,22 @@
-﻿using SQLite;
+﻿using Newtonsoft.Json;
 using System;
 
 namespace Lock.Models
 {
-    [Table("SparkTransactions")]
     public class SparkTransaction
     {
-        [PrimaryKey, AutoIncrement]
         public int Id { get; set; }
 
+        [JsonProperty("user_phone")]
         public string UserPhone { get; set; } = string.Empty;
 
+        [JsonProperty("post_id")]
         public int PostId { get; set; }
 
+        [JsonProperty("post_author_phone")]
         public string PostAuthorPhone { get; set; } = string.Empty;
 
+        [JsonProperty("sparked_at")]
         public DateTime SparkedAt { get; set; } = DateTime.UtcNow;
     }
 }

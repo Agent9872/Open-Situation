@@ -1,6 +1,5 @@
 ﻿using Lock.Chat.Services;
 using Lock.Models;
-using SQLite;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -11,17 +10,6 @@ namespace Lock.Services
 {
     public static class HidePostService
     {
-        private static SQLiteAsyncConnection _database;
-
-        public static async Task InitializeAsync()
-        {
-            if (_database == null)
-            {
-                await DatabaseService.InitializeAsync();
-                _database = DatabaseService.GetConnection();
-            }
-        }
-
         /// <summary>
         /// Hide a post for a specific user
         /// </summary>
@@ -29,11 +17,12 @@ namespace Lock.Services
         {
             try
             {
-                await InitializeAsync();
-
                 Debug.WriteLine($"HidePostAsync called - PostId: {postId}, UserPhone: {userPhone}");
 
-                var post = await _database.Table<Post>().FirstOrDefaultAsync(p => p.Id == postId);
+                // Get the post from Supabase
+                var posts = await SupabaseService.GetAsync<Post>("Posts", $"Id=eq.{postId}&limit=1");
+                var post = posts.FirstOrDefault();
+
                 if (post == null)
                 {
                     Debug.WriteLine($"Post with ID {postId} not found!");
@@ -50,10 +39,21 @@ namespace Lock.Services
                 {
                     hiddenBy.Add(userPhone);
                     post.HiddenBy = hiddenBy;
-                    await _database.UpdateAsync(post);
-                    Debug.WriteLine($"Post {postId} hidden by user {userPhone}");
-                    Debug.WriteLine($"New HiddenBy: {post.HiddenByJson}");
-                    return true;
+
+                    // Update the post in Supabase
+                    var success = await SupabaseService.UpdatePostAsync(postId, new { HiddenByJson = post.HiddenByJson });
+
+                    if (success)
+                    {
+                        Debug.WriteLine($"Post {postId} hidden by user {userPhone}");
+                        Debug.WriteLine($"New HiddenBy: {post.HiddenByJson}");
+                        return true;
+                    }
+                    else
+                    {
+                        Debug.WriteLine($"Failed to update post {postId}");
+                        return false;
+                    }
                 }
                 else
                 {
@@ -75,11 +75,10 @@ namespace Lock.Services
         {
             try
             {
-                await InitializeAsync();
-
                 Debug.WriteLine($"GetHiddenPostsAsync called for user: {userPhone}");
 
-                var allPosts = await _database.Table<Post>().ToListAsync();
+                // Get all posts from Supabase
+                var allPosts = await SupabaseService.GetAsync<Post>("Posts", "order=CreatedAt.desc");
                 Debug.WriteLine($"Total posts in database: {allPosts.Count}");
 
                 var hiddenPosts = allPosts.Where(p => p.IsHiddenByUser(userPhone)).ToList();
@@ -91,16 +90,11 @@ namespace Lock.Services
                 }
 
                 // Resolve author display names for hidden posts
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
                 foreach (var post in hiddenPosts)
                 {
                     if (!string.IsNullOrEmpty(post.AuthorPhone))
                     {
-                        var user = await db.Table<Models.User>()
-                                           .Where(u => u.PhoneNumber == post.AuthorPhone)
-                                           .FirstOrDefaultAsync();
+                        var user = await SupabaseService.GetUserByPhoneAsync(post.AuthorPhone);
                         if (user != null)
                         {
                             post.AuthorDisplayName = string.IsNullOrWhiteSpace(user.Name)
@@ -128,9 +122,9 @@ namespace Lock.Services
         {
             try
             {
-                await InitializeAsync();
+                var posts = await SupabaseService.GetAsync<Post>("Posts", $"Id=eq.{postId}&limit=1");
+                var post = posts.FirstOrDefault();
 
-                var post = await _database.Table<Post>().FirstOrDefaultAsync(p => p.Id == postId);
                 if (post == null)
                     return false;
 
@@ -144,7 +138,6 @@ namespace Lock.Services
                 return false;
             }
         }
-       
 
         /// <summary>
         /// Get all hidden post IDs for a user
@@ -153,9 +146,7 @@ namespace Lock.Services
         {
             try
             {
-                await InitializeAsync();
-
-                var allPosts = await _database.Table<Post>().ToListAsync();
+                var allPosts = await SupabaseService.GetAsync<Post>("Posts", "");
                 return allPosts.Where(p => p.IsHiddenByUser(userPhone)).Select(p => p.Id).ToList();
             }
             catch (Exception ex)
@@ -172,9 +163,9 @@ namespace Lock.Services
         {
             try
             {
-                await InitializeAsync();
+                var posts = await SupabaseService.GetAsync<Post>("Posts", $"Id=eq.{postId}&limit=1");
+                var post = posts.FirstOrDefault();
 
-                var post = await _database.Table<Post>().FirstOrDefaultAsync(p => p.Id == postId);
                 if (post == null)
                     return false;
 
@@ -183,9 +174,14 @@ namespace Lock.Services
                 {
                     hiddenBy.Remove(userPhone);
                     post.HiddenBy = hiddenBy;
-                    await _database.UpdateAsync(post);
-                    System.Diagnostics.Debug.WriteLine($"Post {postId} unhidden by user {userPhone}");
-                    return true;
+
+                    var success = await SupabaseService.UpdatePostAsync(postId, new { HiddenByJson = post.HiddenByJson });
+
+                    if (success)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Post {postId} unhidden by user {userPhone}");
+                        return true;
+                    }
                 }
 
                 return false;
@@ -196,7 +192,5 @@ namespace Lock.Services
                 return false;
             }
         }
-
-    
     }
 }

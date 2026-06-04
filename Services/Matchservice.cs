@@ -73,27 +73,33 @@ namespace Lock.Services
 
         // ── Public entry point ────────────────────────────────────────────
         public static async Task<List<MatchResult>> GetMatchesAsync(
-            string currentUserPhone,
-            string subTab = "TopPicks",
-            MatchingMode mode = MatchingMode.Similar)
+      string currentUserPhone,
+      string subTab = "TopPicks",
+      MatchingMode mode = MatchingMode.Similar)
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
+                // Remove this SQLite code:
+                // await DatabaseService.InitializeAsync();
+                // var db = DatabaseService.GetConnection();
+                // var me = await db.Table<User>()
+                //     .Where(u => u.PhoneNumber == currentUserPhone)
+                //     .FirstOrDefaultAsync();
 
-                var me = await db.Table<User>()
-                    .Where(u => u.PhoneNumber == currentUserPhone)
-                    .FirstOrDefaultAsync();
+                // Replace with Supabase code:
+                var meUsers = await SupabaseService.GetAsync<User>("Users",
+                    $"PhoneNumber=eq.{Uri.EscapeDataString(currentUserPhone)}&limit=1");
+                var me = meUsers.FirstOrDefault();
 
                 if (me == null) return new List<MatchResult>();
 
-                // All visible candidates
-                var candidates = await db.Table<User>().ToListAsync();
-                candidates = candidates
+                // All visible candidates - using Supabase
+                var allCandidates = await SupabaseService.GetAsync<User>("Users",
+                    $"GhostModeMoodShield=eq.false");
+
+                var candidates = allCandidates
                     .Where(u => !string.Equals(u.PhoneNumber, currentUserPhone,
-                                               StringComparison.OrdinalIgnoreCase)
-                             && !u.GhostModeMoodShield)
+                                               StringComparison.OrdinalIgnoreCase))
                     .ToList();
 
                 // All posts (for activity + intent signals)

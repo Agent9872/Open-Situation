@@ -1,5 +1,4 @@
 ﻿using Lock.Pages.Chat;
-using SQLite;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
@@ -51,14 +50,12 @@ namespace Lock.Models
     // GROUP MODEL
     // ═══════════════════════════════════════════════════════════════
 
-    [Table("Groups")]
     public class Group : INotifyPropertyChanged
     {
         public event PropertyChangedEventHandler? PropertyChanged;
         protected void OnPropertyChanged([CallerMemberName] string? name = null)
             => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 
-        [PrimaryKey]
         public string Id { get; set; } = Guid.NewGuid().ToString();
 
         public string Name { get; set; } = string.Empty;
@@ -78,7 +75,6 @@ namespace Lock.Models
         public string InterestTagsJson { get; set; } = "[]";
         public string RulesJson { get; set; } = "[]";
 
-        [Ignore]
         public List<string> InterestTags
         {
             get => string.IsNullOrEmpty(InterestTagsJson)
@@ -87,7 +83,6 @@ namespace Lock.Models
             set => InterestTagsJson = JsonSerializer.Serialize(value);
         }
 
-        [Ignore]
         public List<string> Rules
         {
             get => string.IsNullOrEmpty(RulesJson)
@@ -112,26 +107,25 @@ namespace Lock.Models
         public DateTime LastMessageAt { get; set; } = DateTime.UtcNow;
 
         // ── Runtime-only (not persisted) ─────────────────────────────────────
-        [Ignore] public int CompatibilityScore { get; set; } = 0;
-        [Ignore] public int UnreadCount { get; set; } = 0;
+        public int CompatibilityScore { get; set; } = 0;
+        public int UnreadCount { get; set; } = 0;
 
         /// <summary>True when the current user is a confirmed, non-banned member.</summary>
-        [Ignore] public bool IsMember { get; set; } = false;
+        public bool IsMember { get; set; } = false;
 
         /// <summary>True when the current user has a pending join request awaiting admin approval.</summary>
-        [Ignore] public bool IsPendingJoin { get; set; } = false;
+        public bool IsPendingJoin { get; set; } = false;
 
         /// <summary>
         /// Holds the GroupJoinRequest.Id for the current user's pending request.
         /// Populated by GetAllGroupsForExploreAsync so the user can cancel it.
         /// </summary>
-        [Ignore] public string PendingJoinRequestId { get; set; } = string.Empty;
+        public string PendingJoinRequestId { get; set; } = string.Empty;
 
-        [Ignore] public bool IsCreator { get; set; } = false;
-        [Ignore] public bool IsAdmin { get; set; } = false;
+        public bool IsCreator { get; set; } = false;
+        public bool IsAdmin { get; set; } = false;
 
         // ── Display Helpers ──────────────────────────────────────────────────
-        [Ignore]
         public string GroupTypeDisplay => GroupType switch
         {
             GroupType.CommunityCircle => "Community Circle",
@@ -144,7 +138,6 @@ namespace Lock.Models
             _ => "Group"
         };
 
-        [Ignore]
         public string GroupTypeIcon => GroupType switch
         {
             GroupType.CommunityCircle => "🌍",
@@ -157,13 +150,11 @@ namespace Lock.Models
             _ => "💬"
         };
 
-        [Ignore]
         public string MemberCountDisplay =>
             MaxMembers > 0
                 ? $"{MemberCount}/{MaxMembers} members"
                 : $"{MemberCount} members";
 
-        [Ignore]
         public string LastActiveRelative
         {
             get
@@ -177,18 +168,15 @@ namespace Lock.Models
             }
         }
 
-        [Ignore] public bool HasUnread => UnreadCount > 0;
+        public bool HasUnread => UnreadCount > 0;
 
-        [Ignore]
         public string UnreadDisplay =>
             UnreadCount > 99 ? "99+" : UnreadCount.ToString();
 
-        [Ignore]
         public bool HasCoverImage =>
             !string.IsNullOrEmpty(CoverImagePath) &&
             System.IO.File.Exists(CoverImagePath);
 
-        [Ignore]
         public string CompatibilityDisplay =>
             CompatibilityScore > 0 ? $"{CompatibilityScore}% match" : string.Empty;
 
@@ -198,7 +186,6 @@ namespace Lock.Models
         ///   "Pending…"   → request sent, awaiting admin approval (tap to cancel)
         ///   "Join"       → not a member yet
         /// </summary>
-        [Ignore]
         public string JoinButtonText =>
             IsMember ? "Joined ✓" :
             IsPendingJoin ? "Pending…" :
@@ -210,7 +197,6 @@ namespace Lock.Models
         ///   Amber  → pending approval
         ///   Teal   → open to join
         /// </summary>
-        [Ignore]
         public string JoinButtonColor =>
             IsMember ? "#2A2A2A" :
             IsPendingJoin ? "#5C4A00" :
@@ -220,7 +206,6 @@ namespace Lock.Models
         /// True only when the user can press Join to send a fresh request.
         /// Pending users tap the button to get the cancel dialog instead.
         /// </summary>
-        [Ignore]
         public bool IsJoinable => !IsMember && !IsPendingJoin;
     }
 
@@ -228,22 +213,15 @@ namespace Lock.Models
     // GROUP MEMBER
     // ═══════════════════════════════════════════════════════════════
 
-    [Table("GroupMembers")]
     public class GroupMember : INotifyPropertyChanged
     {
         public event PropertyChangedEventHandler? PropertyChanged;
         protected void OnPropertyChanged([CallerMemberName] string? name = null)
             => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 
-        [PrimaryKey]
         public string Id { get; set; } = Guid.NewGuid().ToString();
-
-        [Indexed]
         public string GroupId { get; set; } = string.Empty;
-
-        [Indexed]
         public string UserPhone { get; set; } = string.Empty;
-
         public string UserName { get; set; } = string.Empty;
         public string UserProfileImagePath { get; set; } = string.Empty;
         public string AnonymousAlias { get; set; } = string.Empty; // e.g. "Member #7"
@@ -258,13 +236,11 @@ namespace Lock.Models
         public bool IsBanned { get; set; } = false;
 
         // ── Display Helpers ──────────────────────────────────────────
-        [Ignore]
         public string DisplayName =>
             IsAnonymous && !string.IsNullOrEmpty(AnonymousAlias)
                 ? AnonymousAlias
                 : UserName;
 
-        [Ignore]
         public string RoleDisplay => Role switch
         {
             GroupMemberRole.Creator => "Creator",
@@ -273,13 +249,11 @@ namespace Lock.Models
             _ => string.Empty
         };
 
-        [Ignore]
         public bool IsPrivileged =>
             Role == GroupMemberRole.Creator ||
             Role == GroupMemberRole.Admin ||
             Role == GroupMemberRole.Moderator;
 
-        [Ignore]
         public string RoleBadgeColor => Role switch
         {
             GroupMemberRole.Creator => "#D4AF37",
@@ -293,25 +267,19 @@ namespace Lock.Models
     // GROUP MESSAGE
     // ═══════════════════════════════════════════════════════════════
 
-    [Table("GroupMessages")]
     public class GroupMessage : INotifyPropertyChanged
     {
         public event PropertyChangedEventHandler? PropertyChanged;
         protected void OnPropertyChanged([CallerMemberName] string? name = null)
             => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 
-        [PrimaryKey, AutoIncrement]
-        public int Id { get; set; }
+        public string Id { get; set; } = Guid.NewGuid().ToString();  // Changed from int to string
 
-        [Ignore]
+        // Runtime properties
         public bool ShowSenderName { get; set; } = true;
-
-        [Ignore]
         public string SenderInitial { get; set; } = string.Empty;
 
-        [Indexed]
         public string GroupId { get; set; } = string.Empty;
-
         public string SenderPhone { get; set; } = string.Empty;
         public string SenderName { get; set; } = string.Empty;
         public string SenderProfileImage { get; set; } = string.Empty;
@@ -327,45 +295,27 @@ namespace Lock.Models
         private string? _decryptedContentCache;
 
         // Poll display properties (not persisted)
-        [Ignore]
         public string PollQuestion { get; set; } = string.Empty;
-
-        [Ignore]
         public List<PollOptionData> PollOptions { get; set; } = new();
-
-        [Ignore]
         public string TotalVotesDisplay { get; set; } = "0 votes";
-
-        [Ignore]
         public bool IsPollExpired { get; set; }
-
-        [Ignore]
         public bool ShowVoteButton { get; set; }
-
-        [Ignore]
         public string VoteButtonText { get; set; } = "Vote";
-
-        [Ignore]
         public string VoteButtonColor { get; set; } = "#008080";
 
-        [Ignore]
         public string DisplayContent
         {
             get
             {
-                // If it's not encrypted, return Content
                 if (!IsEncrypted)
                     return Content;
 
-                // If we have cached decrypted content, return it
                 if (!string.IsNullOrEmpty(_decryptedContentCache))
                     return _decryptedContentCache;
 
-                // If it's system message, return Content
                 if (IsSystemMessage)
                     return Content;
 
-                // Return encrypted placeholder
                 return "🔒 Encrypted message";
             }
             set
@@ -383,7 +333,6 @@ namespace Lock.Models
 
         // Media
         public string MediaPathsJson { get; set; } = "[]";
-        [Ignore]
         public List<string> MediaPaths
         {
             get => string.IsNullOrEmpty(MediaPathsJson)
@@ -399,14 +348,13 @@ namespace Lock.Models
         // Poll
         public string PollJson { get; set; } = string.Empty;
 
-        // Reply threading
-        public int ReplyToMessageId { get; set; } = 0;
+        // Reply threading - Changed from int to string
+        public string? ReplyToMessageId { get; set; } = null;
         public string ReplyToSenderName { get; set; } = string.Empty;
         public string ReplyToPreview { get; set; } = string.Empty;
 
         // Reactions (JSON map: emoji -> list of phones)
         public string ReactionsJson { get; set; } = "{}";
-        [Ignore]
         public Dictionary<string, List<string>> Reactions
         {
             get => string.IsNullOrEmpty(ReactionsJson)
@@ -418,6 +366,7 @@ namespace Lock.Models
         // Metadata
         public DateTime SentAt { get; set; } = DateTime.UtcNow;
         public bool IsEdited { get; set; } = false;
+        public DateTime? EditedAt { get; set; } = null;  // Added this field
         public bool IsDeleted { get; set; } = false;
         public bool IsPinned { get; set; } = false;
         public bool IsSystemMessage { get; set; } = false;
@@ -430,13 +379,11 @@ namespace Lock.Models
         public string ReadByPhonesJson { get; set; } = "[]";
 
         // ── Display Helpers ──────────────────────────────────────────
-        [Ignore]
         public string DisplaySenderName =>
             !string.IsNullOrEmpty(SenderAnonymousAlias)
                 ? SenderAnonymousAlias
                 : SenderName;
 
-        [Ignore]
         public string TimeDisplay
         {
             get
@@ -450,7 +397,6 @@ namespace Lock.Models
             }
         }
 
-        [Ignore]
         public string ContentPreview =>
             IsDeleted ? "🚫 Message deleted" :
             MessageType == GroupMessageType.Image ? "📷 Photo" :
@@ -459,25 +405,12 @@ namespace Lock.Models
             MessageType == GroupMessageType.Event ? "📅 Event" :
             Content.Length > 80 ? Content[..80] + "…" : Content;
 
-        [Ignore]
         public bool HasMedia => MediaPaths.Count > 0;
-
-        [Ignore]
-        public bool HasReply => ReplyToMessageId > 0;
-
-        [Ignore]
+        public bool HasReply => !string.IsNullOrEmpty(ReplyToMessageId);  // Changed to check string
         public bool HasReactions => Reactions.Count > 0;
-
-        [Ignore]
         public bool IsVoice => MessageType == GroupMessageType.Voice;
-
-        [Ignore]
         public bool IsPoll => MessageType == GroupMessageType.Poll;
-
-        [Ignore]
         public bool ShowAvatar { get; set; } = true;
-
-        [Ignore]
         public bool IsOutgoing { get; set; } = false;
     }
 
@@ -492,11 +425,9 @@ namespace Lock.Models
         public bool AllowMultipleVotes { get; set; } = false;
         public DateTime? ExpiresAt { get; set; } = null;
 
-        [Ignore]
         public bool IsExpired =>
             ExpiresAt.HasValue && DateTime.UtcNow > ExpiresAt.Value;
 
-        [Ignore]
         public int TotalVotes =>
             Options.Sum(o => o.VoterPhones.Count);
     }
@@ -505,8 +436,6 @@ namespace Lock.Models
     {
         public string Text { get; set; } = string.Empty;
         public List<string> VoterPhones { get; set; } = new();
-
-        [Ignore]
         public int VoteCount => VoterPhones.Count;
     }
 
@@ -514,12 +443,9 @@ namespace Lock.Models
     // GROUP INVITE
     // ═══════════════════════════════════════════════════════════════
 
-    [Table("GroupInvites")]
     public class GroupInvite
     {
-        [PrimaryKey]
         public string Id { get; set; } = Guid.NewGuid().ToString();
-
         public string GroupId { get; set; } = string.Empty;
         public string InviteCode { get; set; } = string.Empty;
         public string CreatedByPhone { get; set; } = string.Empty;
@@ -529,11 +455,9 @@ namespace Lock.Models
         public int UseCount { get; set; } = 0;
         public bool IsActive { get; set; } = true;
 
-        [Ignore]
         public bool IsExpired =>
             ExpiresAt.HasValue && DateTime.UtcNow > ExpiresAt.Value;
 
-        [Ignore]
         public bool IsUsable =>
             IsActive &&
             !IsExpired &&
@@ -544,12 +468,9 @@ namespace Lock.Models
     // GROUP JOIN REQUEST
     // ═══════════════════════════════════════════════════════════════
 
-    [Table("GroupJoinRequests")]
     public class GroupJoinRequest
     {
-        [PrimaryKey]
         public string Id { get; set; } = Guid.NewGuid().ToString();
-
         public string GroupId { get; set; } = string.Empty;
         public string UserPhone { get; set; } = string.Empty;
         public string UserName { get; set; } = string.Empty;
@@ -563,12 +484,9 @@ namespace Lock.Models
     // GROUP EVENT (linked to a group)
     // ═══════════════════════════════════════════════════════════════
 
-    [Table("GroupEvents")]
     public class GroupEvent
     {
-        [PrimaryKey]
         public string Id { get; set; } = Guid.NewGuid().ToString();
-
         public string GroupId { get; set; } = string.Empty;
         public string CreatedByPhone { get; set; } = string.Empty;
         public string Title { get; set; } = string.Empty;
@@ -579,7 +497,6 @@ namespace Lock.Models
         public int MaxAttendees { get; set; } = 0;
         public string AttendeePhonesJson { get; set; } = "[]";
 
-        [Ignore]
         public List<string> AttendeePhones
         {
             get => string.IsNullOrEmpty(AttendeePhonesJson)
@@ -588,10 +505,8 @@ namespace Lock.Models
             set => AttendeePhonesJson = JsonSerializer.Serialize(value);
         }
 
-        [Ignore]
         public int AttendeeCount => AttendeePhones.Count;
 
-        [Ignore]
         public string EventDateDisplay =>
             EventDate.ToString("ddd, MMM d · h:mm tt");
     }
@@ -600,14 +515,11 @@ namespace Lock.Models
     // GROUP PINNED MESSAGE (references GroupMessage.Id)
     // ═══════════════════════════════════════════════════════════════
 
-    [Table("GroupPinnedMessages")]
     public class GroupPinnedMessage
     {
-        [PrimaryKey, AutoIncrement]
-        public int Id { get; set; }
-
+        public string Id { get; set; } = Guid.NewGuid().ToString();  // Changed to string
         public string GroupId { get; set; } = string.Empty;
-        public int MessageId { get; set; } = 0;
+        public string MessageId { get; set; } = string.Empty;  // Changed from int to string
         public string PinnedByPhone { get; set; } = string.Empty;
         public DateTime PinnedAt { get; set; } = DateTime.UtcNow;
         public string MessagePreview { get; set; } = string.Empty;

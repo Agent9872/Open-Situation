@@ -546,14 +546,12 @@ public partial class ChatOptionsPopup : Popup
     {
         try
         {
-            await DatabaseService.InitializeAsync();
-            var db = DatabaseService.GetConnection();
+            // Check if conversation already exists
+            var conversations = await SupabaseService.GetAsync<Conversation>("Conversations",
+                $"or(and(ParticipantA.eq.{Uri.EscapeDataString(userPhone)},ParticipantB.eq.{Uri.EscapeDataString(contactPhone)})," +
+                $"and(ParticipantA.eq.{Uri.EscapeDataString(contactPhone)},ParticipantB.eq.{Uri.EscapeDataString(userPhone)}))&limit=1");
 
-            // Check if conversation already exists - using ParticipantA and ParticipantB
-            var existingConversation = await db.Table<Conversation>()
-                .Where(c => (c.ParticipantA == userPhone && c.ParticipantB == contactPhone) ||
-                           (c.ParticipantA == contactPhone && c.ParticipantB == userPhone))
-                .FirstOrDefaultAsync();
+            var existingConversation = conversations.FirstOrDefault();
 
             if (existingConversation != null)
                 return existingConversation.ConversationId;
@@ -565,13 +563,12 @@ public partial class ChatOptionsPopup : Popup
                 ConversationId = conversationId,
                 ParticipantA = userPhone,
                 ParticipantB = contactPhone,
-                // Store contact name in OtherParticipant for UI
                 LastMessageAt = DateTime.UtcNow,
                 LastMessagePreview = "",
                 CreatedAt = DateTime.UtcNow
             };
 
-            await db.InsertAsync(conversation);
+            await SupabaseService.InsertAsync("Conversations", conversation);
             return conversationId;
         }
         catch (Exception ex)
@@ -607,23 +604,12 @@ public partial class ChatOptionsPopup : Popup
                 DisappearAfterSeconds = 0
             };
 
-            // Save to database
-            await DatabaseService.InitializeAsync();
-            var db = DatabaseService.GetConnection();
-            await db.InsertAsync(contactMessage);
+            // Save to Supabase
+            await SupabaseService.InsertAsync("ChatMessages", contactMessage);
 
-            // Update conversation last message with card emoji
-            var conversation = await db.Table<Conversation>()
-                .Where(c => c.ConversationId == targetConversationId)
-                .FirstOrDefaultAsync();
-
-            if (conversation != null)
-            {
-                conversation.LastMessagePreview = $"?? Contact card: {sourceContact.ContactName}";
-                conversation.LastMessageAt = DateTime.UtcNow;
-                conversation.LastMessageType = "contact";
-                await db.UpdateAsync(conversation);
-            }
+            // Update conversation last message
+            await SupabaseService.UpdateAsync("Conversations", $"ConversationId=eq.{Uri.EscapeDataString(targetConversationId)}",
+                new { LastMessagePreview = $"?? Contact card: {sourceContact.ContactName}", LastMessageAt = DateTime.UtcNow, LastMessageType = "contact" });
 
             // Notify that messages have been updated
             MessagingCenter.Send(this, "MessagesUpdated");
@@ -631,7 +617,7 @@ public partial class ChatOptionsPopup : Popup
 
             await Application.Current.MainPage.DisplayAlert(
                 "Contact Shared",
-                $"? Contact card for {sourceContact.ContactName} has been shared with {targetUserName}.",
+                $"?? Contact card for {sourceContact.ContactName} has been shared with {targetUserName}.",
                 "OK"
             );
 
@@ -643,7 +629,6 @@ public partial class ChatOptionsPopup : Popup
             await Application.Current.MainPage.DisplayAlert("Error", $"Failed to send contact: {ex.Message}", "OK");
         }
     }
-
 
     private async Task ShareContactExternallyAsync(string contactName, string phoneNumber, string? profileImagePath = null)
     {
@@ -1440,27 +1425,23 @@ END:VCARD",
 
     #region Existing Methods
 
-    private async Task<bool> ClearChatMessagesAsync(string conversationId)
+    private async Task ClearChatMessagesAsync(string conversationId)
     {
         try
         {
             Debug.WriteLine($"=== CLEARING CHAT MESSAGES ===");
             Debug.WriteLine($"Conversation ID: {conversationId}");
 
-            await DatabaseService.InitializeAsync();
-            var db = DatabaseService.GetConnection();
-
             // Get all messages for this conversation
-            var messages = await db.Table<ChatMessage>()
-                .Where(m => m.ConversationId == conversationId)
-                .ToListAsync();
+            var messages = await SupabaseService.GetAsync<ChatMessage>("ChatMessages",
+                $"ConversationId=eq.{Uri.EscapeDataString(conversationId)}");
 
             Debug.WriteLine($"Found {messages.Count} messages to delete");
 
             if (!messages.Any())
             {
                 Debug.WriteLine("No messages to delete");
-                return true;
+                return;
             }
 
             // Delete associated media files first
@@ -1521,47 +1502,22 @@ END:VCARD",
 
             Debug.WriteLine($"Deleted {filesDeleted} media files");
 
-            // Delete all messages from database
-            int deletedCount = await db.ExecuteAsync(
-                "DELETE FROM ChatMessage WHERE ConversationId = ?",
-                conversationId
-            );
+            // Delete all messages from Supabase
+            await SupabaseService.DeleteAsync("ChatMessages", $"ConversationId=eq.{Uri.EscapeDataString(conversationId)}");
 
-            Debug.WriteLine($"Deleted {deletedCount} messages from conversation {conversationId}");
+            Debug.WriteLine($"Deleted messages from conversation {conversationId}");
 
             // Update the conversation's last message info
-            var conversation = await db.Table<Conversation>()
-                .Where(c => c.ConversationId == conversationId)
-                .FirstOrDefaultAsync();
-
-            if (conversation != null)
-            {
-                conversation.LastMessagePreview = string.Empty;
-                conversation.LastMessageAt = DateTime.UtcNow;
-                await db.UpdateAsync(conversation);
-                Debug.WriteLine($"Updated conversation {conversationId} - cleared last message preview");
-            }
-            else
-            {
-                Debug.WriteLine($"Conversation {conversationId} not found in database");
-            }
+            await SupabaseService.UpdateAsync("Conversations", $"ConversationId=eq.{Uri.EscapeDataString(conversationId)}",
+                new { LastMessagePreview = string.Empty, LastMessageAt = DateTime.UtcNow });
 
             // Notify that messages have been updated
             MessagingCenter.Send(this, "MessagesUpdated");
             MessagingCenter.Send(this, "ConversationsUpdated");
-
-            return true;
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"Error type: {ex.GetType().Name}");
-            Debug.WriteLine($"Error message: {ex.Message}");
-            Debug.WriteLine($"Stack trace: {ex.StackTrace}");
-            if (ex.InnerException != null)
-            {
-                Debug.WriteLine($"Inner exception: {ex.InnerException.Message}");
-            }
-            return false;
+            Debug.WriteLine($"ClearChatMessagesAsync error: {ex.Message}");
         }
     }
 
@@ -1907,12 +1863,9 @@ END:VCARD",
     {
         try
         {
-            await DatabaseService.InitializeAsync();
-            var db = DatabaseService.GetConnection();
-
-            var conversation = await db.Table<Conversation>()
-                .Where(c => c.ConversationId == conversationId)
-                .FirstOrDefaultAsync();
+            var conversations = await SupabaseService.GetAsync<Conversation>("Conversations",
+                $"ConversationId=eq.{Uri.EscapeDataString(conversationId)}&limit=1");
+            var conversation = conversations.FirstOrDefault();
 
             if (conversation != null && !string.IsNullOrEmpty(conversation.DisappearingMessagesSetting))
             {
@@ -1928,34 +1881,29 @@ END:VCARD",
         }
     }
 
+
     private async Task<bool> SaveDisappearingMessagesSettingAsync(string conversationId, string setting)
     {
         try
         {
-            await DatabaseService.InitializeAsync();
-            var db = DatabaseService.GetConnection();
-
-            var conversation = await db.Table<Conversation>()
-                .Where(c => c.ConversationId == conversationId)
-                .FirstOrDefaultAsync();
-
-            if (conversation != null)
+            int timerSeconds = setting switch
             {
-                conversation.DisappearingMessagesSetting = setting;
-                conversation.DisappearingMessagesEnabled = setting != "Off";
+                "5 seconds" => 5,
+                "5 minutes" => 300,
+                "15 minutes" => 900,
+                "1 hour" => 3600,
+                "24 hours" => 86400,
+                "1 week" => 604800,
+                _ => 0
+            };
 
-                conversation.DisappearingMessagesTimer = setting switch
-                {
-                    "5 seconds" => 5,
-                    "5 minutes" => 300,
-                    "15 minutes" => 900,
-                    "1 hour" => 3600,
-                    "24 hours" => 86400,
-                    "1 week" => 604800,
-                    _ => 0
-                };
+            bool enabled = setting != "Off";
 
-                await db.UpdateAsync(conversation);
+            var success = await SupabaseService.UpdateAsync("Conversations", $"ConversationId=eq.{Uri.EscapeDataString(conversationId)}",
+                new { DisappearingMessagesSetting = setting, DisappearingMessagesEnabled = enabled, DisappearingMessagesTimer = timerSeconds });
+
+            if (success)
+            {
                 Debug.WriteLine($"Saved disappearing messages setting: {setting} for conversation {conversationId}");
                 return true;
             }
@@ -1968,6 +1916,7 @@ END:VCARD",
             return false;
         }
     }
+
 
     private async Task BlockUserAsync(string currentUserPhone, string targetPhone, ChatOptionsViewModel vm)
     {
@@ -2091,13 +2040,8 @@ END:VCARD",
     {
         try
         {
-            await DatabaseService.InitializeAsync();
-            var db = DatabaseService.GetConnection();
-
-            var user = await db.Table<User>()
-                .Where(u => u.Name == contactName)
-                .FirstOrDefaultAsync();
-
+            var users = await SupabaseService.GetAsync<User>("Users", $"Name=eq.{Uri.EscapeDataString(contactName)}&limit=1");
+            var user = users.FirstOrDefault();
             return user?.PhoneNumber ?? string.Empty;
         }
         catch (Exception ex)

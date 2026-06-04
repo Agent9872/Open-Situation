@@ -1,20 +1,22 @@
-﻿using SQLite;
+﻿using Newtonsoft.Json;
+using System;
 
 namespace Lock.Models
 {
-    [Table("EventAttendance")]
     public class EventAttendance
     {
-        [PrimaryKey, AutoIncrement]
         public int Id { get; set; }
 
-        [Indexed]
+        [JsonProperty("event_id")]
         public int EventId { get; set; }
 
-        [Indexed]
+        [JsonProperty("user_id")]
         public int UserId { get; set; }
 
-        public string Status { get; set; } = "Going"; // Going, Interested, Went
+        [JsonProperty("status")]
+        public string Status { get; set; } = "Going";
+
+        [JsonProperty("created_at")]
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     }
 }

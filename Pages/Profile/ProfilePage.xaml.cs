@@ -117,9 +117,6 @@ namespace Lock.Pages.Profile
             public string ProfileImage { get; set; } = string.Empty;
         }
 
-
-
-        // Method to load blocked users
         private async Task LoadBlockedUsersAsync()
         {
             try
@@ -128,13 +125,8 @@ namespace Lock.Pages.Profile
                 if (string.IsNullOrEmpty(currentUserPhone))
                     return;
 
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
-                // Use correct property names: UserPhone and BlockedPhone
-                var blockedRelations = await db.Table<BlockedUser>()
-                    .Where(b => b.UserPhone == currentUserPhone)
-                    .ToListAsync();
+                var blockedRelations = await SupabaseService.GetAsync<BlockedUser>("BlockedUsers",
+                    $"UserPhone=eq.{Uri.EscapeDataString(currentUserPhone)}");
 
                 _blockedUsers.Clear();
 
@@ -142,9 +134,9 @@ namespace Lock.Pages.Profile
                 {
                     string blockedPhone = blocked.BlockedPhone;
 
-                    var user = await db.Table<User>()
-                        .Where(u => u.PhoneNumber == blockedPhone)
-                        .FirstOrDefaultAsync();
+                    var users = await SupabaseService.GetAsync<User>("Users",
+                        $"PhoneNumber=eq.{Uri.EscapeDataString(blockedPhone)}&limit=1");
+                    var user = users.FirstOrDefault();
 
                     var blockedUser = new BlockedUserItem
                     {
@@ -177,7 +169,6 @@ namespace Lock.Pages.Profile
             }
         }
 
-
         private async void HidePhoneSwitch_Toggled(object sender, ToggledEventArgs e)
         {
             try
@@ -185,21 +176,18 @@ namespace Lock.Pages.Profile
                 if (_viewOnly) return;
                 if (!EnsurePhoneFromPreferences()) return;
 
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-                var user = await db.Table<User>()
-                    .Where(u => u.PhoneNumber == _phone)
-                    .FirstOrDefaultAsync();
+                var users = await SupabaseService.GetAsync<User>("Users",
+                    $"PhoneNumber=eq.{Uri.EscapeDataString(_phone)}&limit=1");
+                var user = users.FirstOrDefault();
 
                 if (user == null) return;
 
                 user.HidePhoneNumber = e.Value;
-                await db.UpdateAsync(user);
+                await SupabaseService.UpdateAsync("Users", $"Id=eq.{user.Id}", user);
 
                 if (_currentUser != null)
                     _currentUser.HidePhoneNumber = e.Value;
 
-                // Apply visibility immediately
                 ApplyPhoneVisibility(user);
 
                 Debug.WriteLine($"[PHONE] HidePhoneNumber instantly saved: {e.Value} for {_phone}");
@@ -217,11 +205,8 @@ namespace Lock.Pages.Profile
                 var phoneRow = this.FindByName<HorizontalStackLayout>("PhoneRow");
                 if (phoneRow == null) return;
 
-                // Owner always sees their own phone row
-                // Other users see it only if HidePhoneNumber is false
                 phoneRow.IsVisible = IsOwner || !user.HidePhoneNumber;
 
-                // Also load the switch state when owner views their own profile
                 if (IsOwner)
                 {
                     var hideSwitch = this.FindByName<Microsoft.Maui.Controls.Switch>("HidePhoneSwitch");
@@ -928,9 +913,9 @@ namespace Lock.Pages.Profile
                     return;
                 }
 
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-                var user = await db.Table<User>().Where(u => u.PhoneNumber == currentUserPhone).FirstOrDefaultAsync();
+                var users = await SupabaseService.GetAsync<User>("Users",
+                    $"PhoneNumber=eq.{Uri.EscapeDataString(currentUserPhone)}&limit=1");
+                var user = users.FirstOrDefault();
 
                 if (user == null)
                 {
@@ -938,7 +923,6 @@ namespace Lock.Pages.Profile
                     return;
                 }
 
-                // Use the same options as PostPage
                 string[] lookingForOptions = {
             "Long-term relationship",
             "Short-term fun",
@@ -951,8 +935,6 @@ namespace Lock.Pages.Profile
             "Not sure yet"
         };
 
-                // Show current selection as pre-selected
-                string currentMood = user.Mood ?? "Long-term relationship";
                 var selected = await DisplayActionSheet(
                     "What are you looking for?",
                     "Cancel",
@@ -962,20 +944,16 @@ namespace Lock.Pages.Profile
                 if (string.IsNullOrEmpty(selected) || selected == "Cancel")
                     return;
 
-                // Update the user's mood
                 user.Mood = selected;
                 user.MoodLastUpdated = DateTime.UtcNow;
-                await db.UpdateAsync(user);
+                await SupabaseService.UpdateAsync("Users", $"Id=eq.{user.Id}", user);
                 _currentUser = user;
 
-                // Update the UI property
                 OnPropertyChanged(nameof(CurrentUserLookingFor));
 
-                // Send notifications to update PostPage and other pages
                 MessagingCenter.Send(this, "MoodUpdated");
                 MessagingCenter.Send(this, "MoodSaved");
 
-                // Also update any picker if it exists in the preferences tab
                 var moodPicker = this.FindByName<Picker>("MoodPicker");
                 if (moodPicker != null && moodPicker.Items.Contains(selected))
                 {
@@ -998,19 +976,15 @@ namespace Lock.Pages.Profile
                 if (string.IsNullOrWhiteSpace(phone))
                     return string.Empty;
 
-                // First try to get from the current user object if it's the same user
                 if (_currentUser != null && _currentUser.PhoneNumber == phone && !string.IsNullOrEmpty(_currentUser.ProfileImagePath))
                 {
                     if (File.Exists(_currentUser.ProfileImagePath))
                         return _currentUser.ProfileImagePath;
                 }
 
-                // Try to get from database
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-                var user = await db.Table<User>()
-                    .Where(u => u.PhoneNumber == phone)
-                    .FirstOrDefaultAsync();
+                var users = await SupabaseService.GetAsync<User>("Users",
+                    $"PhoneNumber=eq.{Uri.EscapeDataString(phone)}&limit=1");
+                var user = users.FirstOrDefault();
 
                 if (user != null && !string.IsNullOrEmpty(user.ProfileImagePath) && File.Exists(user.ProfileImagePath))
                 {
@@ -1031,11 +1005,9 @@ namespace Lock.Pages.Profile
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-                var user = await db.Table<User>()
-                    .Where(u => u.PhoneNumber == phone)
-                    .FirstOrDefaultAsync();
+                var users = await SupabaseService.GetAsync<User>("Users",
+                    $"PhoneNumber=eq.{Uri.EscapeDataString(phone)}&limit=1");
+                var user = users.FirstOrDefault();
                 return user?.Name ?? phone;
             }
             catch
@@ -1123,11 +1095,10 @@ namespace Lock.Pages.Profile
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-                var user = await db.Table<User>().Where(u => u.PhoneNumber == phone).FirstOrDefaultAsync();
+                var users = await SupabaseService.GetAsync<User>("Users",
+                    $"PhoneNumber=eq.{Uri.EscapeDataString(phone)}&limit=1");
+                var user = users.FirstOrDefault();
 
-                // Get current user phone for love state checking
                 var currentUserPhone = Preferences.Get("current_user_phone", string.Empty);
 
                 if (user == null)
@@ -1161,42 +1132,32 @@ namespace Lock.Pages.Profile
                     if (exerciseLbl != null) exerciseLbl.Text = "—";
                     if (voiceStatus != null) voiceStatus.IsVisible = false;
 
-                    // clear images
                     var cover = this.FindByName<Image>("CoverImageOverlay");
                     var overlay = this.FindByName<Image>("ProfileImageOverlay");
                     if (cover != null) cover.Source = null;
                     if (overlay != null) overlay.Source = null;
 
-                    // hide conditional UI
                     this.FindByName<HorizontalStackLayout>("TopInterestOtherLayout")?.SetValue(VisualElement.IsVisibleProperty, false);
                     this.FindByName<HorizontalStackLayout>("FavoriteMusicGenreOtherLayout")?.SetValue(VisualElement.IsVisibleProperty, false);
 
-                    // clear posts
                     var clearCv = this.FindByName<CollectionView>("UserPostsCollectionView");
                     if (clearCv != null) clearCv.ItemsSource = null;
 
-                    // clear media thumbnails
                     var photosLayoutClear = this.FindByName<HorizontalStackLayout>("PhotosLayout");
                     if (photosLayoutClear != null) photosLayoutClear.Children.Clear();
                     var mediaPicker = this.FindByName<Picker>("MediaCategoryPicker");
                     if (mediaPicker != null) mediaPicker.Items.Clear();
 
-                    // update edit icons visibility
                     UpdateCoverEditIconVisibility();
                     UpdateProfileEditIconVisibility();
 
-                    // Hide verification badge
                     IsVerified = false;
-
-                    // HIDE compatibility UI when user not found
                     HideCompatibilityUI();
                     return;
                 }
 
                 _currentUser = user;
                 _currentUserId = user.Id;
-
-                // Set verification status
                 IsVerified = user.IsVerified;
 
                 UpdateVoiceIntroOptionsButtonVisibility();
@@ -1210,7 +1171,6 @@ namespace Lock.Pages.Profile
                 var ageLabel = this.FindByName<Label>("AgeLabel");
 
                 if (nameLabel != null) nameLabel.Text = user.Name ?? "—";
-                if (phoneLabel != null) phoneLabel.Text = user.PhoneNumber ?? "—";
                 if (phoneLabel != null) phoneLabel.Text = user.PhoneNumber ?? "—";
                 if (genderLabel != null) genderLabel.Text = user.Gender ?? "—";
                 if (interestLabel != null) interestLabel.Text = string.IsNullOrEmpty(user.Interest) ? "—" : user.Interest;
@@ -1230,29 +1190,19 @@ namespace Lock.Pages.Profile
                 var exerciseLabel = this.FindByName<Label>("ExerciseLabel");
                 var voiceStatusLabel = this.FindByName<Label>("VoiceIntroStatus");
 
-                // ========== Load compatibility and mutual interests ==========
+                // Load compatibility and mutual interests
                 bool isViewingOwnProfile = string.Equals(phone?.Trim(), currentUserPhone?.Trim(), StringComparison.OrdinalIgnoreCase);
 
                 if (!isViewingOwnProfile)
                 {
                     Debug.WriteLine($"Loading compatibility for viewing user: {phone}");
                     await LoadCompatibilityAndMutualInterestsAsync(user);
-
-                    // Show compatibility UI elements for other users
-                    MainThread.BeginInvokeOnMainThread(() =>
-                    {
-                        ShowCompatibilityUI();
-                    });
+                    MainThread.BeginInvokeOnMainThread(() => ShowCompatibilityUI());
                 }
                 else
                 {
                     Debug.WriteLine($"Skipping compatibility - viewing own profile");
-
-                    // HIDE compatibility UI elements when viewing own profile
-                    MainThread.BeginInvokeOnMainThread(() =>
-                    {
-                        HideCompatibilityUI();
-                    });
+                    MainThread.BeginInvokeOnMainThread(() => HideCompatibilityUI());
                 }
 
                 if (heightLabel != null)
@@ -1269,79 +1219,44 @@ namespace Lock.Pages.Profile
                     }
                 }
 
-                if (bodyTypeLabel != null)
-                {
-                    bodyTypeLabel.Text = string.IsNullOrEmpty(user.BodyType) ? "—" : user.BodyType;
-                }
+                if (bodyTypeLabel != null) bodyTypeLabel.Text = string.IsNullOrEmpty(user.BodyType) ? "—" : user.BodyType;
 
                 if (ethnicityLabel != null)
                 {
                     if (!string.IsNullOrEmpty(user.Ethnicity) && !string.IsNullOrEmpty(user.Tribe))
-                    {
                         ethnicityLabel.Text = $"{user.Ethnicity} · {user.Tribe}";
-                    }
                     else if (!string.IsNullOrEmpty(user.Ethnicity))
-                    {
                         ethnicityLabel.Text = user.Ethnicity;
-                    }
                     else if (!string.IsNullOrEmpty(user.Tribe))
-                    {
                         ethnicityLabel.Text = user.Tribe;
-                    }
                     else
-                    {
                         ethnicityLabel.Text = "—";
-                    }
                 }
 
-                // Family / Kids Label
                 if (familyLabel != null)
                 {
                     string familyText = string.Empty;
                     if (!string.IsNullOrEmpty(user.KidsPreference) && !string.IsNullOrEmpty(user.HasChildren))
-                    {
                         familyText = $"{user.KidsPreference} · {user.HasChildren}";
-                    }
                     else if (!string.IsNullOrEmpty(user.KidsPreference))
-                    {
                         familyText = user.KidsPreference;
-                    }
                     else if (!string.IsNullOrEmpty(user.HasChildren))
-                    {
                         familyText = user.HasChildren;
-                    }
                     else
-                    {
                         familyText = "—";
-                    }
                     familyLabel.Text = familyText;
                 }
 
-                // Load Personality Type
                 var personalityTypeLabel = this.FindByName<Label>("PersonalityTypeLabel");
                 if (personalityTypeLabel != null)
-                {
                     personalityTypeLabel.Text = string.IsNullOrEmpty(user.PersonalityType) ? "—" : user.PersonalityType;
-                }
 
-                // Load Love Language
                 var loveLanguageLabel = this.FindByName<Label>("LoveLanguageLabel");
                 if (loveLanguageLabel != null)
-                {
                     loveLanguageLabel.Text = string.IsNullOrEmpty(user.LoveLanguage) ? "—" : user.LoveLanguage;
-                }
 
-                // Diet Label
-                if (dietLabel != null)
-                {
-                    dietLabel.Text = string.IsNullOrEmpty(user.DietaryPreference) ? "—" : user.DietaryPreference;
-                }
-
-                // Exercise Label
-                if (exerciseLabel != null)
-                {
-                    exerciseLabel.Text = string.IsNullOrEmpty(user.ExerciseFrequency) ? "—" : user.ExerciseFrequency;
-                }
+                if (dietLabel != null) dietLabel.Text = string.IsNullOrEmpty(user.DietaryPreference) ? "—" : user.DietaryPreference;
+                if (exerciseLabel != null) exerciseLabel.Text = string.IsNullOrEmpty(user.ExerciseFrequency) ? "—" : user.ExerciseFrequency;
 
                 if (voiceStatusLabel != null)
                 {
@@ -1377,364 +1292,23 @@ namespace Lock.Pages.Profile
                 UpdateCoverEditIconVisibility();
                 UpdateProfileEditIconVisibility();
 
-                // populate preferences controls
-                var moodPicker = this.FindByName<Picker>("MoodPicker");
-                var energyPicker = this.FindByName<Picker>("EnergyPicker");
-                var countryEntry = this.FindByName<Entry>("CountryEntry");
-                var stateEntry = this.FindByName<Entry>("StateEntry");
-                var bioEditorInfo = this.FindByName<Editor>("BioEditorInfo");
-                var drinksPicker = this.FindByName<Picker>("DrinksPicker");
-                var smokesSwitch = this.FindByName<Microsoft.Maui.Controls.Switch>("SmokesSwitch");
-                var petsSwitch = this.FindByName<Microsoft.Maui.Controls.Switch>("PetsSwitch");
-                var religionEntry = this.FindByName<Entry>("ReligionEntry");
-                var politicalEntry = this.FindByName<Entry>("PoliticalEntry");
-
-                if (moodPicker != null && !string.IsNullOrEmpty(user.Mood))
-                {
-                    if (moodPicker.Items.Contains(user.Mood))
-                        moodPicker.SelectedItem = user.Mood;
-                }
-                if (energyPicker != null && !string.IsNullOrEmpty(user.EnergyLevel))
-                {
-                    if (energyPicker.Items.Contains(user.EnergyLevel))
-                        energyPicker.SelectedItem = user.EnergyLevel;
-                }
-                if (countryEntry != null) countryEntry.Text = user.Country ?? "";
-                if (stateEntry != null) stateEntry.Text = user.State ?? "";
-                if (bioEditorInfo != null) bioEditorInfo.Text = user.Bio ?? "";
-                if (drinksPicker != null && !string.IsNullOrEmpty(user.Drinks))
-                {
-                    if (drinksPicker.Items.Contains(user.Drinks))
-                        drinksPicker.SelectedItem = user.Drinks;
-                }
-                if (smokesSwitch != null) smokesSwitch.IsToggled = user.Smokes;
-                if (petsSwitch != null) petsSwitch.IsToggled = user.HasPets;
-                if (religionEntry != null) religionEntry.Text = user.Religion ?? "";
-                if (politicalEntry != null) politicalEntry.Text = user.PoliticalViews ?? "";
-
-                // Load "Allow Mood Search" toggle
-                var moodSearchSwitch = this.FindByName<Microsoft.Maui.Controls.Switch>("MoodSearchSwitch");
-                if (moodSearchSwitch != null)
-                {
-                    moodSearchSwitch.IsToggled = user.AllowMoodSearch;
-                }
-
-                // Load Ghost Mode + Mood Shield toggle
-                var ghostSwitch = this.FindByName<Microsoft.Maui.Controls.Switch>("GhostModeMoodShieldSwitch");
-                if (ghostSwitch != null)
-                {
-                    ghostSwitch.IsToggled = user.GhostModeMoodShield;
-                }
-
-                // ─────────────────────────────────────────────────────────────────
-                // FIX: Load Phone Number Visibility toggle
-                // ─────────────────────────────────────────────────────────────────
-                var hidePhoneSwitch = this.FindByName<Microsoft.Maui.Controls.Switch>("HidePhoneSwitch");
-                if (hidePhoneSwitch != null)
-                {
-                    hidePhoneSwitch.IsToggled = user.HidePhoneNumber;
-                }
-
-                // Apply phone row visibility based on saved setting
-                ApplyPhoneVisibility(user);
-                // ─────────────────────────────────────────────────────────────────
-
-                // Initialize Height Picker
-                var heightPicker = this.FindByName<Picker>("HeightPicker");
-                if (heightPicker != null)
-                {
-                    heightPicker.Items.Clear();
-                    for (int h = 140; h <= 210; h++)
-                    {
-                        heightPicker.Items.Add($"{h} cm");
-                    }
-                    if (user.HeightCm.HasValue && user.HeightCm.Value > 0)
-                    {
-                        string heightText = $"{user.HeightCm.Value} cm";
-                        if (heightPicker.Items.Contains(heightText))
-                            heightPicker.SelectedItem = heightText;
-                    }
-                }
-
-                // Initialize Body Type Picker
-                var bodyTypePicker = this.FindByName<Picker>("BodyTypePicker");
-                if (bodyTypePicker != null)
-                {
-                    if (bodyTypePicker.Items.Count == 0)
-                    {
-                        bodyTypePicker.Items.Add("Slim");
-                        bodyTypePicker.Items.Add("Athletic");
-                        bodyTypePicker.Items.Add("Average");
-                        bodyTypePicker.Items.Add("Curvy");
-                        bodyTypePicker.Items.Add("Full-figured");
-                        bodyTypePicker.Items.Add("Muscular");
-                        bodyTypePicker.Items.Add("Prefer not to say");
-                    }
-                    if (!string.IsNullOrEmpty(user.BodyType) && bodyTypePicker.Items.Contains(user.BodyType))
-                        bodyTypePicker.SelectedItem = user.BodyType;
-                }
-
-                // Initialize Ethnicity Picker
-                var ethnicityPicker = this.FindByName<Picker>("EthnicityPicker");
-                if (ethnicityPicker != null)
-                {
-                    if (ethnicityPicker.Items.Count == 0)
-                    {
-                        ethnicityPicker.Items.Add("African");
-                        ethnicityPicker.Items.Add("African American");
-                        ethnicityPicker.Items.Add("Caucasian");
-                        ethnicityPicker.Items.Add("Asian");
-                        ethnicityPicker.Items.Add("Hispanic/Latino");
-                        ethnicityPicker.Items.Add("Middle Eastern");
-                        ethnicityPicker.Items.Add("Mixed");
-                        ethnicityPicker.Items.Add("Other");
-                        ethnicityPicker.Items.Add("Prefer not to say");
-                    }
-                    if (!string.IsNullOrEmpty(user.Ethnicity) && ethnicityPicker.Items.Contains(user.Ethnicity))
-                        ethnicityPicker.SelectedItem = user.Ethnicity;
-                }
-
-                // Initialize Tribe Picker
-                var tribePicker = this.FindByName<Picker>("TribePicker");
-                if (tribePicker != null)
-                {
-                    if (tribePicker.Items.Count == 0)
-                    {
-                        tribePicker.Items.Add("Yoruba");
-                        tribePicker.Items.Add("Igbo");
-                        tribePicker.Items.Add("Hausa");
-                        tribePicker.Items.Add("Fulani");
-                        tribePicker.Items.Add("Ijaw");
-                        tribePicker.Items.Add("Kanuri");
-                        tribePicker.Items.Add("Tiv");
-                        tribePicker.Items.Add("Edo");
-                        tribePicker.Items.Add("Nupe");
-                        tribePicker.Items.Add("Other");
-                        tribePicker.Items.Add("Prefer not to say");
-                    }
-                    if (!string.IsNullOrEmpty(user.Tribe) && tribePicker.Items.Contains(user.Tribe))
-                        tribePicker.SelectedItem = user.Tribe;
-                }
-
-                // Initialize Kids/Family Pickers
-                var kidsPreferencePicker = this.FindByName<Picker>("KidsPreferencePicker");
-                if (kidsPreferencePicker != null)
-                {
-                    if (kidsPreferencePicker.Items.Count == 0)
-                    {
-                        kidsPreferencePicker.Items.Add("Want children");
-                        kidsPreferencePicker.Items.Add("Open to children");
-                        kidsPreferencePicker.Items.Add("Don't want children");
-                        kidsPreferencePicker.Items.Add("Not sure");
-                        kidsPreferencePicker.Items.Add("Prefer not to say");
-                    }
-                    if (!string.IsNullOrEmpty(user.KidsPreference) && kidsPreferencePicker.Items.Contains(user.KidsPreference))
-                        kidsPreferencePicker.SelectedItem = user.KidsPreference;
-                }
-
-                var hasChildrenPicker = this.FindByName<Picker>("HasChildrenPicker");
-                if (hasChildrenPicker != null)
-                {
-                    if (hasChildrenPicker.Items.Count == 0)
-                    {
-                        hasChildrenPicker.Items.Add("Have children");
-                        hasChildrenPicker.Items.Add("Don't have children");
-                        hasChildrenPicker.Items.Add("Prefer not to say");
-                    }
-                    if (!string.IsNullOrEmpty(user.HasChildren) && hasChildrenPicker.Items.Contains(user.HasChildren))
-                        hasChildrenPicker.SelectedItem = user.HasChildren;
-                }
-
-                // Initialize Dietary Preference Picker
-                var dietaryPreferencePicker = this.FindByName<Picker>("DietaryPreferencePicker");
-                if (dietaryPreferencePicker != null)
-                {
-                    if (dietaryPreferencePicker.Items.Count == 0)
-                    {
-                        dietaryPreferencePicker.Items.Add("Omnivore");
-                        dietaryPreferencePicker.Items.Add("Vegetarian");
-                        dietaryPreferencePicker.Items.Add("Vegan");
-                        dietaryPreferencePicker.Items.Add("Pescatarian");
-                        dietaryPreferencePicker.Items.Add("Halal");
-                        dietaryPreferencePicker.Items.Add("Kosher");
-                        dietaryPreferencePicker.Items.Add("Gluten-free");
-                        dietaryPreferencePicker.Items.Add("Dairy-free");
-                        dietaryPreferencePicker.Items.Add("No restrictions");
-                        dietaryPreferencePicker.Items.Add("Prefer not to say");
-                    }
-                    if (!string.IsNullOrEmpty(user.DietaryPreference) && dietaryPreferencePicker.Items.Contains(user.DietaryPreference))
-                        dietaryPreferencePicker.SelectedItem = user.DietaryPreference;
-                }
-
-                // Initialize Exercise Frequency Picker
-                var exerciseFrequencyPicker = this.FindByName<Picker>("ExerciseFrequencyPicker");
-                if (exerciseFrequencyPicker != null)
-                {
-                    if (exerciseFrequencyPicker.Items.Count == 0)
-                    {
-                        exerciseFrequencyPicker.Items.Add("Daily");
-                        exerciseFrequencyPicker.Items.Add("Several times a week");
-                        exerciseFrequencyPicker.Items.Add("Once a week");
-                        exerciseFrequencyPicker.Items.Add("Few times a month");
-                        exerciseFrequencyPicker.Items.Add("Rarely");
-                        exerciseFrequencyPicker.Items.Add("Never");
-                        exerciseFrequencyPicker.Items.Add("Prefer not to say");
-                    }
-                    if (!string.IsNullOrEmpty(user.ExerciseFrequency) && exerciseFrequencyPicker.Items.Contains(user.ExerciseFrequency))
-                        exerciseFrequencyPicker.SelectedItem = user.ExerciseFrequency;
-                }
-
-                // restore interest tags visual state
-                var tags = (user.Interests ?? string.Empty).Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-                var tagNames = new[] { "Travel", "Fitness", "Tech", "Music", "Coffee lover", "Gym", "Entrepreneur" };
-                foreach (var tag in tagNames)
-                {
-                    var btnName = tag.Replace(" ", string.Empty);
-                    var btn = this.FindByName<Button>($"Tag{btnName}");
-                    if (btn != null)
-                    {
-                        bool isSelected = tags.Contains(tag);
-                        btn.BackgroundColor = isSelected ? Color.FromArgb("#3B82F6") : Color.FromArgb("#EEE");
-                        btn.TextColor = isSelected ? Colors.White : Colors.Black;
-                        btn.BindingContext = isSelected;
-                    }
-                }
-
-                // populate Interests panel: render chips from user.Interests
-                var interestsLayout = this.FindByName<HorizontalStackLayout>("InterestsChipsLayout");
-                if (interestsLayout != null)
-                {
-                    interestsLayout.Children.Clear();
-                    foreach (var t in tags)
-                    {
-                        var chip = new Border
-                        {
-                            Padding = new Thickness(8, 4),
-                            BackgroundColor = Color.FromArgb("#EEE"),
-                            StrokeThickness = 0,
-                            StrokeShape = new RoundRectangle { CornerRadius = new CornerRadius(8) },
-                            Content = new Label { Text = t, FontSize = 12, TextColor = Colors.Black }
-                        };
-                        interestsLayout.Children.Add(chip);
-                    }
-                }
-
-                // populate music genres and favorite artists
-                var musicLayout = this.FindByName<HorizontalStackLayout>("MusicGenresLayout");
-                var favArtistsLabel = this.FindByName<Label>("FavoriteArtistsLabel");
-                if (musicLayout != null)
-                {
-                    musicLayout.Children.Clear();
-                    var genres = (user.MusicGenres ?? string.Empty).Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-                    foreach (var g in genres)
-                    {
-                        var chip = new Border
-                        {
-                            Padding = new Thickness(8, 4),
-                            BackgroundColor = Color.FromArgb("#EEE"),
-                            StrokeThickness = 0,
-                            StrokeShape = new RoundRectangle { CornerRadius = new CornerRadius(8) },
-                            Content = new Label { Text = g, FontSize = 12, TextColor = Colors.Black }
-                        };
-                        musicLayout.Children.Add(chip);
-                    }
-                }
-                if (favArtistsLabel != null) favArtistsLabel.Text = string.IsNullOrEmpty(user.FavoriteArtists) ? "—" : user.FavoriteArtists;
-
-                // populate editable Interests fields
-                var musicEntry = this.FindByName<Entry>("MusicGenresEntry");
-                var favArtistsEntry = this.FindByName<Entry>("FavoriteArtistsEntry");
-                var favMoviesEntry = this.FindByName<Entry>("FavoriteMoviesEntry");
-                var favBooksEntry = this.FindByName<Entry>("FavoriteBooksEntry");
-                var languagesEntry = this.FindByName<Entry>("LanguagesEntry");
-                var occupationEntry = this.FindByName<Entry>("OccupationEntry");
-                var educationEntry = this.FindByName<Entry>("EducationEntry");
-                var promptsEditor = this.FindByName<Editor>("PromptsEditor");
-                var dealbreakersEntry = this.FindByName<Entry>("DealbreakersEntry");
-
-                if (musicEntry != null) musicEntry.Text = user.MusicGenres ?? "";
-                if (favArtistsEntry != null) favArtistsEntry.Text = user.FavoriteArtists ?? "";
-                if (favMoviesEntry != null) favMoviesEntry.Text = user.FavoriteMovies ?? "";
-                if (favBooksEntry != null) favBooksEntry.Text = user.FavoriteBooks ?? "";
-                if (languagesEntry != null) languagesEntry.Text = user.Languages ?? "";
-                if (occupationEntry != null) occupationEntry.Text = user.Occupation ?? "";
-                if (educationEntry != null) educationEntry.Text = user.Education ?? "";
-                if (promptsEditor != null) promptsEditor.Text = user.Prompts ?? "";
-                if (dealbreakersEntry != null) dealbreakersEntry.Text = user.Dealbreakers ?? "";
-
-                // populate top selections controls
-                var topInterestPicker = this.FindByName<Picker>("TopInterestPicker");
-                var topArtistEntry = this.FindByName<Entry>("TopArtistEntry");
-                var topMovieEntry = this.FindByName<Entry>("TopMovieEntry");
-                var sexualPicker = this.FindByName<Picker>("SexualOrientationPicker");
-                var topInterestOtherLayout = this.FindByName<HorizontalStackLayout>("TopInterestOtherLayout");
-
-                if (topInterestPicker != null && !string.IsNullOrEmpty(user.TopInterest))
-                {
-                    if (topInterestPicker.Items.Contains(user.TopInterest))
-                        topInterestPicker.SelectedItem = user.TopInterest;
-                    else
-                    {
-                        topInterestPicker.Items.Add(user.TopInterest);
-                        topInterestPicker.SelectedItem = user.TopInterest;
-                    }
-                }
-                if (topInterestOtherLayout != null)
-                {
-                    topInterestOtherLayout.IsVisible = false;
-                }
-                if (topArtistEntry != null) topArtistEntry.Text = user.TopArtist ?? "";
-                if (topMovieEntry != null) topMovieEntry.Text = user.TopMovie ?? "";
-                if (sexualPicker != null && !string.IsNullOrEmpty(user.SexualOrientation))
-                {
-                    if (sexualPicker.Items.Contains(user.SexualOrientation))
-                        sexualPicker.SelectedItem = user.SexualOrientation;
-                }
-
-                // FavoriteMusicGenre picker
-                var favoriteMusicGenrePicker = this.FindByName<Picker>("FavoriteMusicGenrePicker");
-                if (favoriteMusicGenrePicker != null && !string.IsNullOrEmpty(user.FavoriteMusicGenre))
-                {
-                    if (favoriteMusicGenrePicker.Items.Contains(user.FavoriteMusicGenre))
-                        favoriteMusicGenrePicker.SelectedItem = user.FavoriteMusicGenre;
-                    else
-                    {
-                        favoriteMusicGenrePicker.Items.Add(user.FavoriteMusicGenre);
-                        favoriteMusicGenrePicker.SelectedItem = user.FavoriteMusicGenre;
-                    }
-                }
-                var favoriteMusicGenreOtherLayout = this.FindByName<HorizontalStackLayout>("FavoriteMusicGenreOtherLayout");
-                if (favoriteMusicGenreOtherLayout != null) favoriteMusicGenreOtherLayout.IsVisible = false;
-                var bestMusicEntry = this.FindByName<Entry>("BestMusicEntry");
-                if (bestMusicEntry != null) bestMusicEntry.Text = user.BestMusic ?? "";
-
-                // --- load posts authored by this user and bind to UserPostsCollectionView ---
+                // Load posts authored by this user
                 try
                 {
                     var allPosts = await PostRepository.GetAllAsync() ?? new List<Lock.Models.Post>();
-                    // Exclude status-only posts
                     var userPosts = allPosts
                         .Where(p => string.Equals(p.AuthorPhone ?? string.Empty, phone ?? string.Empty, StringComparison.OrdinalIgnoreCase)
                             && string.IsNullOrEmpty(p.StatusImagePath))
                         .OrderByDescending(p => p.CreatedAt)
                         .ToList();
 
-                    // Initialize UI-specific fields AND love state
                     foreach (var p in userPosts)
                     {
                         p.IsExpanded = false;
                         p.UpdateDisplayContent(200);
-
-                        // 🔥 CRITICAL: Set author verification status from the user object
                         p.IsAuthorVerified = user.IsVerified;
-
-                        // 🔥 CRITICAL FIX: Set the author profile image path from the user object
                         p.AuthorProfileImagePath = user.ProfileImagePath;
-
-                        // 🔥 Also set author name properly for display
                         p.AuthorDisplayName = user.Name ?? user.PhoneNumber;
-
-                        // 🔥 Set author phone for navigation
                         p.AuthorPhone = $"{user.Name} · {user.PhoneNumber}";
 
                         if (!string.IsNullOrEmpty(currentUserPhone))
@@ -1759,7 +1333,8 @@ namespace Lock.Pages.Profile
                     System.Diagnostics.Debug.WriteLine($"Error loading posts: {ex.Message}");
                     PopulateMediaTab(user, null);
                 }
-                // ========== LOAD ALL DATA FOR BOTH OWNER AND VIEW-ONLY USERS ==========
+
+                // Load all other data in background
                 _ = Task.Run(async () =>
                 {
                     try
@@ -1769,14 +1344,8 @@ namespace Lock.Pages.Profile
                         await LoadUserDateIdeasAsync(user.Id);
                         await LoadUserEventsAsync(user.Id);
                         await LoadProfileStatsAsync(user.Id);
-
-                        // Load endorsements
                         await LoadEndorsementsAsync(user.Id);
-
-                        // Load pending endorsements
                         await LoadPendingEndorsementsAsync();
-
-                        System.Diagnostics.Debug.WriteLine($"Loaded all data for user {user.Name} (View-only: {_viewOnly})");
                     }
                     catch (Exception ex)
                     {
@@ -1784,7 +1353,6 @@ namespace Lock.Pages.Profile
                     }
                 });
 
-                // Load new profile fields
                 await LoadNewProfileFields(user);
             }
             catch (Exception ex)
@@ -1813,7 +1381,16 @@ namespace Lock.Pages.Profile
         // New methods for loading data
         private async Task LoadUserPhotosAsync(int userId)
         {
-            _userPhotos = await ProfileDataService.GetUserPhotosAsync(userId);
+            try
+            {
+                _userPhotos = await SupabaseService.GetAsync<UserPhoto>("UserPhotos",
+                    $"UserId=eq.{userId}&order=Order.asc");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"LoadUserPhotosAsync error: {ex}");
+                _userPhotos = new List<UserPhoto>();
+            }
 
             MainThread.BeginInvokeOnMainThread(() =>
             {
@@ -1828,10 +1405,18 @@ namespace Lock.Pages.Profile
             });
         }
 
-
         private async Task LoadUserPromptsAsync(int userId)
         {
-            _userPrompts = await ProfileDataService.GetUserPromptsAsync(userId);
+            try
+            {
+                _userPrompts = await SupabaseService.GetAsync<UserPrompt>("UserPrompts",
+                    $"UserId=eq.{userId}&order=Order.asc");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"LoadUserPromptsAsync error: {ex}");
+                _userPrompts = new List<UserPrompt>();
+            }
 
             MainThread.BeginInvokeOnMainThread(() =>
             {
@@ -1839,7 +1424,6 @@ namespace Lock.Pages.Profile
                 if (promptsCv != null)
                 {
                     promptsCv.ItemsSource = _userPrompts;
-                    // Dynamically size based on item count so all items are visible inside ScrollView
                     promptsCv.HeightRequest = Math.Max(200, _userPrompts.Count * 120);
                 }
             });
@@ -1847,7 +1431,16 @@ namespace Lock.Pages.Profile
 
         private async Task LoadUserDateIdeasAsync(int userId)
         {
-            _userDateIdeas = await ProfileDataService.GetUserDateIdeasAsync(userId);
+            try
+            {
+                _userDateIdeas = await SupabaseService.GetAsync<DateIdea>("DateIdeas",
+                    $"UserId=eq.{userId}&order=CreatedAt.desc");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"LoadUserDateIdeasAsync error: {ex}");
+                _userDateIdeas = new List<DateIdea>();
+            }
 
             MainThread.BeginInvokeOnMainThread(() =>
             {
@@ -1855,7 +1448,6 @@ namespace Lock.Pages.Profile
                 if (datesCv != null)
                 {
                     datesCv.ItemsSource = _userDateIdeas;
-                    // Dynamically size based on item count
                     datesCv.HeightRequest = Math.Max(200, _userDateIdeas.Count * 140);
                 }
             });
@@ -1873,7 +1465,6 @@ namespace Lock.Pages.Profile
                 Debug.WriteLine($"Current user phone: {currentUserPhone}");
                 Debug.WriteLine($"Target user phone: {targetUser?.PhoneNumber}");
 
-                // Check if viewing own profile by comparing phone numbers directly
                 bool isOwnProfile = string.Equals(targetUser?.PhoneNumber?.Trim(), currentUserPhone?.Trim(), StringComparison.OrdinalIgnoreCase);
 
                 if (isOwnProfile)
@@ -1888,153 +1479,69 @@ namespace Lock.Pages.Profile
                     return;
                 }
 
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-                var currentUser = await db.Table<User>().Where(u => u.PhoneNumber == currentUserPhone).FirstOrDefaultAsync();
+                var currentUsers = await SupabaseService.GetAsync<User>("Users",
+                    $"PhoneNumber=eq.{Uri.EscapeDataString(currentUserPhone)}&limit=1");
+                var currentUser = currentUsers.FirstOrDefault();
 
                 Debug.WriteLine($"Current user found: {currentUser?.Name ?? "null"}");
-                Debug.WriteLine($"Target user: {targetUser?.Name ?? "null"}");
-                Debug.WriteLine($"Target user interests: {targetUser?.Interests ?? "null"}");
 
                 if (currentUser != null && targetUser != null)
                 {
-                    // Calculate compatibility score
                     _compatibilityScore = await CompatibilityService.CalculateCompatibilityScoreAsync(currentUser, targetUser);
                     Debug.WriteLine($"Compatibility score calculated: {_compatibilityScore}%");
 
                     MainThread.BeginInvokeOnMainThread(() =>
                     {
                         var scoreLabel = this.FindByName<Label>("CompatibilityScoreLabel");
-                        if (scoreLabel != null)
-                        {
-                            scoreLabel.Text = $"{_compatibilityScore}%";
-                            Debug.WriteLine($"Set score label to: {_compatibilityScore}%");
-                        }
-                        else
-                        {
-                            Debug.WriteLine("CompatibilityScoreLabel not found!");
-                        }
+                        if (scoreLabel != null) scoreLabel.Text = $"{_compatibilityScore}%";
 
                         var matchLabel = this.FindByName<Label>("CompatibilityMatchLabel");
                         var colorCard = this.FindByName<Border>("CompatibilityCard");
 
                         if (matchLabel != null && colorCard != null)
                         {
-                            // Score levels with appropriate messages and colors
-                            if (_compatibilityScore >= 90)
-                            {
-                                matchLabel.Text = "Perfect Match ??";
-                                colorCard.BackgroundColor = Color.FromArgb("#9B59B6"); // Purple
-                            }
-                            else if (_compatibilityScore >= 80)
-                            {
-                                matchLabel.Text = "Excellent Match ??";
-                                colorCard.BackgroundColor = Color.FromArgb("#10B981"); // Green
-                            }
-                            else if (_compatibilityScore >= 70)
-                            {
-                                matchLabel.Text = "Great Match ??";
-                                colorCard.BackgroundColor = Color.FromArgb("#3B82F6"); // Blue
-                            }
-                            else if (_compatibilityScore >= 60)
-                            {
-                                matchLabel.Text = "Good Match ??";
-                                colorCard.BackgroundColor = Color.FromArgb("#008080"); // Teal
-                            }
-                            else if (_compatibilityScore >= 50)
-                            {
-                                matchLabel.Text = "Decent Match ??";
-                                colorCard.BackgroundColor = Color.FromArgb("#F59E0B"); // Orange
-                            }
-                            else if (_compatibilityScore >= 40)
-                            {
-                                matchLabel.Text = "Potential Match ?";
-                                colorCard.BackgroundColor = Color.FromArgb("#FF3B6F"); // Red
-                            }
-                            else if (_compatibilityScore >= 30)
-                            {
-                                matchLabel.Text = "Getting There ??";
-                                colorCard.BackgroundColor = Color.FromArgb("#8B5CF6"); // Violet
-                            }
-                            else if (_compatibilityScore >= 20)
-                            {
-                                matchLabel.Text = "Early Days ??";
-                                colorCard.BackgroundColor = Color.FromArgb("#6B7280"); // Gray
-                            }
-                            else if (_compatibilityScore >= 10)
-                            {
-                                matchLabel.Text = "Room to Grow ??";
-                                colorCard.BackgroundColor = Color.FromArgb("#78716C"); // Warm Gray
-                            }
-                            else
-                            {
-                                matchLabel.Text = "New Connection ??";
-                                colorCard.BackgroundColor = Color.FromArgb("#9CA3AF"); // Light Gray
-                            }
-                            Debug.WriteLine($"Set match label to: {matchLabel.Text}");
-                        }
-                        else
-                        {
-                            Debug.WriteLine($"matchLabel null? {matchLabel == null}, colorCard null? {colorCard == null}");
+                            if (_compatibilityScore >= 90) { matchLabel.Text = "Perfect Match 🔥"; colorCard.BackgroundColor = Color.FromArgb("#9B59B6"); }
+                            else if (_compatibilityScore >= 80) { matchLabel.Text = "Excellent Match 💯"; colorCard.BackgroundColor = Color.FromArgb("#10B981"); }
+                            else if (_compatibilityScore >= 70) { matchLabel.Text = "Great Match 👍"; colorCard.BackgroundColor = Color.FromArgb("#3B82F6"); }
+                            else if (_compatibilityScore >= 60) { matchLabel.Text = "Good Match ✨"; colorCard.BackgroundColor = Color.FromArgb("#008080"); }
+                            else if (_compatibilityScore >= 50) { matchLabel.Text = "Decent Match 💫"; colorCard.BackgroundColor = Color.FromArgb("#F59E0B"); }
+                            else if (_compatibilityScore >= 40) { matchLabel.Text = "Potential Match 💕"; colorCard.BackgroundColor = Color.FromArgb("#FF3B6F"); }
+                            else if (_compatibilityScore >= 30) { matchLabel.Text = "Getting There 🌱"; colorCard.BackgroundColor = Color.FromArgb("#8B5CF6"); }
+                            else if (_compatibilityScore >= 20) { matchLabel.Text = "Early Days 🌱"; colorCard.BackgroundColor = Color.FromArgb("#6B7280"); }
+                            else if (_compatibilityScore >= 10) { matchLabel.Text = "Room to Grow 🌿"; colorCard.BackgroundColor = Color.FromArgb("#78716C"); }
+                            else { matchLabel.Text = "New Connection 💙"; colorCard.BackgroundColor = Color.FromArgb("#9CA3AF"); }
                         }
                     });
 
-                    // Load mutual interests
                     await LoadMutualInterestsAsync(currentUser, targetUser);
 
-                    // Record profile view
                     await ProfileViewService.RecordProfileViewAsync(
                         currentUser.Id, currentUserPhone,
                         targetUser.Id, targetUser.PhoneNumber);
                 }
-                else
-                {
-                    Debug.WriteLine($"currentUser null? {currentUser == null}, targetUser null? {targetUser == null}");
-                }
-
-                Debug.WriteLine($"=== LoadCompatibilityAndMutualInterestsAsync END ===");
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"LoadCompatibilityAndMutualInterestsAsync error: {ex}");
-                Debug.WriteLine($"Stack trace: {ex.StackTrace}");
             }
         }
         private async Task LoadMutualInterestsAsync(User currentUser, User targetUser)
         {
             try
             {
-                Debug.WriteLine($"=== LoadMutualInterestsAsync START ===");
-
                 var currentInterests = (currentUser.Interests ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries)
                     .Select(i => i.Trim()).ToList();
                 var targetInterests = (targetUser.Interests ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries)
                     .Select(i => i.Trim()).ToList();
 
-                Debug.WriteLine($"Current user interests: {string.Join(", ", currentInterests)}");
-                Debug.WriteLine($"Target user interests: {string.Join(", ", targetInterests)}");
-
                 _allMutualInterests = currentInterests.Intersect(targetInterests).ToList();
                 int mutualCount = _allMutualInterests.Count;
 
-                Debug.WriteLine($"Mutual interests found: {mutualCount}");
-                Debug.WriteLine($"Mutual interests list: {string.Join(", ", _allMutualInterests)}");
-
                 MainThread.BeginInvokeOnMainThread(() =>
                 {
-                    // Update count label
                     var countLabel = this.FindByName<Label>("MutualInterestsCountLabel");
-                    if (countLabel != null)
-                    {
-                        countLabel.Text = $"({mutualCount})";
-                        Debug.WriteLine($"Set mutual count label to: ({mutualCount})");
-                    }
-                    else
-                    {
-                        Debug.WriteLine("MutualInterestsCountLabel not found!");
-                    }
+                    if (countLabel != null) countLabel.Text = $"({mutualCount})";
 
-                    // Update collapsed layout (first 3 interests as chips)
                     var collapsedLayout = this.FindByName<FlexLayout>("MutualInterestsCollapsedLayout");
                     if (collapsedLayout != null)
                     {
@@ -2050,34 +1557,24 @@ namespace Lock.Pages.Profile
                                 VerticalOptions = LayoutOptions.Center
                             };
                             collapsedLayout.Children.Add(emptyLabel);
-                            Debug.WriteLine("Added 'No mutual interests yet' message");
 
-                            // Hide expand button if no interests
                             var expandButton = this.FindByName<Border>("ExpandMutualInterestsButton");
                             if (expandButton != null) expandButton.IsVisible = false;
                         }
                         else
                         {
-                            // Show first 3 interests as chips
                             var firstThree = _allMutualInterests.Take(3).ToList();
                             foreach (var interest in firstThree)
                             {
                                 var chip = CreateInterestChip(interest);
                                 collapsedLayout.Children.Add(chip);
-                                Debug.WriteLine($"Added interest chip: {interest}");
                             }
 
-                            // Show expand button only if more than 3 interests
                             var expandButton = this.FindByName<Border>("ExpandMutualInterestsButton");
                             if (expandButton != null) expandButton.IsVisible = mutualCount > 3;
                         }
                     }
-                    else
-                    {
-                        Debug.WriteLine("MutualInterestsCollapsedLayout not found!");
-                    }
 
-                    // Update expanded layout (ALL interests with icons and descriptions)
                     var expandedLayout = this.FindByName<VerticalStackLayout>("MutualInterestsExpandedLayout");
                     if (expandedLayout != null)
                     {
@@ -2089,7 +1586,6 @@ namespace Lock.Pages.Profile
                             {
                                 var interestItem = CreateInterestListItem(interest);
                                 expandedLayout.Children.Add(interestItem);
-                                Debug.WriteLine($"Added expanded interest item: {interest}");
                             }
                         }
                         else
@@ -2105,18 +1601,11 @@ namespace Lock.Pages.Profile
                             expandedLayout.Children.Add(emptyItem);
                         }
                     }
-                    else
-                    {
-                        Debug.WriteLine("MutualInterestsExpandedLayout not found!");
-                    }
                 });
-
-                Debug.WriteLine($"=== LoadMutualInterestsAsync END ===");
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"LoadMutualInterestsAsync error: {ex}");
-                Debug.WriteLine($"Stack trace: {ex.StackTrace}");
             }
         }
         private Border CreateInterestChip(string interest)
@@ -2427,23 +1916,17 @@ namespace Lock.Pages.Profile
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
+                var allEndorsements = await SupabaseService.GetAsync<UserEndorsement>("UserEndorsements",
+                    $"TargetUserId=eq.{userId}");
 
-                // Get all endorsements for this user
-                var allEndorsements = await db.Table<UserEndorsement>()
-                    .Where(e => e.TargetUserId == userId)  // Changed from UserId to TargetUserId
-                    .ToListAsync();
-
-                // Group by endorser phone and keep only the most recent
                 var toDelete = allEndorsements
-                    .GroupBy(e => e.EndorserUserPhone)  // Changed from EndorserPhone to EndorserUserPhone
+                    .GroupBy(e => e.EndorserUserPhone)
                     .SelectMany(g => g.OrderByDescending(e => e.CreatedAt).Skip(1))
                     .ToList();
 
                 foreach (var endorsement in toDelete)
                 {
-                    await db.DeleteAsync(endorsement);
+                    await SupabaseService.DeleteAsync("UserEndorsements", $"Id=eq.{endorsement.Id}");
                     Debug.WriteLine($"Deleted duplicate endorsement ID: {endorsement.Id}");
                 }
             }
@@ -2459,15 +1942,10 @@ namespace Lock.Pages.Profile
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
+                var endorsements = await SupabaseService.GetAsync<UserEndorsement>("UserEndorsements",
+                    $"EndorserUserPhone=eq.{Uri.EscapeDataString(endorserPhone)}&TargetUserId=eq.{targetUserId}&limit=1");
 
-                // Check if this endorser has already endorsed this user
-                var existingEndorsement = await db.Table<UserEndorsement>()
-                    .Where(e => e.EndorserUserPhone == endorserPhone && e.TargetUserId == targetUserId)
-                    .FirstOrDefaultAsync();
-
-                if (existingEndorsement != null)
+                if (endorsements.Any())
                 {
                     Debug.WriteLine($"User {endorserPhone} has already endorsed user {targetUserId}");
                     return false;
@@ -2481,11 +1959,11 @@ namespace Lock.Pages.Profile
                 return false;
             }
         }
+
         private async void AddEndorsementButton_Clicked(object sender, EventArgs e)
         {
             try
             {
-                // First check if user has a registered phone number
                 var currentUserPhone = Preferences.Get("current_user_phone", string.Empty);
                 if (string.IsNullOrEmpty(currentUserPhone))
                 {
@@ -2493,24 +1971,22 @@ namespace Lock.Pages.Profile
                     return;
                 }
 
-                // Get current user details
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-                var currentUser = await db.Table<User>().Where(u => u.PhoneNumber == currentUserPhone).FirstOrDefaultAsync();
+                var currentUsers = await SupabaseService.GetAsync<User>("Users",
+                    $"PhoneNumber=eq.{Uri.EscapeDataString(currentUserPhone)}&limit=1");
+                var currentUser = currentUsers.FirstOrDefault();
+
                 if (currentUser == null)
                 {
                     await DisplayAlert("Error", "User not found. Please complete your profile.", "OK");
                     return;
                 }
 
-                // Create the input page
                 var inputPage = new ContentPage
                 {
                     Title = "Ask for Endorsement",
                     BackgroundColor = Color.FromArgb("#1E1E1E")
                 };
 
-                // Phone number entry
                 var phoneEntry = new Entry
                 {
                     Placeholder = "Enter friend's phone number",
@@ -2521,7 +1997,6 @@ namespace Lock.Pages.Profile
                     PlaceholderColor = Color.FromArgb("#888880")
                 };
 
-                // Friend info card with profile image
                 var friendCard = new Border
                 {
                     Padding = 12,
@@ -2532,7 +2007,6 @@ namespace Lock.Pages.Profile
                     Margin = new Thickness(0, 8, 0, 0)
                 };
 
-                // Profile image frame
                 var friendProfileFrame = new Frame
                 {
                     HeightRequest = 50,
@@ -2600,10 +2074,8 @@ namespace Lock.Pages.Profile
                 };
                 friendGrid.Children.Add(friendTextStack);
                 Grid.SetColumn(friendTextStack, 1);
-
                 friendCard.Content = friendGrid;
 
-                // Friend info label (for errors)
                 var friendInfoLabel = new Label
                 {
                     Text = "",
@@ -2612,14 +2084,12 @@ namespace Lock.Pages.Profile
                     Margin = new Thickness(0, 5, 0, 0)
                 };
 
-                // Loading indicator
                 var loadingIndicator = new ActivityIndicator
                 {
                     IsVisible = false,
                     Color = Color.FromArgb("#008080")
                 };
 
-                // Testimonial templates - plain text, no emojis
                 var templatesPicker = new Picker
                 {
                     Title = "Select a template",
@@ -2644,9 +2114,7 @@ namespace Lock.Pages.Profile
         };
 
                 foreach (var template in testimonialTemplates)
-                {
                     templatesPicker.Items.Add(template);
-                }
                 templatesPicker.SelectedIndex = 0;
 
                 var testimonialEditor = new Editor
@@ -2663,16 +2131,11 @@ namespace Lock.Pages.Profile
                 templatesPicker.SelectedIndexChanged += (s, args) =>
                 {
                     if (templatesPicker.SelectedIndex > 0)
-                    {
                         testimonialEditor.Text = testimonialTemplates[templatesPicker.SelectedIndex];
-                    }
                     else
-                    {
                         testimonialEditor.Text = "";
-                    }
                 };
 
-                // Rating picker - clean Unicode stars only
                 var ratingPicker = new Picker
                 {
                     Title = "Rating (1-5 stars)",
@@ -2694,7 +2157,6 @@ namespace Lock.Pages.Profile
                 User foundFriend = null;
                 CancellationTokenSource searchCts = null;
 
-                // Real-time search as user types
                 phoneEntry.TextChanged += async (s, args) =>
                 {
                     searchCts?.Cancel();
@@ -2723,12 +2185,9 @@ namespace Lock.Pages.Profile
                         await Task.Delay(500, token);
                         if (token.IsCancellationRequested) return;
 
-                        await DatabaseService.InitializeAsync();
-                        var dbConnection = DatabaseService.GetConnection();
-
-                        foundFriend = await dbConnection.Table<User>()
-                            .Where(u => u.PhoneNumber == phoneNumber)
-                            .FirstOrDefaultAsync();
+                        var users = await SupabaseService.GetAsync<User>("Users",
+                            $"PhoneNumber=eq.{Uri.EscapeDataString(phoneNumber)}&limit=1");
+                        foundFriend = users.FirstOrDefault();
 
                         if (token.IsCancellationRequested) return;
 
@@ -2746,8 +2205,7 @@ namespace Lock.Pages.Profile
                             else
                             {
                                 profilePlaceholder.Text = foundFriend.Name?.Length > 0
-                                    ? foundFriend.Name.Substring(0, 1).ToUpper()
-                                    : "";
+                                    ? foundFriend.Name.Substring(0, 1).ToUpper() : "";
                                 friendProfileImage.IsVisible = false;
                                 profilePlaceholder.IsVisible = true;
                             }
@@ -2790,7 +2248,6 @@ namespace Lock.Pages.Profile
                     }
                 };
 
-                // Current user avatar
                 var currentUserFrame = new Frame
                 {
                     HeightRequest = 44,
@@ -2855,62 +2312,22 @@ namespace Lock.Pages.Profile
                     Spacing = 12,
                     Children =
             {
-                new Label
-                {
-                    Text = "Get a testimonial from a friend",
-                    FontSize = 18,
-                    FontAttributes = FontAttributes.Bold,
-                    TextColor = Colors.White
-                },
-                new Label
-                {
-                    Text = "Enter your friend's phone number - their profile will appear if registered",
-                    FontSize = 12,
-                    TextColor = Color.FromArgb("#888880")
-                },
+                new Label { Text = "Get a testimonial from a friend", FontSize = 18, FontAttributes = FontAttributes.Bold, TextColor = Colors.White },
+                new Label { Text = "Enter your friend's phone number - their profile will appear if registered", FontSize = 12, TextColor = Color.FromArgb("#888880") },
                 new BoxView { HeightRequest = 1, Color = Color.FromArgb("#333333") },
-                new Label
-                {
-                    Text = "Sending as",
-                    FontSize = 12,
-                    TextColor = Color.FromArgb("#888880")
-                },
+                new Label { Text = "Sending as", FontSize = 12, TextColor = Color.FromArgb("#888880") },
                 currentUserRow,
                 new BoxView { HeightRequest = 1, Color = Color.FromArgb("#333333") },
-                new Label
-                {
-                    Text = "Friend's Phone Number",
-                    FontSize = 13,
-                    FontAttributes = FontAttributes.Bold,
-                    TextColor = Color.FromArgb("#008080")
-                },
+                new Label { Text = "Friend's Phone Number", FontSize = 13, FontAttributes = FontAttributes.Bold, TextColor = Color.FromArgb("#008080") },
                 phoneEntry,
                 loadingIndicator,
                 friendInfoLabel,
                 friendCard,
-                new Label
-                {
-                    Text = "Choose a template (or write your own):",
-                    FontSize = 12,
-                    FontAttributes = FontAttributes.Bold,
-                    TextColor = Color.FromArgb("#888880")
-                },
+                new Label { Text = "Choose a template (or write your own):", FontSize = 12, FontAttributes = FontAttributes.Bold, TextColor = Color.FromArgb("#888880") },
                 templatesPicker,
-                new Label
-                {
-                    Text = "Your Testimonial",
-                    FontSize = 13,
-                    FontAttributes = FontAttributes.Bold,
-                    TextColor = Color.FromArgb("#008080")
-                },
+                new Label { Text = "Your Testimonial", FontSize = 13, FontAttributes = FontAttributes.Bold, TextColor = Color.FromArgb("#008080") },
                 testimonialEditor,
-                new Label
-                {
-                    Text = "Rating",
-                    FontSize = 13,
-                    FontAttributes = FontAttributes.Bold,
-                    TextColor = Color.FromArgb("#008080")
-                },
+                new Label { Text = "Rating", FontSize = 13, FontAttributes = FontAttributes.Bold, TextColor = Color.FromArgb("#008080") },
                 ratingPicker
             }
                 };
@@ -2939,34 +2356,22 @@ namespace Lock.Pages.Profile
                         return;
                     }
 
-                    // Check if this friend has already endorsed this user
                     bool alreadyEndorsed = await HasUserAlreadyEndorsedAsync(foundFriend.PhoneNumber, _currentUserId);
-
                     if (alreadyEndorsed)
                     {
-                        await inputPage.DisplayAlert(
-                            "Already Endorsed",
-                            $"{foundFriend.Name} has already written an endorsement for you.\n\nThey cannot endorse you multiple times.",
-                            "OK"
-                        );
+                        await inputPage.DisplayAlert("Already Endorsed",
+                            $"{foundFriend.Name} has already written an endorsement for you.\n\nThey cannot endorse you multiple times.", "OK");
                         return;
                     }
 
-                    // Also check if there's already a pending request from this friend
                     var requestsJson = Preferences.Get("endorsement_requests", "[]");
                     var pendingList = System.Text.Json.JsonSerializer.Deserialize<List<PendingEndorsement>>(requestsJson) ?? new List<PendingEndorsement>();
-
-                    var existingPending = pendingList.FirstOrDefault(r =>
-                        r.FriendPhone == foundFriend.PhoneNumber &&
-                        r.Status == "pending");
+                    var existingPending = pendingList.FirstOrDefault(r => r.FriendPhone == foundFriend.PhoneNumber && r.Status == "pending");
 
                     if (existingPending != null)
                     {
-                        await inputPage.DisplayAlert(
-                            "Pending Request",
-                            $"You already have a pending endorsement request to {foundFriend.Name}.\n\nPlease wait for them to respond before sending another.",
-                            "OK"
-                        );
+                        await inputPage.DisplayAlert("Pending Request",
+                            $"You already have a pending endorsement request to {foundFriend.Name}.\n\nPlease wait for them to respond before sending another.", "OK");
                         return;
                     }
 
@@ -3016,15 +2421,12 @@ namespace Lock.Pages.Profile
                         requests.Add(endorsementRequest);
                         Preferences.Set("endorsement_requests", System.Text.Json.JsonSerializer.Serialize(requests));
 
-                        await inputPage.DisplayAlert(
-                            "Request Sent",
-                            $"Your endorsement request has been sent to {foundFriend.Name}.\n\nThey will see it in their chat and can accept or decline.",
-                            "OK"
-                        );
+                        await inputPage.DisplayAlert("Request Sent",
+                            $"Your endorsement request has been sent to {foundFriend.Name}.\n\nThey will see it in their chat and can accept or decline.", "OK");
 
                         await inputPage.Navigation.PopModalAsync();
                         MessagingCenter.Send(this, "ConversationsUpdated");
-                        await LoadPendingEndorsementsAsync(); // Refresh the pending list
+                        await LoadPendingEndorsementsAsync();
                     }
                     catch (Exception ex)
                     {
@@ -3061,19 +2463,19 @@ namespace Lock.Pages.Profile
                 await DisplayAlert("Error", "Could not create endorsement request: " + ex.Message, "OK");
             }
         }
+
+
         // Helper method to get or create a conversation
         private async Task<string> GetOrCreateConversationAsync(string userPhone, string contactPhone, string contactName)
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
                 // Check if conversation already exists
-                var existingConversation = await db.Table<Conversation>()
-                    .Where(c => (c.ParticipantA == userPhone && c.ParticipantB == contactPhone) ||
-                               (c.ParticipantA == contactPhone && c.ParticipantB == userPhone))
-                    .FirstOrDefaultAsync();
+                var existingConvs = await SupabaseService.GetAsync<Conversation>("Conversations",
+                    $"or(and(ParticipantA.eq.{Uri.EscapeDataString(userPhone)},ParticipantB.eq.{Uri.EscapeDataString(contactPhone)})," +
+                    $"and(ParticipantA.eq.{Uri.EscapeDataString(contactPhone)},ParticipantB.eq.{Uri.EscapeDataString(userPhone)}))&limit=1");
+
+                var existingConversation = existingConvs.FirstOrDefault();
 
                 if (existingConversation != null)
                     return existingConversation.ConversationId;
@@ -3086,11 +2488,11 @@ namespace Lock.Pages.Profile
                     ParticipantA = userPhone,
                     ParticipantB = contactPhone,
                     LastMessageAt = DateTime.UtcNow,
-                    LastMessagePreview = $"?? Endorsement request sent to {contactName}",
+                    LastMessagePreview = $"📨 Endorsement request sent to {contactName}",
                     CreatedAt = DateTime.UtcNow
                 };
 
-                await db.InsertAsync(conversation);
+                await SupabaseService.InsertAsync("Conversations", conversation);
                 return conversationId;
             }
             catch (Exception ex)
@@ -3099,6 +2501,7 @@ namespace Lock.Pages.Profile
                 throw;
             }
         }
+
         private async void DeleteEndorsementButton_Clicked(object sender, EventArgs e)
         {
             try
@@ -3186,15 +2589,10 @@ namespace Lock.Pages.Profile
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
+                var endorsements = await SupabaseService.GetAsync<UserEndorsement>("UserEndorsements",
+                    $"EndorserUserPhone=eq.{Uri.EscapeDataString(endorserPhone)}&TargetUserId=eq.{targetUserId}&limit=1");
 
-                // Check if there's already an endorsement from this user to the target user
-                var existingEndorsement = await db.Table<UserEndorsement>()
-                    .Where(e => e.EndorserUserPhone == endorserPhone && e.TargetUserId == targetUserId)
-                    .FirstOrDefaultAsync();
-
-                return existingEndorsement != null;
+                return endorsements.Any();
             }
             catch (Exception ex)
             {
@@ -3202,6 +2600,7 @@ namespace Lock.Pages.Profile
                 return false;
             }
         }
+
         private async Task LoadUserEventsAsync(int userId, string filter = "Upcoming")
         {
             _userEvents = await ProfileDataService.GetUserEventsAsync(userId, filter);
@@ -3323,18 +2722,16 @@ namespace Lock.Pages.Profile
             {
                 if (string.IsNullOrEmpty(_phone)) return;
 
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-                var user = await db.Table<User>().Where(u => u.PhoneNumber == _phone).FirstOrDefaultAsync();
+                var users = await SupabaseService.GetAsync<User>("Users",
+                    $"PhoneNumber=eq.{Uri.EscapeDataString(_phone)}&limit=1");
+                var user = users.FirstOrDefault();
 
                 if (user == null) return;
 
-                // Update verification status
                 _isVerified = user.IsVerified;
 
-                // Update UI
                 UpdateSafetyTabVerificationStatus();
-                UpdateVerificationBadgeVisibility(); // This updates the header badge
+                UpdateVerificationBadgeVisibility();
             }
             catch (Exception ex)
             {
@@ -3395,9 +2792,8 @@ namespace Lock.Pages.Profile
 
         private async Task LoadUserPreferencesAsync(int userId)
         {
-            await DatabaseService.InitializeAsync();
-            var db = DatabaseService.GetConnection();
-            var user = await db.Table<User>().Where(u => u.Id == userId).FirstOrDefaultAsync();
+            var users = await SupabaseService.GetAsync<User>("Users", $"Id=eq.{userId}&limit=1");
+            var user = users.FirstOrDefault();
 
             if (user == null) return;
 
@@ -3439,7 +2835,6 @@ namespace Lock.Pages.Profile
                 var ghostSwitch = this.FindByName<Microsoft.Maui.Controls.Switch>("GhostModeMoodShieldSwitch");
                 if (ghostSwitch != null) ghostSwitch.IsToggled = user.GhostModeMoodShield;
 
-                // ── NEW: Phone Number Visibility toggle ──────────────────────
                 var hidePhoneSwitch = this.FindByName<Microsoft.Maui.Controls.Switch>("HidePhoneSwitch");
                 if (hidePhoneSwitch != null) hidePhoneSwitch.IsToggled = user.HidePhoneNumber;
 
@@ -3527,10 +2922,8 @@ namespace Lock.Pages.Profile
                 if (string.IsNullOrWhiteSpace(phone)) return;
 
                 // Get user verification status
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-                var user = await db.Table<User>().Where(u => u.PhoneNumber == phone).FirstOrDefaultAsync();
-
+                var users = await SupabaseService.GetAsync<User>("Users", $"PhoneNumber=eq.{Uri.EscapeDataString(phone)}&limit=1");
+                var user = users.FirstOrDefault();
                 if (user != null)
                 {
                     if (user.IsVerified)
@@ -3647,13 +3040,11 @@ namespace Lock.Pages.Profile
                 var responseLabel = this.FindByName<Label>("ResponseRateLabel");
                 if (responseLabel != null) responseLabel.Text = $"{responseRate}%";
 
-                // Fix: Get user from database instead of using _currentUser
                 var joinDateLabel = this.FindByName<Label>("JoinDateLabel");
                 if (joinDateLabel != null)
                 {
-                    await DatabaseService.InitializeAsync();
-                    var db = DatabaseService.GetConnection();
-                    var user = await db.Table<User>().Where(u => u.Id == userId).FirstOrDefaultAsync();
+                    var userList = await SupabaseService.GetAsync<User>("Users", $"Id=eq.{userId}&limit=1");
+                    var user = userList.FirstOrDefault();
                     if (user != null)
                         joinDateLabel.Text = user.JoinDate.ToString("yyyy");
                 }
@@ -3886,7 +3277,6 @@ namespace Lock.Pages.Profile
             if (selectedQuestion == null || selectedQuestion == "Cancel")
                 return;
 
-            // Show answer dialog
             var answer = await DisplayPromptAsync(selectedQuestion, "Your answer:", "Save", "Cancel", maxLength: 300);
 
             if (string.IsNullOrWhiteSpace(answer))
@@ -3894,9 +3284,9 @@ namespace Lock.Pages.Profile
 
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-                var user = await db.Table<User>().Where(u => u.PhoneNumber == _phone).FirstOrDefaultAsync();
+                var userList = await SupabaseService.GetAsync<User>("Users",
+                    $"PhoneNumber=eq.{Uri.EscapeDataString(_phone)}&limit=1");
+                var user = userList.FirstOrDefault();
 
                 if (user != null)
                 {
@@ -3905,8 +3295,10 @@ namespace Lock.Pages.Profile
 
                     var promptsCv = this.FindByName<CollectionView>("PromptsCollectionView");
                     if (promptsCv != null)
-                        promptsCv.ItemsSource = null; // Refresh
-                    promptsCv.ItemsSource = _userPrompts;
+                    {
+                        promptsCv.ItemsSource = null;
+                        promptsCv.ItemsSource = _userPrompts;
+                    }
                 }
             }
             catch (Exception ex)
@@ -4171,9 +3563,8 @@ namespace Lock.Pages.Profile
         }
         private async Task LoadUserProfileDataAsync(int userId)
         {
-            await DatabaseService.InitializeAsync();
-            var db = DatabaseService.GetConnection();
-            var user = await db.Table<User>().Where(u => u.Id == userId).FirstOrDefaultAsync();
+            var userList = await SupabaseService.GetAsync<User>("Users", $"Id=eq.{userId}&limit=1");
+            var user = userList.FirstOrDefault();
 
             if (user == null) return;
 
@@ -4182,16 +3573,14 @@ namespace Lock.Pages.Profile
                 var bioEditorInfo = this.FindByName<Editor>("BioEditorInfo");
                 if (bioEditorInfo != null) bioEditorInfo.Text = user.Bio ?? "";
 
-                // Load posts
                 _ = LoadUserPostsAsync(user.PhoneNumber);
             });
         }
 
         private async Task LoadUserHobbiesAsync(int userId)
         {
-            await DatabaseService.InitializeAsync();
-            var db = DatabaseService.GetConnection();
-            var user = await db.Table<User>().Where(u => u.Id == userId).FirstOrDefaultAsync();
+            var userList = await SupabaseService.GetAsync<User>("Users", $"Id=eq.{userId}&limit=1");
+            var user = userList.FirstOrDefault();
 
             if (user == null) return;
 
@@ -4421,7 +3810,7 @@ namespace Lock.Pages.Profile
                 if (result == null) return;
 
                 var phoneSafe = string.IsNullOrEmpty(_phone) ? Guid.NewGuid().ToString() : _phone.Replace("+", "").Replace(" ", "");
-                var destFileName = $"profile_{phoneSafe}_{DateTime.UtcNow:yyyyMMddHHmmss}{System.IO.Path.GetExtension(result.FileName)}";
+                var destFileName = $"profile_{phoneSafe}_{DateTime.UtcNow:yyyyMMddHHmmss}{SystemPath.GetExtension(result.FileName)}";
                 var savedPath = await SavePickedFileAsync(result, destFileName);
 
                 if (string.IsNullOrEmpty(savedPath))
@@ -4430,29 +3819,22 @@ namespace Lock.Pages.Profile
                     return;
                 }
 
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-                var user = await db.Table<User>().Where(u => u.PhoneNumber == _phone).FirstOrDefaultAsync();
+                var userList = await SupabaseService.GetAsync<User>("Users",
+                    $"PhoneNumber=eq.{Uri.EscapeDataString(_phone)}&limit=1");
+                var user = userList.FirstOrDefault();
 
                 if (user != null)
                 {
                     user.ProfileImagePath = savedPath;
-                    await db.UpdateAsync(user);
-
-                    // ========== TRACK PROFILE PICTURE CHANGE ==========
+                    await SupabaseService.UpdateAsync("Users", $"Id=eq.{user.Id}", user);
                     await TrackProfilePictureChangeAsync(_phone, "Profile", oldImagePath, savedPath);
                 }
 
                 var overlay = this.FindByName<Image>("ProfileImageOverlay");
                 if (overlay != null) overlay.Source = ImageSource.FromFile(savedPath);
 
-                // Update edit icon visibility
                 UpdateProfileEditIconVisibility();
-
-                // Send notification that profile was updated (for AppShell flyout)
                 MessagingCenter.Send(this, "ProfileUpdated");
-
-                // refresh media tab & full profile
                 await LoadUserAsync(_phone);
             }
             catch (Exception ex)
@@ -4476,7 +3858,7 @@ namespace Lock.Pages.Profile
                 if (result == null) return;
 
                 var phoneSafe = string.IsNullOrEmpty(_phone) ? Guid.NewGuid().ToString() : _phone.Replace("+", "").Replace(" ", "");
-                var destFileName = $"cover_{phoneSafe}_{DateTime.UtcNow:yyyyMMddHHmmss}{System.IO.Path.GetExtension(result.FileName)}";
+                var destFileName = $"cover_{phoneSafe}_{DateTime.UtcNow:yyyyMMddHHmmss}{SystemPath.GetExtension(result.FileName)}";
                 var savedPath = await SavePickedFileAsync(result, destFileName);
 
                 if (string.IsNullOrEmpty(savedPath))
@@ -4485,29 +3867,22 @@ namespace Lock.Pages.Profile
                     return;
                 }
 
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-                var user = await db.Table<User>().Where(u => u.PhoneNumber == _phone).FirstOrDefaultAsync();
+                var userList = await SupabaseService.GetAsync<User>("Users",
+                    $"PhoneNumber=eq.{Uri.EscapeDataString(_phone)}&limit=1");
+                var user = userList.FirstOrDefault();
 
                 if (user != null)
                 {
                     user.CoverImagePath = savedPath;
-                    await db.UpdateAsync(user);
-
-                    // ========== TRACK COVER PICTURE CHANGE ==========
+                    await SupabaseService.UpdateAsync("Users", $"Id=eq.{user.Id}", user);
                     await TrackProfilePictureChangeAsync(_phone, "Cover", oldImagePath, savedPath);
                 }
 
                 var cover = this.FindByName<Image>("CoverImageOverlay");
                 if (cover != null) cover.Source = ImageSource.FromFile(savedPath);
 
-                // Update edit icon visibility
                 UpdateCoverEditIconVisibility();
-
-                // Send notification that profile was updated (for AppShell flyout)
                 MessagingCenter.Send(this, "ProfileUpdated");
-
-                // refresh media tab
                 await LoadUserAsync(_phone);
             }
             catch (Exception ex)
@@ -4515,7 +3890,6 @@ namespace Lock.Pages.Profile
                 await DisplayAlert("Error", "Could not pick cover image: " + ex.Message, "OK");
             }
         }
-
 
         private async Task ChangeBothImagesAsync()
         {
@@ -4530,31 +3904,21 @@ namespace Lock.Pages.Profile
                 var oldProfilePath = _currentUser?.ProfileImagePath ?? string.Empty;
                 var oldCoverPath = _currentUser?.CoverImagePath ?? string.Empty;
 
-                // Pick profile image first
                 var profileResult = await MediaPicker.PickPhotoAsync(new MediaPickerOptions { Title = "Select profile image" });
                 string? profileSaved = null;
                 if (profileResult != null)
-                {
-                    profileSaved = await SavePickedFileAsync(profileResult, $"profile_{_phone}_{DateTime.UtcNow:yyyyMMddHHmmss}{System.IO.Path.GetExtension(profileResult.FileName)}");
-                }
+                    profileSaved = await SavePickedFileAsync(profileResult, $"profile_{_phone}_{DateTime.UtcNow:yyyyMMddHHmmss}{SystemPath.GetExtension(profileResult.FileName)}");
 
-                // Pick cover image next
                 var coverResult = await MediaPicker.PickPhotoAsync(new MediaPickerOptions { Title = "Select cover image" });
                 string? coverSaved = null;
                 if (coverResult != null)
-                {
-                    coverSaved = await SavePickedFileAsync(coverResult, $"cover_{_phone}_{DateTime.UtcNow:yyyyMMddHHmmss}{System.IO.Path.GetExtension(coverResult.FileName)}");
-                }
+                    coverSaved = await SavePickedFileAsync(coverResult, $"cover_{_phone}_{DateTime.UtcNow:yyyyMMddHHmmss}{SystemPath.GetExtension(coverResult.FileName)}");
 
-                if (profileSaved == null && coverSaved == null)
-                {
-                    // user cancelled both
-                    return;
-                }
+                if (profileSaved == null && coverSaved == null) return;
 
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-                var user = await db.Table<User>().Where(u => u.PhoneNumber == _phone).FirstOrDefaultAsync();
+                var userList = await SupabaseService.GetAsync<User>("Users",
+                    $"PhoneNumber=eq.{Uri.EscapeDataString(_phone)}&limit=1");
+                var user = userList.FirstOrDefault();
 
                 if (user == null)
                 {
@@ -4577,19 +3941,13 @@ namespace Lock.Pages.Profile
                     coverUpdated = true;
                 }
 
-                await db.UpdateAsync(user);
+                await SupabaseService.UpdateAsync("Users", $"Id=eq.{user.Id}", user);
 
-                // ========== TRACK PROFILE PICTURE CHANGES ==========
                 if (profileUpdated)
-                {
                     await TrackProfilePictureChangeAsync(_phone, "Profile", oldProfilePath, profileSaved);
-                }
                 if (coverUpdated)
-                {
                     await TrackProfilePictureChangeAsync(_phone, "Cover", oldCoverPath, coverSaved);
-                }
 
-                // Refresh UI
                 if (profileUpdated)
                 {
                     var overlay = this.FindByName<Image>("ProfileImageOverlay");
@@ -4604,20 +3962,15 @@ namespace Lock.Pages.Profile
                     UpdateCoverEditIconVisibility();
                 }
 
-                // Send notification that profile was updated (for AppShell flyout)
-                // Only send if at least one image was updated
                 if (profileUpdated || coverUpdated)
-                {
                     MessagingCenter.Send(this, "ProfileUpdated");
-                }
 
-                // Rebuild media & posts
                 await LoadUserAsync(_phone);
                 await DisplayAlert("Saved", "Images updated.", "OK");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine("ChangeBothImagesAsync error: " + ex);
+                Debug.WriteLine("ChangeBothImagesAsync error: " + ex);
                 await DisplayAlert("Error", "Failed to update images: " + ex.Message, "OK");
             }
         }
@@ -4821,22 +4174,24 @@ namespace Lock.Pages.Profile
             {
                 if (string.IsNullOrEmpty(_phone)) return;
 
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
-                // Get user ID from phone number
-                var user = await db.Table<User>().Where(u => u.PhoneNumber == _phone).FirstOrDefaultAsync();
+                var userList = await SupabaseService.GetAsync<User>("Users",
+                    $"PhoneNumber=eq.{Uri.EscapeDataString(_phone)}&limit=1");
+                var user = userList.FirstOrDefault();
                 if (user == null) return;
 
-                var prompts = await db.Table<UserPrompt>().Where(p => p.UserId == user.Id).OrderBy(p => p.Order).ToListAsync();
+                var prompts = await SupabaseService.GetAsync<UserPrompt>("UserPrompts",
+                    $"UserId=eq.{user.Id}&order=Order.asc");
 
-                var promptsCv = this.FindByName<CollectionView>("PromptsCollectionView");
-                if (promptsCv != null)
-                    promptsCv.ItemsSource = prompts;
+                MainThread.BeginInvokeOnMainThread(() =>
+                {
+                    var promptsCv = this.FindByName<CollectionView>("PromptsCollectionView");
+                    if (promptsCv != null)
+                        promptsCv.ItemsSource = prompts;
+                });
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"LoadPrompts error: {ex.Message}");
+                Debug.WriteLine($"LoadPrompts error: {ex.Message}");
             }
         }
 
@@ -4847,21 +4202,24 @@ namespace Lock.Pages.Profile
             {
                 if (string.IsNullOrEmpty(_phone)) return;
 
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
-                var user = await db.Table<User>().Where(u => u.PhoneNumber == _phone).FirstOrDefaultAsync();
+                var userList = await SupabaseService.GetAsync<User>("Users",
+                    $"PhoneNumber=eq.{Uri.EscapeDataString(_phone)}&limit=1");
+                var user = userList.FirstOrDefault();
                 if (user == null) return;
 
-                var dateIdeas = await db.Table<DateIdea>().Where(d => d.UserId == user.Id).OrderByDescending(d => d.CreatedAt).ToListAsync();
+                var dateIdeas = await SupabaseService.GetAsync<DateIdea>("DateIdeas",
+                    $"UserId=eq.{user.Id}&order=CreatedAt.desc");
 
-                var datesCv = this.FindByName<CollectionView>("DateIdeasCollectionView");
-                if (datesCv != null)
-                    datesCv.ItemsSource = dateIdeas;
+                MainThread.BeginInvokeOnMainThread(() =>
+                {
+                    var datesCv = this.FindByName<CollectionView>("DateIdeasCollectionView");
+                    if (datesCv != null)
+                        datesCv.ItemsSource = dateIdeas;
+                });
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"LoadDateIdeas error: {ex.Message}");
+                Debug.WriteLine($"LoadDateIdeas error: {ex.Message}");
             }
         }
 
@@ -5214,44 +4572,33 @@ namespace Lock.Pages.Profile
             {
                 if (string.IsNullOrEmpty(_phone)) return;
 
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
-                var user = await db.Table<User>().Where(u => u.PhoneNumber == _phone).FirstOrDefaultAsync();
+                var userList = await SupabaseService.GetAsync<User>("Users",
+                    $"PhoneNumber=eq.{Uri.EscapeDataString(_phone)}&limit=1");
+                var user = userList.FirstOrDefault();
                 if (user == null) return;
 
-                List<UserEvent> events = new List<UserEvent>();
                 var now = DateTime.UtcNow;
+                string queryFilter;
 
                 if (filter == "Upcoming")
-                {
-                    events = await db.Table<UserEvent>()
-                        .Where(e => e.UserId == user.Id && e.EventDate > now)
-                        .OrderBy(e => e.EventDate)
-                        .ToListAsync();
-                }
+                    queryFilter = $"UserId=eq.{user.Id}&EventDate=gt.{now:yyyy-MM-ddTHH:mm:ssZ}&order=EventDate.asc";
                 else if (filter == "Past")
-                {
-                    events = await db.Table<UserEvent>()
-                        .Where(e => e.UserId == user.Id && e.EventDate <= now)
-                        .OrderByDescending(e => e.EventDate)
-                        .ToListAsync();
-                }
-                else if (filter == "Hosting")
-                {
-                    events = await db.Table<UserEvent>()
-                        .Where(e => e.UserId == user.Id)
-                        .OrderByDescending(e => e.EventDate)
-                        .ToListAsync();
-                }
+                    queryFilter = $"UserId=eq.{user.Id}&EventDate=lte.{now:yyyy-MM-ddTHH:mm:ssZ}&order=EventDate.desc";
+                else
+                    queryFilter = $"UserId=eq.{user.Id}&order=EventDate.desc";
 
-                var eventsCv = this.FindByName<CollectionView>("EventsCollectionView");
-                if (eventsCv != null)
-                    eventsCv.ItemsSource = events;
+                var events = await SupabaseService.GetAsync<UserEvent>("UserEvents", queryFilter);
+
+                MainThread.BeginInvokeOnMainThread(() =>
+                {
+                    var eventsCv = this.FindByName<CollectionView>("EventsCollectionView");
+                    if (eventsCv != null)
+                        eventsCv.ItemsSource = events;
+                });
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"LoadEvents error: {ex.Message}");
+                Debug.WriteLine($"LoadEvents error: {ex.Message}");
             }
         }
 
@@ -5272,28 +4619,21 @@ namespace Lock.Pages.Profile
             {
                 if (string.IsNullOrEmpty(_phone)) return;
 
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
-                var user = await db.Table<User>().Where(u => u.PhoneNumber == _phone).FirstOrDefaultAsync();
+                var userList = await SupabaseService.GetAsync<User>("Users",
+                    $"PhoneNumber=eq.{Uri.EscapeDataString(_phone)}&limit=1");
+                var user = userList.FirstOrDefault();
                 if (user == null) return;
 
-                // Get join date
                 var joinDateLabel = this.FindByName<Label>("JoinDateLabel");
                 if (joinDateLabel != null)
                     joinDateLabel.Text = user.JoinDate.ToString("yyyy");
 
-                // Get mood history
                 var moodHistoryLabel = this.FindByName<Label>("MoodHistoryLabel");
                 if (moodHistoryLabel != null)
                 {
-                    // This would ideally track mood changes in a separate table
-                    // For now, just show when mood was last updated
                     moodHistoryLabel.Text = $"Last mood update: {user.GetMoodLastUpdatedRelative()}";
                 }
 
-                // For demo purposes, set some sample stats
-                // In production, these would come from actual tracking tables
                 var viewsLabel = this.FindByName<Label>("ProfileViewsCount");
                 if (viewsLabel != null) viewsLabel.Text = "24";
 
@@ -5305,7 +4645,7 @@ namespace Lock.Pages.Profile
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"LoadProfileStats error: {ex.Message}");
+                Debug.WriteLine($"LoadProfileStats error: {ex.Message}");
             }
         }
 
@@ -5317,39 +4657,13 @@ namespace Lock.Pages.Profile
                 return;
             }
 
-            // Create a simple page for date idea input with ScrollView
-            var titleEntry = new Entry
-            {
-                Placeholder = "Title (e.g., Cozy coffee shop)",
-                FontSize = 14
-            };
+            var titleEntry = new Entry { Placeholder = "Title (e.g., Cozy coffee shop)", FontSize = 14 };
+            var descEntry = new Entry { Placeholder = "Description", FontSize = 14 };
+            var locationEntry = new Entry { Placeholder = "Location", FontSize = 14 };
 
-            var descEntry = new Entry
-            {
-                Placeholder = "Description",
-                FontSize = 14
-            };
+            var categoryLabel = new Label { Text = "Category", FontSize = 12, TextColor = Color.FromArgb("#666666") };
+            var categoryPicker = new Picker { Title = "Select a category", FontSize = 14 };
 
-            var locationEntry = new Entry
-            {
-                Placeholder = "Location",
-                FontSize = 14
-            };
-
-            var categoryLabel = new Label
-            {
-                Text = "Category",
-                FontSize = 12,
-                TextColor = Color.FromArgb("#666666")
-            };
-
-            var categoryPicker = new Picker
-            {
-                Title = "Select a category",
-                FontSize = 14
-            };
-
-            // Add items to the picker
             categoryPicker.Items.Add("Coffee");
             categoryPicker.Items.Add("Dinner");
             categoryPicker.Items.Add("Outdoor");
@@ -5359,10 +4673,8 @@ namespace Lock.Pages.Profile
             categoryPicker.Items.Add("Movie");
             categoryPicker.Items.Add("Concert");
             categoryPicker.Items.Add("Other");
-
             categoryPicker.SelectedIndex = 0;
 
-            // Create a ScrollView to contain all content
             var scrollView = new ScrollView
             {
                 Orientation = ScrollOrientation.Vertical,
@@ -5370,22 +4682,11 @@ namespace Lock.Pages.Profile
                 {
                     Padding = 20,
                     Spacing = 12,
-                    Children =
-            {
-                titleEntry,
-                descEntry,
-                locationEntry,
-                categoryLabel,
-                categoryPicker
-            }
+                    Children = { titleEntry, descEntry, locationEntry, categoryLabel, categoryPicker }
                 }
             };
 
-            var page = new ContentPage
-            {
-                Title = "Add Date Idea",
-                Content = scrollView
-            };
+            var page = new ContentPage { Title = "Add Date Idea", Content = scrollView };
 
             var saveButton = new Button
             {
@@ -5407,9 +4708,9 @@ namespace Lock.Pages.Profile
 
                 try
                 {
-                    await DatabaseService.InitializeAsync();
-                    var db = DatabaseService.GetConnection();
-                    var user = await db.Table<User>().Where(u => u.PhoneNumber == _phone).FirstOrDefaultAsync();
+                    var userList = await SupabaseService.GetAsync<User>("Users",
+                        $"PhoneNumber=eq.{Uri.EscapeDataString(_phone)}&limit=1");
+                    var user = userList.FirstOrDefault();
 
                     if (user != null)
                     {
@@ -5451,20 +4752,12 @@ namespace Lock.Pages.Profile
 
             cancelButton.Clicked += async (s, args) => await Navigation.PopModalAsync();
 
-            // Create a footer layout for buttons
-            var buttonLayout = new StackLayout
-            {
-                Spacing = 10,
-                Padding = 0,
-                Children = { saveButton, cancelButton }
-            };
-
-            // Add buttons to the main content
+            var buttonLayout = new StackLayout { Spacing = 10, Padding = 0, Children = { saveButton, cancelButton } };
             ((StackLayout)scrollView.Content).Children.Add(buttonLayout);
 
             await Navigation.PushModalAsync(new NavigationPage(page));
         }
-        
+
         // Create event button
         private async void CreateEventButton_Clicked(object sender, EventArgs e)
         {
@@ -5607,9 +4900,10 @@ namespace Lock.Pages.Profile
 
                 try
                 {
-                    await DatabaseService.InitializeAsync();
-                    var db = DatabaseService.GetConnection();
-                    var user = await db.Table<User>().Where(u => u.PhoneNumber == _phone).FirstOrDefaultAsync();
+                    // NEW CODE (Supabase)
+                    var users = await SupabaseService.GetAsync<User>("Users",
+                        $"PhoneNumber=eq.{Uri.EscapeDataString(_phone)}&limit=1");
+                    var user = users.FirstOrDefault();
 
                     if (user != null)
                     {
@@ -5897,46 +5191,32 @@ namespace Lock.Pages.Profile
                 PendingEndorsement pending = null;
 
                 if (sender is TapGestureRecognizer tap)
-                {
                     pending = tap.CommandParameter as PendingEndorsement;
-                }
                 else if (sender is Border border && border.GestureRecognizers.FirstOrDefault() is TapGestureRecognizer borderTap)
-                {
                     pending = borderTap.CommandParameter as PendingEndorsement;
-                }
                 else if (sender is VisualElement ve && ve.BindingContext is PendingEndorsement vePending)
-                {
                     pending = vePending;
-                }
 
                 if (pending == null)
                 {
-                    Debug.WriteLine("ResendEndorsementRequest_Clicked: pending is null");
                     await DisplayAlert("Error", "Could not identify which request to resend", "OK");
                     return;
                 }
 
-                bool confirm = await DisplayAlert(
-                    "Resend Request",
-                    $"Resend endorsement request to {pending.FriendName}?",
-                    "Resend",
-                    "Cancel"
-                );
+                bool confirm = await DisplayAlert("Resend Request", $"Resend endorsement request to {pending.FriendName}?", "Resend", "Cancel");
 
                 if (confirm)
                 {
-                    // Get current user
                     var currentUserPhone = Preferences.Get("current_user_phone", string.Empty);
-                    await DatabaseService.InitializeAsync();
-                    var db = DatabaseService.GetConnection();
-                    var currentUser = await db.Table<User>().Where(u => u.PhoneNumber == currentUserPhone).FirstOrDefaultAsync();
+
+                    var currentUsers = await SupabaseService.GetAsync<User>("Users",
+                        $"PhoneNumber=eq.{Uri.EscapeDataString(currentUserPhone)}&limit=1");
+                    var currentUser = currentUsers.FirstOrDefault();
 
                     if (currentUser != null)
                     {
-                        // Get or create conversation
                         string conversationId = await GetOrCreateConversationAsync(currentUserPhone, pending.FriendPhone, pending.FriendName);
 
-                        // Create new request message
                         var endorsementMessage = new ChatMessage
                         {
                             ConversationId = conversationId,
@@ -5958,10 +5238,8 @@ namespace Lock.Pages.Profile
 
                         await ChatRepository.AddMessageAsync(endorsementMessage);
 
-                        // Update the pending request timestamp
                         pending.CreatedAt = DateTime.UtcNow;
 
-                        // Update in local storage
                         var requestsJson = Preferences.Get("endorsement_requests", "[]");
                         var allRequests = System.Text.Json.JsonSerializer.Deserialize<List<PendingEndorsement>>(requestsJson) ?? new List<PendingEndorsement>();
                         var existing = allRequests.FirstOrDefault(r => r.RequestId == pending.RequestId);
@@ -5971,9 +5249,7 @@ namespace Lock.Pages.Profile
                             Preferences.Set("endorsement_requests", System.Text.Json.JsonSerializer.Serialize(allRequests));
                         }
 
-                        // Refresh the list
                         await LoadPendingEndorsementsAsync();
-
                         await DisplayAlert("Resent", $"Request resent to {pending.FriendName}", "OK");
                     }
                 }
@@ -5984,6 +5260,40 @@ namespace Lock.Pages.Profile
                 await DisplayAlert("Error", "Could not resend request", "OK");
             }
         }
+
+        private async void SaveInfoButton_Clicked(object sender, EventArgs e)
+        {
+            try
+            {
+                if (!EnsurePhoneFromPreferences())
+                {
+                    await DisplayAlert("Error", "User not found.", "OK");
+                    return;
+                }
+
+                var userList = await SupabaseService.GetAsync<User>("Users",
+                    $"PhoneNumber=eq.{Uri.EscapeDataString(_phone)}&limit=1");
+                var user = userList.FirstOrDefault();
+
+                if (user == null)
+                {
+                    await DisplayAlert("Error", "User not found.", "OK");
+                    return;
+                }
+
+                var bioEditorInfo = this.FindByName<Editor>("BioEditorInfo");
+                user.Bio = bioEditorInfo?.Text ?? string.Empty;
+
+                await SupabaseService.UpdateAsync("Users", $"Id=eq.{user.Id}", user);
+                await DisplayAlert("Saved", "Profile updated.", "OK");
+            }
+            catch (Exception ex)
+            {
+                await DisplayAlert("Error", "Could not save info: " + ex.Message, "OK");
+            }
+        }
+
+
         private async void CancelEndorsementRequest_Clicked(object sender, EventArgs e)
         {
             try
@@ -6070,13 +5380,13 @@ namespace Lock.Pages.Profile
                     return;
                 }
 
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
+                var oldUsers = await SupabaseService.GetAsync<User>("Users",
+                    $"PhoneNumber=eq.{Uri.EscapeDataString(_phone)}&limit=1");
+                var oldUser = oldUsers.FirstOrDefault();
 
-                // ========== GET OLD USER DATA BEFORE UPDATE ==========
-                var oldUser = await db.Table<User>().Where(u => u.PhoneNumber == _phone).FirstOrDefaultAsync();
-
-                var user = await db.Table<User>().Where(u => u.PhoneNumber == _phone).FirstOrDefaultAsync();
+                var users = await SupabaseService.GetAsync<User>("Users",
+                    $"PhoneNumber=eq.{Uri.EscapeDataString(_phone)}&limit=1");
+                var user = users.FirstOrDefault();
 
                 if (user == null)
                 {
@@ -6084,51 +5394,33 @@ namespace Lock.Pages.Profile
                     return;
                 }
 
-                // Track if mood changed
                 string oldMood = user.Mood;
 
-                // Load controls
                 var moodPicker = this.FindByName<Picker>("MoodPicker");
                 var energyPicker = this.FindByName<Picker>("EnergyPicker");
                 var countryEntry = this.FindByName<Entry>("CountryEntry");
                 var stateEntry = this.FindByName<Entry>("StateEntry");
                 var bioEditorInfo = this.FindByName<Editor>("BioEditorInfo");
                 var drinksPicker = this.FindByName<Picker>("DrinksPicker");
-                var smokesSwitch = this.FindByName<Microsoft.Maui.Controls.Switch>("SmokesSwitch");
-                var petsSwitch = this.FindByName<Microsoft.Maui.Controls.Switch>("PetsSwitch");
+                var smokesSwitch = this.FindByName<MauiSwitch>("SmokesSwitch");
+                var petsSwitch = this.FindByName<MauiSwitch>("PetsSwitch");
                 var religionEntry = this.FindByName<Entry>("ReligionEntry");
                 var politicalEntry = this.FindByName<Entry>("PoliticalEntry");
-
-                // Load physical attributes pickers
                 var heightPicker = this.FindByName<Picker>("HeightPicker");
                 var bodyTypePicker = this.FindByName<Picker>("BodyTypePicker");
                 var ethnicityPicker = this.FindByName<Picker>("EthnicityPicker");
                 var tribePicker = this.FindByName<Picker>("TribePicker");
-
-                // Load Kids/Family Pickers
                 var kidsPreferencePicker = this.FindByName<Picker>("KidsPreferencePicker");
                 var hasChildrenPicker = this.FindByName<Picker>("HasChildrenPicker");
-
-                // Load Dietary Preference Picker
                 var dietaryPreferencePicker = this.FindByName<Picker>("DietaryPreferencePicker");
-
-                // Load Exercise Frequency Picker
                 var exerciseFrequencyPicker = this.FindByName<Picker>("ExerciseFrequencyPicker");
-
-                // Load Personality Type Picker
                 var personalityTypePicker = this.FindByName<Picker>("PersonalityTypePicker");
-
-                // Load Love Language Picker
                 var loveLanguagePicker = this.FindByName<Picker>("LoveLanguagePicker");
 
-                // Get new mood value
                 string newMood = moodPicker?.SelectedItem as string ?? string.Empty;
-
-                // Store old location for comparison
                 string oldCountry = user.Country ?? string.Empty;
                 string oldState = user.State ?? string.Empty;
 
-                // Save existing fields
                 user.Mood = newMood;
                 user.EnergyLevel = energyPicker?.SelectedItem as string ?? string.Empty;
                 user.Country = countryEntry?.Text ?? string.Empty;
@@ -6140,99 +5432,54 @@ namespace Lock.Pages.Profile
                 user.Religion = religionEntry?.Text ?? string.Empty;
                 user.PoliticalViews = politicalEntry?.Text ?? string.Empty;
 
-                // Save Height
                 if (heightPicker != null && heightPicker.SelectedItem != null)
                 {
                     string heightText = heightPicker.SelectedItem.ToString();
                     string heightNumber = heightText.Replace(" cm", "").Trim();
                     if (int.TryParse(heightNumber, out int heightCm))
-                    {
                         user.HeightCm = heightCm;
-                    }
                 }
 
-                // Save Body Type
                 if (bodyTypePicker != null && bodyTypePicker.SelectedItem != null)
-                {
                     user.BodyType = bodyTypePicker.SelectedItem.ToString();
-                }
 
-                // Save Ethnicity
                 if (ethnicityPicker != null && ethnicityPicker.SelectedItem != null)
-                {
                     user.Ethnicity = ethnicityPicker.SelectedItem.ToString();
-                }
 
-                // Save Tribe
                 if (tribePicker != null && tribePicker.SelectedItem != null)
-                {
                     user.Tribe = tribePicker.SelectedItem.ToString();
-                }
 
-                // Save Kids/Family Preferences
                 if (kidsPreferencePicker != null && kidsPreferencePicker.SelectedItem != null)
-                {
                     user.KidsPreference = kidsPreferencePicker.SelectedItem.ToString();
-                }
 
                 if (hasChildrenPicker != null && hasChildrenPicker.SelectedItem != null)
-                {
                     user.HasChildren = hasChildrenPicker.SelectedItem.ToString();
-                }
 
-                // Save Dietary Preference
                 if (dietaryPreferencePicker != null && dietaryPreferencePicker.SelectedItem != null)
-                {
                     user.DietaryPreference = dietaryPreferencePicker.SelectedItem.ToString();
-                }
 
-                // Save Exercise Frequency
                 if (exerciseFrequencyPicker != null && exerciseFrequencyPicker.SelectedItem != null)
-                {
                     user.ExerciseFrequency = exerciseFrequencyPicker.SelectedItem.ToString();
-                }
 
-                // Save Personality Type
                 if (personalityTypePicker != null && personalityTypePicker.SelectedItem != null)
                 {
-                    string selectedPersonality = personalityTypePicker.SelectedItem.ToString();
-                    if (selectedPersonality != "Prefer not to say")
-                    {
-                        user.PersonalityType = selectedPersonality;
-                    }
-                    else
-                    {
-                        user.PersonalityType = null;
-                    }
+                    string selected = personalityTypePicker.SelectedItem.ToString();
+                    user.PersonalityType = selected != "Prefer not to say" ? selected : null;
                 }
 
-                // Save Love Language
                 if (loveLanguagePicker != null && loveLanguagePicker.SelectedItem != null)
                 {
-                    string selectedLoveLanguage = loveLanguagePicker.SelectedItem.ToString();
-                    if (selectedLoveLanguage != "Prefer not to say")
-                    {
-                        user.LoveLanguage = selectedLoveLanguage;
-                    }
-                    else
-                    {
-                        user.LoveLanguage = null;
-                    }
+                    string selected = loveLanguagePicker.SelectedItem.ToString();
+                    user.LoveLanguage = selected != "Prefer not to say" ? selected : null;
                 }
 
-                // Check if mood changed - update timestamp and track
                 if (oldMood != newMood)
                 {
                     user.MoodLastUpdated = DateTime.UtcNow;
-
-                    // ========== TRACK MOOD CHANGE ==========
                     await UserTrackingService.Instance.TrackMoodChangeAsync(_phone, oldMood, newMood, "profile");
-                    Debug.WriteLine($"[TRACKING] Mood change tracked: '{oldMood}' -> '{newMood}'");
-
                     MessagingCenter.Send(this, "MoodUpdated");
                 }
 
-                // Collect selected tags
                 var tagNames = new[] { "Travel", "Fitness", "Tech", "Music", "Coffee lover", "Gym", "Entrepreneur" };
                 var selectedTags = tagNames.Where(t =>
                 {
@@ -6242,43 +5489,18 @@ namespace Lock.Pages.Profile
                 }).ToArray();
                 user.Interests = string.Join(",", selectedTags);
 
-                // Save "Allow Mood Search" toggle
-                var moodSearchSwitch = this.FindByName<Microsoft.Maui.Controls.Switch>("MoodSearchSwitch");
-                if (moodSearchSwitch != null)
-                {
-                    user.AllowMoodSearch = moodSearchSwitch.IsToggled;
-                }
+                var moodSearchSwitch = this.FindByName<MauiSwitch>("MoodSearchSwitch");
+                if (moodSearchSwitch != null) user.AllowMoodSearch = moodSearchSwitch.IsToggled;
 
-                // Save Ghost Mode + Mood Shield toggle
-                var ghostSwitch = this.FindByName<Microsoft.Maui.Controls.Switch>("GhostModeMoodShieldSwitch");
-                if (ghostSwitch != null)
-                {
-                    user.GhostModeMoodShield = ghostSwitch.IsToggled;
-                }
+                var ghostSwitch = this.FindByName<MauiSwitch>("GhostModeMoodShieldSwitch");
+                if (ghostSwitch != null) user.GhostModeMoodShield = ghostSwitch.IsToggled;
 
-                // ─────────────────────────────────────────────────────────────────
-                // FIX: Save Phone Number Visibility toggle
-                // ─────────────────────────────────────────────────────────────────
-                var hidePhoneSwitchSave = this.FindByName<Microsoft.Maui.Controls.Switch>("HidePhoneSwitch");
-                if (hidePhoneSwitchSave != null)
-                {
-                    user.HidePhoneNumber = hidePhoneSwitchSave.IsToggled;
-                }
-                // ─────────────────────────────────────────────────────────────────
+                var hidePhoneSwitchSave = this.FindByName<MauiSwitch>("HidePhoneSwitch");
+                if (hidePhoneSwitchSave != null) user.HidePhoneNumber = hidePhoneSwitchSave.IsToggled;
 
-                // Save to database
-                await db.UpdateAsync(user);
+                await SupabaseService.UpdateAsync("Users", $"Id=eq.{user.Id}", user);
 
-                // ========== TRACK ALL PROFILE CHANGES ==========
-                if (oldUser != null)
-                {
-                    await UserTrackingService.Instance.TrackAllProfileChangesAsync(oldUser, user);
-                    Debug.WriteLine($"[TRACKING] All profile changes tracked for: {_phone}");
-                }
-
-                Debug.WriteLine("User preferences saved to database");
-
-                // Update the UI labels with new values
+                // Update UI labels
                 var heightLabel = this.FindByName<Label>("HeightLabel");
                 if (heightLabel != null && user.HeightCm.HasValue && user.HeightCm.Value > 0)
                 {
@@ -6289,112 +5511,66 @@ namespace Lock.Pages.Profile
 
                 var bodyTypeLabel = this.FindByName<Label>("BodyTypeLabel");
                 if (bodyTypeLabel != null)
-                {
                     bodyTypeLabel.Text = string.IsNullOrEmpty(user.BodyType) ? "—" : user.BodyType;
-                }
 
                 var ethnicityLabel = this.FindByName<Label>("EthnicityLabel");
                 if (ethnicityLabel != null)
                 {
                     if (!string.IsNullOrEmpty(user.Ethnicity) && !string.IsNullOrEmpty(user.Tribe))
-                    {
                         ethnicityLabel.Text = $"{user.Ethnicity} · {user.Tribe}";
-                    }
                     else if (!string.IsNullOrEmpty(user.Ethnicity))
-                    {
                         ethnicityLabel.Text = user.Ethnicity;
-                    }
                     else if (!string.IsNullOrEmpty(user.Tribe))
-                    {
                         ethnicityLabel.Text = user.Tribe;
-                    }
                     else
-                    {
                         ethnicityLabel.Text = "—";
-                    }
                 }
 
-                // Update Family Label
                 var familyLabel = this.FindByName<Label>("FamilyLabel");
                 if (familyLabel != null)
                 {
-                    string familyText = string.Empty;
+                    string familyText;
                     if (!string.IsNullOrEmpty(user.KidsPreference) && !string.IsNullOrEmpty(user.HasChildren))
-                    {
                         familyText = $"{user.KidsPreference} · {user.HasChildren}";
-                    }
                     else if (!string.IsNullOrEmpty(user.KidsPreference))
-                    {
                         familyText = user.KidsPreference;
-                    }
                     else if (!string.IsNullOrEmpty(user.HasChildren))
-                    {
                         familyText = user.HasChildren;
-                    }
                     else
-                    {
                         familyText = "—";
-                    }
                     familyLabel.Text = familyText;
                 }
 
-                // Update Diet Label
                 var dietLabel = this.FindByName<Label>("DietLabel");
                 if (dietLabel != null)
-                {
                     dietLabel.Text = string.IsNullOrEmpty(user.DietaryPreference) ? "—" : user.DietaryPreference;
-                }
 
-                // Update Exercise Label
                 var exerciseLabel = this.FindByName<Label>("ExerciseLabel");
                 if (exerciseLabel != null)
-                {
                     exerciseLabel.Text = string.IsNullOrEmpty(user.ExerciseFrequency) ? "—" : user.ExerciseFrequency;
-                }
 
-                // Update Personality Type Label
                 var personalityTypeLabel = this.FindByName<Label>("PersonalityTypeLabel");
                 if (personalityTypeLabel != null)
-                {
                     personalityTypeLabel.Text = string.IsNullOrEmpty(user.PersonalityType) ? "—" : user.PersonalityType;
-                }
 
-                // Update Love Language Label
                 var loveLanguageLabel = this.FindByName<Label>("LoveLanguageLabel");
                 if (loveLanguageLabel != null)
-                {
                     loveLanguageLabel.Text = string.IsNullOrEmpty(user.LoveLanguage) ? "—" : user.LoveLanguage;
-                }
 
-                // Update global locations list if location changed
-                string newLocation = string.Empty;
-                string oldLocation = string.Empty;
-
+                string newLocation = string.Empty, oldLocation = string.Empty;
                 if (!string.IsNullOrEmpty(user.Country) && !string.IsNullOrEmpty(user.State))
-                {
                     newLocation = $"{user.Country}, {user.State}";
-                }
                 else if (!string.IsNullOrEmpty(user.Country))
-                {
                     newLocation = user.Country;
-                }
                 else if (!string.IsNullOrEmpty(user.State))
-                {
                     newLocation = user.State;
-                }
 
                 if (!string.IsNullOrEmpty(oldCountry) && !string.IsNullOrEmpty(oldState))
-                {
                     oldLocation = $"{oldCountry}, {oldState}";
-                }
                 else if (!string.IsNullOrEmpty(oldCountry))
-                {
                     oldLocation = oldCountry;
-                }
                 else if (!string.IsNullOrEmpty(oldState))
-                {
                     oldLocation = oldState;
-                }
 
                 if (!string.IsNullOrEmpty(newLocation) && newLocation != oldLocation)
                 {
@@ -6412,14 +5588,9 @@ namespace Lock.Pages.Profile
                     }
                 }
 
-                // Show success message
                 await DisplayAlert("Saved", "Preferences updated.", "OK");
-
-                // Send notifications
                 MessagingCenter.Send(this, "MoodSaved");
                 MessagingCenter.Send(this, "ProfileUpdated");
-
-                // Update current user reference
                 _currentUser = user;
             }
             catch (Exception ex)
@@ -6428,6 +5599,7 @@ namespace Lock.Pages.Profile
                 await DisplayAlert("Error", "Could not save preferences: " + ex.Message, "OK");
             }
         }
+
         // Add this method to your ProfilePage class
         // Verify button - Navigate to VerificationPage
         private async void OnVerifyButtonTapped(object sender, EventArgs e)
@@ -6586,13 +5758,12 @@ namespace Lock.Pages.Profile
 
                 if (!confirm) return;
 
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-                var user = await db.Table<User>().Where(u => u.PhoneNumber == _phone).FirstOrDefaultAsync();
+                var users = await SupabaseService.GetAsync<User>("Users",
+                    $"PhoneNumber=eq.{Uri.EscapeDataString(_phone)}&limit=1");
+                var user = users.FirstOrDefault();
 
                 if (user != null)
                 {
-                    // Delete the file if it exists
                     if (!string.IsNullOrEmpty(user.VoiceIntroPath) && File.Exists(user.VoiceIntroPath))
                     {
                         File.Delete(user.VoiceIntroPath);
@@ -6600,10 +5771,9 @@ namespace Lock.Pages.Profile
 
                     user.VoiceIntroPath = null;
                     user.VoiceIntroLastUpdated = null;
-                    await db.UpdateAsync(user);
+                    await SupabaseService.UpdateAsync("Users", $"Id=eq.{user.Id}", user);
                     _currentUser = user;
 
-                    // Update UI
                     var voiceStatusLabel = this.FindByName<Label>("VoiceIntroStatus");
                     if (voiceStatusLabel != null)
                     {
@@ -6611,14 +5781,10 @@ namespace Lock.Pages.Profile
                         voiceStatusLabel.IsVisible = true;
                     }
 
-                    // Update the options button visibility (hide it since voice intro is deleted)
                     UpdateVoiceIntroOptionsButtonVisibility();
-
-                    // Update voice icon to play mode
                     UpdateVoiceIntroIcon(false);
 
                     await DisplayAlert("Deleted", "Your voice intro has been deleted.", "OK");
-
                     MessagingCenter.Send(this, "ProfileUpdated");
                 }
             }
@@ -6632,28 +5798,23 @@ namespace Lock.Pages.Profile
         {
             try
             {
-                // Only save for the owner's own profile, never for view-only
                 if (_viewOnly) return;
                 if (!EnsurePhoneFromPreferences()) return;
 
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-                var user = await db.Table<User>()
-                    .Where(u => u.PhoneNumber == _phone)
-                    .FirstOrDefaultAsync();
+                var users = await SupabaseService.GetAsync<User>("Users",
+                    $"PhoneNumber=eq.{Uri.EscapeDataString(_phone)}&limit=1");
+                var user = users.FirstOrDefault();
 
                 if (user == null) return;
 
                 user.GhostModeMoodShield = e.Value;
-                await db.UpdateAsync(user);
+                await SupabaseService.UpdateAsync("Users", $"Id=eq.{user.Id}", user);
 
-                System.Diagnostics.Debug.WriteLine(
-                    $"[GHOST] GhostModeMoodShield instantly saved: {e.Value} for {_phone}");
+                System.Diagnostics.Debug.WriteLine($"[GHOST] GhostModeMoodShield instantly saved: {e.Value} for {_phone}");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine(
-                    $"GhostModeMoodShieldSwitch_Toggled error: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"GhostModeMoodShieldSwitch_Toggled error: {ex.Message}");
             }
         }
 
@@ -6661,60 +5822,27 @@ namespace Lock.Pages.Profile
         {
             try
             {
-                // Only save for the owner's own profile, never for view-only
                 if (_viewOnly) return;
                 if (!EnsurePhoneFromPreferences()) return;
 
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-                var user = await db.Table<User>()
-                    .Where(u => u.PhoneNumber == _phone)
-                    .FirstOrDefaultAsync();
+                var users = await SupabaseService.GetAsync<User>("Users",
+                    $"PhoneNumber=eq.{Uri.EscapeDataString(_phone)}&limit=1");
+                var user = users.FirstOrDefault();
 
                 if (user == null) return;
 
                 user.AllowMoodSearch = e.Value;
-                await db.UpdateAsync(user);
+                await SupabaseService.UpdateAsync("Users", $"Id=eq.{user.Id}", user);
 
-                System.Diagnostics.Debug.WriteLine(
-                    $"[MOOD] AllowMoodSearch instantly saved: {e.Value} for {_phone}");
+                System.Diagnostics.Debug.WriteLine($"[MOOD] AllowMoodSearch instantly saved: {e.Value} for {_phone}");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine(
-                    $"MoodSearchSwitch_Toggled error: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"MoodSearchSwitch_Toggled error: {ex.Message}");
             }
         }
 
-        // Save info (bio etc.) to DB
-        private async void SaveInfoButton_Clicked(object sender, EventArgs e)
-        {
-            try
-            {
-                if (!EnsurePhoneFromPreferences())
-                {
-                    await DisplayAlert("Error", "User not found.", "OK");
-                    return;
-                }
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-                var user = await db.Table<User>().Where(u => u.PhoneNumber == _phone).FirstOrDefaultAsync();
-                if (user == null)
-                {
-                    await DisplayAlert("Error", "User not found.", "OK");
-                    return;
-                }
-                var bioEditorInfo = this.FindByName<Editor>("BioEditorInfo");
-                user.Bio = bioEditorInfo?.Text ?? string.Empty;
-                await db.UpdateAsync(user);
-                await DisplayAlert("Saved", "Profile updated.", "OK");
-            }
-            catch (Exception ex)
-            {
-                await DisplayAlert("Error", "Could not save info: " + ex.Message, "OK");
-            }
-        }
-
+        
 
         private async void OnHomeTapped(object sender, EventArgs e)
         {
@@ -7036,25 +6164,18 @@ namespace Lock.Pages.Profile
             {
                 if (!string.IsNullOrEmpty(_phone))
                 {
-                    // Reload user data from database
-                    await DatabaseService.InitializeAsync();
-                    var db = DatabaseService.GetConnection();
-                    var updatedUser = await db.Table<User>().Where(u => u.PhoneNumber == _phone).FirstOrDefaultAsync();
+                    var users = await SupabaseService.GetAsync<User>("Users",
+                        $"PhoneNumber=eq.{Uri.EscapeDataString(_phone)}&limit=1");
+                    var updatedUser = users.FirstOrDefault();
 
                     if (updatedUser != null)
                     {
                         _currentUser = updatedUser;
-
-                        // Update verification status
                         IsVerified = updatedUser.IsVerified;
-
-                        // Update the Looking For property
                         OnPropertyChanged(nameof(CurrentUserLookingFor));
 
-                        // If this is the owner's profile, also update the UI elements
                         if (IsOwner)
                         {
-                            // Update any pickers or displays that show the mood
                             var moodPicker = this.FindByName<Picker>("MoodPicker");
                             if (moodPicker != null && !string.IsNullOrEmpty(updatedUser.Mood))
                             {
@@ -7062,7 +6183,6 @@ namespace Lock.Pages.Profile
                                     moodPicker.SelectedItem = updatedUser.Mood;
                             }
 
-                            // Also update any labels that display the mood
                             var lookingForLabel = this.FindByName<Label>("LookingForDisplayLabel");
                             if (lookingForLabel != null)
                             {
@@ -7240,15 +6360,12 @@ namespace Lock.Pages.Profile
 
                 try
                 {
-                    await DatabaseService.InitializeAsync();
-                    var db = DatabaseService.GetConnection();
-
                     idea.Title = titleEntry.Text;
                     idea.Description = descEntry.Text ?? "";
                     idea.Location = locationEntry.Text ?? "";
                     idea.Category = categoryPicker.Items[categoryPicker.SelectedIndex];
 
-                    await db.UpdateAsync(idea);
+                    await SupabaseService.UpdateAsync("DateIdeas", $"Id=eq.{idea.Id}", idea);
 
                     var datesCv = this.FindByName<CollectionView>("DateIdeasCollectionView");
                     if (datesCv != null)
@@ -7287,6 +6404,7 @@ namespace Lock.Pages.Profile
             ((StackLayout)scrollView.Content).Children.Add(buttonLayout);
             await Navigation.PushModalAsync(new NavigationPage(page));
         }
+
         private async void OnPostImageTapped(object sender, EventArgs e)
         {
             try
@@ -7338,7 +6456,7 @@ namespace Lock.Pages.Profile
 
             try
             {
-                await ProfileDataService.DeleteDateIdeaAsync(idea.Id);
+                await SupabaseService.DeleteAsync("DateIdeas", $"Id=eq.{idea.Id}");
                 _userDateIdeas.Remove(idea);
 
                 var datesCv = this.FindByName<CollectionView>("DateIdeasCollectionView");
@@ -7516,9 +6634,9 @@ namespace Lock.Pages.Profile
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-                var user = await db.Table<User>().Where(u => u.PhoneNumber == _phone).FirstOrDefaultAsync();
+                var users = await SupabaseService.GetAsync<User>("Users",
+                    $"PhoneNumber=eq.{Uri.EscapeDataString(_phone)}&limit=1");
+                var user = users.FirstOrDefault();
 
                 if (user != null)
                 {
@@ -7529,7 +6647,7 @@ namespace Lock.Pages.Profile
 
                     user.VoiceIntroPath = audioPath;
                     user.VoiceIntroLastUpdated = DateTime.UtcNow;
-                    await db.UpdateAsync(user);
+                    await SupabaseService.UpdateAsync("Users", $"Id=eq.{user.Id}", user);
                     _currentUser = user;
 
                     var voiceStatusLabel = this.FindByName<Label>("VoiceIntroStatus");
@@ -7546,9 +6664,7 @@ namespace Lock.Pages.Profile
                         }
                     }
 
-                    // Update the options button visibility
                     UpdateVoiceIntroOptionsButtonVisibility();
-
                     MessagingCenter.Send(this, "ProfileUpdated");
                 }
             }
@@ -7643,10 +6759,10 @@ namespace Lock.Pages.Profile
         });
     }
 
-    // Call this method from LoadUserAsync after setting _currentUser
+        // Call this method from LoadUserAsync after setting _currentUser
 
-    // ========== EVENT EDIT/DELETE METHODS ==========
-    private async void EditEventButton_Clicked(object sender, EventArgs e)
+        // ========== EVENT EDIT/DELETE METHODS ==========
+        private async void EditEventButton_Clicked(object sender, EventArgs e)
         {
             if (_viewOnly)
             {
@@ -7743,9 +6859,6 @@ namespace Lock.Pages.Profile
 
                 try
                 {
-                    await DatabaseService.InitializeAsync();
-                    var db = DatabaseService.GetConnection();
-
                     evt.EventName = nameEntry.Text;
                     evt.Description = descEntry.Text ?? "";
                     evt.Location = locationEntry.Text ?? "";
@@ -7756,7 +6869,7 @@ namespace Lock.Pages.Profile
                     int.TryParse(maxEntry.Text, out maxAttendees);
                     evt.MaxAttendees = maxAttendees;
 
-                    await db.UpdateAsync(evt);
+                    await SupabaseService.UpdateAsync("UserEvents", $"Id=eq.{evt.Id}", evt);
 
                     var eventsCv = this.FindByName<CollectionView>("EventsCollectionView");
                     if (eventsCv != null)
@@ -7795,6 +6908,8 @@ namespace Lock.Pages.Profile
             ((StackLayout)scrollView.Content).Children.Add(buttonLayout);
             await Navigation.PushModalAsync(new NavigationPage(page));
         }
+
+
         private async void DeleteEventButton_Clicked(object sender, EventArgs e)
         {
             if (_viewOnly)
@@ -7812,15 +6927,13 @@ namespace Lock.Pages.Profile
 
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
+                await SupabaseService.DeleteAsync("UserEvents", $"Id=eq.{evt.Id}");
 
-                await db.DeleteAsync(evt);
-
-                var attendances = await db.Table<EventAttendance>().Where(a => a.EventId == evt.Id).ToListAsync();
+                var attendances = await SupabaseService.GetAsync<EventAttendance>("EventAttendance",
+                    $"EventId=eq.{evt.Id}");
                 foreach (var attendance in attendances)
                 {
-                    await db.DeleteAsync(attendance);
+                    await SupabaseService.DeleteAsync("EventAttendance", $"Id=eq.{attendance.Id}");
                 }
 
                 _userEvents.Remove(evt);
@@ -7849,13 +6962,9 @@ namespace Lock.Pages.Profile
 
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-                var user = await db.Table<User>()
-                    .Where(u => u.PhoneNumber == savedPhone)
-                    .FirstOrDefaultAsync();
-
-                return user != null;
+                var users = await SupabaseService.GetAsync<User>("Users",
+                    $"PhoneNumber=eq.{Uri.EscapeDataString(savedPhone)}&limit=1");
+                return users.Any();
             }
             catch
             {
@@ -7877,13 +6986,9 @@ namespace Lock.Pages.Profile
                     return;
                 }
 
-                await Lock.Chat.Services.DatabaseService.InitializeAsync();
-                var db = Lock.Chat.Services.DatabaseService.GetConnection();
-
-                // Get all conversations for user
-                var conversations = await db.Table<Conversation>()
-                    .Where(c => c.ParticipantA == currentUserPhone || c.ParticipantB == currentUserPhone)
-                    .ToListAsync();
+                // Get all conversations for user from Supabase
+                var conversations = await SupabaseService.GetAsync<Conversation>("Conversations",
+                    $"or=(ParticipantA.eq.{Uri.EscapeDataString(currentUserPhone)},ParticipantB.eq.{Uri.EscapeDataString(currentUserPhone)})");
 
                 int conversationsWithUnread = 0;
 
@@ -7895,12 +7000,11 @@ namespace Lock.Pages.Profile
                         continue;
                     }
 
-                    int unreadCount = await db.Table<ChatMessage>()
-                        .Where(m => m.ConversationId == conv.ConversationId &&
-                                   m.RecipientPhone == currentUserPhone &&
-                                   m.IsRead == false &&
-                                   m.IsMessageRequest == false)
-                        .CountAsync();
+                    // Get unread messages count from Supabase
+                    var unreadMessages = await SupabaseService.GetAsync<ChatMessage>("ChatMessages",
+                        $"ConversationId=eq.{Uri.EscapeDataString(conv.ConversationId)}&RecipientPhone=eq.{Uri.EscapeDataString(currentUserPhone)}&IsRead=eq.false&IsMessageRequest=eq.false");
+
+                    int unreadCount = unreadMessages.Count;
 
                     if (unreadCount > 0)
                     {
@@ -8177,9 +7281,9 @@ namespace Lock.Pages.Profile
                     return;
                 }
 
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-                var user = await db.Table<User>().Where(u => u.PhoneNumber == _phone).FirstOrDefaultAsync();
+                var userList = await SupabaseService.GetAsync<User>("Users",
+                    $"PhoneNumber=eq.{Uri.EscapeDataString(_phone)}&limit=1");
+                var user = userList.FirstOrDefault();
 
                 if (user == null)
                 {
@@ -8187,7 +7291,6 @@ namespace Lock.Pages.Profile
                     return;
                 }
 
-                // Track if mood changed (if mood picker exists in this tab)
                 string oldMood = user.Mood;
 
                 var topInterestPicker = this.FindByName<Picker>("TopInterestPicker");
@@ -8206,7 +7309,6 @@ namespace Lock.Pages.Profile
                 var favoriteMusicGenrePicker = this.FindByName<Picker>("FavoriteMusicGenrePicker");
                 var bestMusicEntry = this.FindByName<Entry>("BestMusicEntry");
 
-                // Check if there's a mood picker in this tab (optional)
                 var moodPicker = this.FindByName<Picker>("MoodPicker");
                 if (moodPicker != null)
                 {
@@ -8219,10 +7321,7 @@ namespace Lock.Pages.Profile
                     }
                 }
 
-                // Save favorite-genre (picker) into new property
                 user.FavoriteMusicGenre = favoriteMusicGenrePicker?.SelectedItem as string ?? string.Empty;
-
-                // BestMusic is free-text (song/or artist)
                 user.BestMusic = bestMusicEntry?.Text ?? string.Empty;
                 user.TopInterest = topInterestPicker?.SelectedItem as string ?? string.Empty;
                 user.TopArtist = topArtistEntry?.Text ?? string.Empty;
@@ -8238,11 +7337,10 @@ namespace Lock.Pages.Profile
                 user.Prompts = promptsEditor?.Text ?? string.Empty;
                 user.Dealbreakers = dealbreakersEntry?.Text ?? string.Empty;
 
-                await db.UpdateAsync(user);
+                await SupabaseService.UpdateAsync("Users", $"Id=eq.{user.Id}", user);
 
                 await DisplayAlert("Saved", "Interests updated.", "OK");
 
-                // Send notification in case mood was updated
                 MessagingCenter.Send(this, "MoodSaved");
             }
             catch (Exception ex)

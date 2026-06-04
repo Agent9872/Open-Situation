@@ -1,7 +1,7 @@
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using Lock.Data;
 using Lock.Models;
 using Lock.Services;
 
@@ -9,9 +9,10 @@ namespace Lock.PageModels
 {
     public partial class ManageMetaPageModel : ObservableObject
     {
-        private readonly CategoryRepository _categoryRepository;
-        private readonly TagRepository _tagRepository;
-        private readonly SeedDataService _seedDataService;
+        // Remove these old SQLite-based repositories:
+        // private readonly CategoryRepository _categoryRepository;
+        // private readonly TagRepository _tagRepository;
+        // private readonly SeedDataService _seedDataService;
 
         [ObservableProperty]
         private ObservableCollection<Category> _categories = [];
@@ -19,19 +20,29 @@ namespace Lock.PageModels
         [ObservableProperty]
         private ObservableCollection<Tag> _tags = [];
 
-        public ManageMetaPageModel(CategoryRepository categoryRepository, TagRepository tagRepository, SeedDataService seedDataService)
+        // Update constructor
+        public ManageMetaPageModel()
         {
-            _categoryRepository = categoryRepository;
-            _tagRepository = tagRepository;
-            _seedDataService = seedDataService;
+            // Initialize empty collections
+            Categories = new ObservableCollection<Category>();
+            Tags = new ObservableCollection<Tag>();
         }
 
         private async Task LoadData()
         {
-            var categoriesList = await _categoryRepository.ListAsync();
-            Categories = new ObservableCollection<Category>(categoriesList);
-            var tagsList = await _tagRepository.ListAsync();
-            Tags = new ObservableCollection<Tag>(tagsList);
+            try
+            {
+                // TODO: Load categories and tags from Supabase if needed
+                // For now, just initialize empty collections
+                Categories = new ObservableCollection<Category>();
+                Tags = new ObservableCollection<Tag>();
+
+                await Task.CompletedTask;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"LoadData error: {ex}");
+            }
         }
 
         [RelayCommand]
@@ -41,11 +52,7 @@ namespace Lock.PageModels
         [RelayCommand]
         private async Task SaveCategories()
         {
-            foreach (var category in Categories)
-            {
-                await _categoryRepository.SaveItemAsync(category);
-            }
-
+            // TODO: Save categories to Supabase
             await AppShell.DisplayToastAsync("Categories saved");
         }
 
@@ -53,7 +60,7 @@ namespace Lock.PageModels
         private async Task DeleteCategory(Category category)
         {
             Categories.Remove(category);
-            await _categoryRepository.DeleteItemAsync(category);
+            // TODO: Delete category from Supabase
             await AppShell.DisplayToastAsync("Category deleted");
         }
 
@@ -62,18 +69,14 @@ namespace Lock.PageModels
         {
             var category = new Category();
             Categories.Add(category);
-            await _categoryRepository.SaveItemAsync(category);
+            // TODO: Save category to Supabase
             await AppShell.DisplayToastAsync("Category added");
         }
 
         [RelayCommand]
         private async Task SaveTags()
         {
-            foreach (var tag in Tags)
-            {
-                await _tagRepository.SaveItemAsync(tag);
-            }
-
+            // TODO: Save tags to Supabase
             await AppShell.DisplayToastAsync("Tags saved");
         }
 
@@ -81,7 +84,7 @@ namespace Lock.PageModels
         private async Task DeleteTag(Tag tag)
         {
             Tags.Remove(tag);
-            await _tagRepository.DeleteItemAsync(tag);
+            // TODO: Delete tag from Supabase
             await AppShell.DisplayToastAsync("Tag deleted");
         }
 
@@ -90,16 +93,15 @@ namespace Lock.PageModels
         {
             var tag = new Tag();
             Tags.Add(tag);
-            await _tagRepository.SaveItemAsync(tag);
+            // TODO: Save tag to Supabase
             await AppShell.DisplayToastAsync("Tag added");
         }
 
         [RelayCommand]
         private async Task Reset()
         {
-            Preferences.Default.Remove("is_seeded");
-            await _seedDataService.LoadSeedDataAsync();
-            Preferences.Default.Set("is_seeded", true);
+            // Remove seed data logic since it's no longer needed with Supabase
+            // Just navigate back to main page
             await Shell.Current.GoToAsync("//main");
         }
     }

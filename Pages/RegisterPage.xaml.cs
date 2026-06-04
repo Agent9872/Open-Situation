@@ -288,16 +288,18 @@ namespace Lock.Pages
                 // Critical for the first user (Admin) to see the Admin Panel
                 try
                 {
-                    await DatabaseService.InitializeAsync();
-                    var db = DatabaseService.GetConnection();
+                    // Remove this SQLite code:
+                    // await DatabaseService.InitializeAsync();
+                    // var db = DatabaseService.GetConnection();
 
                     bool hasPlus = phone.StartsWith("+");
                     var digits = new string(phone.Where(c => char.IsDigit(c)).ToArray());
                     var normalizedPhone = hasPlus ? "+" + digits : digits;
 
-                    var newUser = await db.Table<Lock.Models.User>()
-                                         .Where(u => u.PhoneNumber == normalizedPhone)
-                                         .FirstOrDefaultAsync();
+                    // Replace with Supabase code:
+                    var users = await SupabaseService.GetAsync<Lock.Models.User>("Users",
+                        $"PhoneNumber=eq.{Uri.EscapeDataString(normalizedPhone)}&limit=1");
+                    var newUser = users.FirstOrDefault();
 
                     if (newUser != null)
                     {

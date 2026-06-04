@@ -1,6 +1,5 @@
 ﻿using Lock.Chat.Services;
 using Lock.Models;
-using SQLite;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -21,12 +20,10 @@ namespace Lock.Services
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
-                var rateLimit = await db.Table<SparkRateLimit>()
-                    .Where(r => r.UserPhone == userPhone)
-                    .FirstOrDefaultAsync();
+                // Get rate limit from Supabase
+                var rateLimits = await SupabaseService.GetAsync<SparkRateLimit>("SparkRateLimits",
+                    $"UserPhone=eq.{Uri.EscapeDataString(userPhone)}&limit=1");
+                var rateLimit = rateLimits.FirstOrDefault();
 
                 var now = DateTime.UtcNow;
 
@@ -78,13 +75,10 @@ namespace Lock.Services
                     return false;
                 }
 
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
                 // Check if user already sparked this specific post
-                var existingSpark = await db.Table<SparkTransaction>()
-                    .Where(t => t.UserPhone == userPhone && t.PostId == postId)
-                    .FirstOrDefaultAsync();
+                var existingSparks = await SupabaseService.GetAsync<SparkTransaction>("SparkTransactions",
+                    $"UserPhone=eq.{Uri.EscapeDataString(userPhone)}&PostId=eq.{postId}&limit=1");
+                var existingSpark = existingSparks.FirstOrDefault();
 
                 if (existingSpark != null)
                 {
@@ -93,9 +87,9 @@ namespace Lock.Services
                 }
 
                 // Update or create rate limit record
-                var rateLimit = await db.Table<SparkRateLimit>()
-                    .Where(r => r.UserPhone == userPhone)
-                    .FirstOrDefaultAsync();
+                var rateLimits = await SupabaseService.GetAsync<SparkRateLimit>("SparkRateLimits",
+                    $"UserPhone=eq.{Uri.EscapeDataString(userPhone)}&limit=1");
+                var rateLimit = rateLimits.FirstOrDefault();
 
                 var now = DateTime.UtcNow;
                 var timestamps = new List<DateTime>();
@@ -109,7 +103,7 @@ namespace Lock.Services
                         HourStartTime = now,
                         SparkTimestampsJson = JsonSerializer.Serialize(new List<DateTime> { now })
                     };
-                    await db.InsertAsync(rateLimit);
+                    await SupabaseService.InsertAsync("SparkRateLimits", rateLimit);
                 }
                 else
                 {
@@ -123,7 +117,13 @@ namespace Lock.Services
                     rateLimit.SparkTimestampsJson = JsonSerializer.Serialize(timestamps);
                     rateLimit.HourStartTime = timestamps.FirstOrDefault();
 
-                    await db.UpdateAsync(rateLimit);
+                    await SupabaseService.UpdateAsync("SparkRateLimits", $"Id=eq.{rateLimit.Id}",
+                        new
+                        {
+                            SparkCount = rateLimit.SparkCount,
+                            SparkTimestampsJson = rateLimit.SparkTimestampsJson,
+                            HourStartTime = rateLimit.HourStartTime
+                        });
                 }
 
                 // Record transaction
@@ -134,10 +134,10 @@ namespace Lock.Services
                     PostAuthorPhone = postAuthorPhone,
                     SparkedAt = now
                 };
-                await db.InsertAsync(transaction);
+                await SupabaseService.InsertAsync("SparkTransactions", transaction);
 
                 // Toggle spark on the post
-                await PostRepository.ToggleSparkAsync(postId, userPhone);
+                await ToggleSparkOnPostAsync(postId, userPhone);
 
                 Debug.WriteLine($"Spark recorded: {userPhone} sparked post {postId}");
                 return true;
@@ -156,23 +156,20 @@ namespace Lock.Services
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
                 // Find and delete the transaction
-                var transaction = await db.Table<SparkTransaction>()
-                    .Where(t => t.UserPhone == userPhone && t.PostId == postId)
-                    .FirstOrDefaultAsync();
+                var transactions = await SupabaseService.GetAsync<SparkTransaction>("SparkTransactions",
+                    $"UserPhone=eq.{Uri.EscapeDataString(userPhone)}&PostId=eq.{postId}&limit=1");
+                var transaction = transactions.FirstOrDefault();
 
                 if (transaction != null)
                 {
-                    await db.DeleteAsync(transaction);
+                    await SupabaseService.DeleteAsync("SparkTransactions", $"Id=eq.{transaction.Id}");
                 }
 
                 // Update rate limit (remove one from count)
-                var rateLimit = await db.Table<SparkRateLimit>()
-                    .Where(r => r.UserPhone == userPhone)
-                    .FirstOrDefaultAsync();
+                var rateLimits = await SupabaseService.GetAsync<SparkRateLimit>("SparkRateLimits",
+                    $"UserPhone=eq.{Uri.EscapeDataString(userPhone)}&limit=1");
+                var rateLimit = rateLimits.FirstOrDefault();
 
                 if (rateLimit != null)
                 {
@@ -187,11 +184,17 @@ namespace Lock.Services
 
                     rateLimit.SparkCount = timestamps.Count;
                     rateLimit.SparkTimestampsJson = JsonSerializer.Serialize(timestamps);
-                    await db.UpdateAsync(rateLimit);
+
+                    await SupabaseService.UpdateAsync("SparkRateLimits", $"Id=eq.{rateLimit.Id}",
+                        new
+                        {
+                            SparkCount = rateLimit.SparkCount,
+                            SparkTimestampsJson = rateLimit.SparkTimestampsJson
+                        });
                 }
 
                 // Toggle spark off on the post
-                await PostRepository.ToggleSparkAsync(postId, userPhone);
+                await ToggleSparkOnPostAsync(postId, userPhone, remove: true);
 
                 Debug.WriteLine($"Spark removed: {userPhone} unsparked post {postId}");
                 return true;
@@ -200,6 +203,47 @@ namespace Lock.Services
             {
                 Debug.WriteLine($"RemoveSparkAsync error: {ex}");
                 return false;
+            }
+        }
+
+        /// <summary>
+        /// Helper method to toggle spark on a post
+        /// </summary>
+        private static async Task ToggleSparkOnPostAsync(int postId, string userPhone, bool remove = false)
+        {
+            try
+            {
+                // Get the post
+                var posts = await SupabaseService.GetAsync<Post>("Posts", $"Id=eq.{postId}&limit=1");
+                var post = posts.FirstOrDefault();
+                if (post == null) return;
+
+                var sparkedBy = post.SparkedBy;
+
+                if (remove)
+                {
+                    if (sparkedBy.Contains(userPhone))
+                    {
+                        sparkedBy.Remove(userPhone);
+                    }
+                }
+                else
+                {
+                    if (!sparkedBy.Contains(userPhone))
+                    {
+                        sparkedBy.Add(userPhone);
+                    }
+                }
+
+                post.SparkedBy = sparkedBy;
+
+                // Update the post
+                await SupabaseService.UpdateAsync("Posts", $"Id=eq.{postId}",
+                    new { SparkedByJson = post.SparkedByJson, SparkCount = post.SparkCount });
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"ToggleSparkOnPostAsync error: {ex}");
             }
         }
 
@@ -227,16 +271,15 @@ namespace Lock.Services
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
+                // Get rate limit
+                var rateLimits = await SupabaseService.GetAsync<SparkRateLimit>("SparkRateLimits",
+                    $"UserPhone=eq.{Uri.EscapeDataString(userPhone)}&limit=1");
+                var rateLimit = rateLimits.FirstOrDefault();
 
-                var rateLimit = await db.Table<SparkRateLimit>()
-                    .Where(r => r.UserPhone == userPhone)
-                    .FirstOrDefaultAsync();
-
-                var totalTransactions = await db.Table<SparkTransaction>()
-                    .Where(t => t.UserPhone == userPhone)
-                    .CountAsync();
+                // Count total transactions
+                var transactions = await SupabaseService.GetAsync<SparkTransaction>("SparkTransactions",
+                    $"UserPhone=eq.{Uri.EscapeDataString(userPhone)}");
+                int totalTransactions = transactions.Count;
 
                 int usedThisHour = 0;
                 if (rateLimit != null)

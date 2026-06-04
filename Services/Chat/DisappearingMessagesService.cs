@@ -1,9 +1,9 @@
-﻿using Lock.Chat.Services;
-using Lock.Models.Chat;
-using SQLite;
+﻿using Lock.Models.Chat;
+using Lock.Services;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -30,13 +30,13 @@ namespace Lock.Services.Chat
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
                 // Find all messages that have expired
-                var expiredMessages = await db.Table<ChatMessage>()
-                    .Where(m => m.WillDisappear && m.ExpiresAt != null && m.ExpiresAt <= DateTime.UtcNow)
-                    .ToListAsync();
+                var allMessages = await SupabaseService.GetAsync<ChatMessage>("ChatMessages",
+                    "WillDisappear=eq.true&order=SentAt.asc");
+
+                var expiredMessages = allMessages
+                    .Where(m => m.ExpiresAt.HasValue && m.ExpiresAt.Value <= DateTime.UtcNow)
+                    .ToList();
 
                 if (expiredMessages.Any())
                 {
@@ -59,7 +59,7 @@ namespace Lock.Services.Chat
                         }
 
                         // Delete from database
-                        await db.DeleteAsync(message);
+                        await SupabaseService.DeleteAsync("ChatMessages", $"Id=eq.{message.Id}");
                         Debug.WriteLine($"Deleted expired message ID: {message.Id}");
                     }
 
@@ -67,7 +67,7 @@ namespace Lock.Services.Chat
                     var conversationIds = expiredMessages.Select(m => m.ConversationId).Distinct();
                     foreach (var convId in conversationIds)
                     {
-                        await UpdateConversationPreviewAsync(db, convId);
+                        await UpdateConversationPreviewAsync(convId);
                     }
                 }
             }
@@ -77,20 +77,18 @@ namespace Lock.Services.Chat
             }
         }
 
-        private static async Task UpdateConversationPreviewAsync(SQLiteAsyncConnection db, string conversationId)
+        private static async Task UpdateConversationPreviewAsync(string conversationId)
         {
             try
             {
-                var conversation = await db.Table<Conversation>()
-                    .Where(c => c.ConversationId == conversationId)
-                    .FirstOrDefaultAsync();
-
+                var conversations = await SupabaseService.GetAsync<Conversation>("Conversations",
+                    $"ConversationId=eq.{Uri.EscapeDataString(conversationId)}&limit=1");
+                var conversation = conversations.FirstOrDefault();
                 if (conversation == null) return;
 
-                var lastMsg = await db.Table<ChatMessage>()
-                    .Where(m => m.ConversationId == conversationId)
-                    .OrderByDescending(m => m.SentAt)
-                    .FirstOrDefaultAsync();
+                var lastMsgList = await SupabaseService.GetAsync<ChatMessage>("ChatMessages",
+                    $"ConversationId=eq.{Uri.EscapeDataString(conversationId)}&order=SentAt.desc&limit=1");
+                var lastMsg = lastMsgList.FirstOrDefault();
 
                 if (lastMsg != null)
                 {
@@ -121,7 +119,8 @@ namespace Lock.Services.Chat
                     conversation.LastMessagePreview = string.Empty;
                 }
 
-                await db.UpdateAsync(conversation);
+                await SupabaseService.UpdateAsync("Conversations", $"ConversationId=eq.{Uri.EscapeDataString(conversationId)}",
+                    new { LastMessageAt = conversation.LastMessageAt, LastMessagePreview = conversation.LastMessagePreview });
             }
             catch (Exception ex)
             {

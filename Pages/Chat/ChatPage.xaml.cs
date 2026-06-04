@@ -86,7 +86,7 @@ namespace Lock.Pages.Chat
 
         // Scroll position tracking - changed from string to int to match ChatMessage.Id type
         // Change this line (around line 40-45)
-        private int _lastVisibleMessageId = -1;
+        private string _lastVisibleMessageId = string.Empty;
 
         private string _chatBackgroundPath = string.Empty;
         private double _backgroundBrightness = 0.6;
@@ -99,7 +99,8 @@ namespace Lock.Pages.Chat
         private readonly string _voiceFolder = Path.Combine(FileSystem.AppDataDirectory, "LockChat", "voice_messages");
 
         // Add these fields with your other field declarations
-        private Dictionary<int, IAudioPlayer> _activePlayers = new(); // Track active audio players by message Id
+        private Dictionary<string, IAudioPlayer> _activePlayers = new();
+
         private ChatMessage _currentlyPlayingMessage = null;
         private IAudioPlayer? _currentPlayer;
         private Stream? _currentAudioStream;
@@ -115,7 +116,7 @@ namespace Lock.Pages.Chat
         private bool _migrationDone = false;
 
         // Add this field to your ChatPage fields
-        private int? _scrollToMessageId = null;
+        private string? _scrollToMessageId = null;
         private bool _hasUnlockedForCurrentSession = false;
         private CancellationTokenSource _chatLoaderCts = new();
 
@@ -178,20 +179,16 @@ namespace Lock.Pages.Chat
         // Add this method to ChatPage
         private async Task ScrollToSpecificMessageAsync()
         {
-            if (_scrollToMessageId.HasValue && Messages.Any())
+            if (!string.IsNullOrEmpty(_scrollToMessageId) && Messages.Any())
             {
-                var targetMessage = Messages.FirstOrDefault(m => m.Id == _scrollToMessageId.Value);
+                var targetMessage = Messages.FirstOrDefault(m => m.Id == _scrollToMessageId);
                 if (targetMessage != null)
                 {
-                    // Small delay to ensure the CollectionView is rendered
                     await Task.Delay(100);
-
                     var cv = this.FindByName<CollectionView>("MessagesCollectionView");
                     if (cv != null)
                     {
                         cv.ScrollTo(targetMessage, position: ScrollToPosition.Center, animate: true);
-
-                        // Highlight the message briefly
                         await HighlightMessageAsync(targetMessage);
                     }
                 }
@@ -233,13 +230,10 @@ namespace Lock.Pages.Chat
                 _otherPhone = Uri.UnescapeDataString(otherPhoneStr);
             }
 
-            // Add this to capture message ID for scrolling
+            // Fix: messageId is now string
             if (query.TryGetValue("messageId", out var msgIdObj) && msgIdObj is string msgIdStr)
             {
-                if (int.TryParse(msgIdStr, out int msgId))
-                {
-                    _scrollToMessageId = msgId;
-                }
+                _scrollToMessageId = msgIdStr; // No conversion needed - now string
             }
         }
         public ChatPage()
@@ -437,14 +431,13 @@ namespace Lock.Pages.Chat
         {
             Debug.WriteLine("Stopping all playback");
 
-            var messagesToStop = _activePlayers.Keys.ToList();
+            var messagesToStop = _activePlayers.Keys.ToList();  // Now List<string>
             var currentMessage = _currentlyPlayingMessage;
 
             await Task.Run(() =>
             {
                 try
                 {
-                    // Stop all tracked players
                     foreach (var kvp in _activePlayers.ToList())
                     {
                         try
@@ -464,7 +457,6 @@ namespace Lock.Pages.Chat
                     }
                     _activePlayers.Clear();
 
-                    // Stop current player
                     if (_currentPlayer != null)
                     {
                         try
@@ -480,7 +472,6 @@ namespace Lock.Pages.Chat
                         _currentPlayer = null;
                     }
 
-                    // Dispose stream
                     if (_currentAudioStream != null)
                     {
                         try
@@ -500,19 +491,16 @@ namespace Lock.Pages.Chat
                 }
             });
 
-            // Update UI on main thread
             await MainThread.InvokeOnMainThreadAsync(() =>
             {
                 try
                 {
-                    // Update the specific message that was playing
                     if (currentMessage != null)
                     {
                         currentMessage.IsVoicePlaying = false;
                         currentMessage.VoicePlaybackProgress = 0;
                     }
 
-                    // Reset any stuck messages
                     foreach (var msgId in messagesToStop)
                     {
                         var msg = Messages.FirstOrDefault(m => m.Id == msgId);
@@ -861,7 +849,7 @@ namespace Lock.Pages.Chat
 
                     _isFirstLoad = false;
 
-                    if (_scrollToMessageId.HasValue)
+                    if (!string.IsNullOrEmpty(_scrollToMessageId))
                         await ScrollToSpecificMessageAsync();
                 }
                 else
@@ -1044,11 +1032,9 @@ namespace Lock.Pages.Chat
         {
             try
             {
-                await Lock.Chat.Services.DatabaseService.InitializeAsync();
-                var db = Lock.Chat.Services.DatabaseService.GetConnection();
-                var user = await db.Table<Lock.Models.User>()
-                    .Where(u => u.PhoneNumber == _otherPhone)
-                    .FirstOrDefaultAsync();
+                var users = await SupabaseService.GetAsync<Lock.Models.User>("Users",
+                    $"PhoneNumber=eq.{Uri.EscapeDataString(_otherPhone)}&limit=1");
+                var user = users.FirstOrDefault();
 
                 await MainThread.InvokeOnMainThreadAsync(() =>
                 {
@@ -1837,7 +1823,8 @@ namespace Lock.Pages.Chat
                 // Store references
                 _currentPlayer = player;
                 _currentAudioStream = stream;
-                _activePlayers[message.Id] = player;
+                if (_activePlayers.ContainsKey(message.Id))
+                    _activePlayers.Remove(message.Id);
                 _currentlyPlayingMessage = message;
 
                 // Start progress tracking (don't await it)
@@ -2357,28 +2344,23 @@ namespace Lock.Pages.Chat
             }
         });
 
-        public async void ScrollToMessage(int messageId)
+        public async void ScrollToMessage(string messageId)  // Changed from int to string
         {
             try
             {
-                // Find the message in the current collection
                 var targetMessage = Messages.FirstOrDefault(m => m.Id == messageId);
                 if (targetMessage != null)
                 {
                     await Task.Delay(100);
-
                     var cv = this.FindByName<CollectionView>("MessagesCollectionView");
                     if (cv != null)
                     {
                         cv.ScrollTo(targetMessage, position: ScrollToPosition.Center, animate: true);
-
-                        // Optional: Highlight the message briefly
                         await HighlightMessageAsync(targetMessage);
                     }
                 }
                 else
                 {
-                    // Message not in current collection, reload messages
                     await LoadMessagesAsync();
                     targetMessage = Messages.FirstOrDefault(m => m.Id == messageId);
                     if (targetMessage != null)
@@ -2755,78 +2737,7 @@ private async Task MigrateOldRecordingsAsync()
         Debug.WriteLine($"Migration error: {ex}");
     }
 }
-        public static async Task<List<ChatMessage>> GetMessagesAsync(
-     string conversationId, int max = 200, int skip = 0)
-        {
-            await DatabaseService.InitializeAsync();
-            var db = DatabaseService.GetConnection();
 
-            try
-            {
-                var query = db.Table<ChatMessage>()
-                    .Where(m => m.ConversationId == conversationId && !m.IsBlocked)
-                    .OrderByDescending(m => m.SentAt)   // newest first for efficient skip
-                    .Skip(skip)
-                    .Take(max);
-
-                var messages = await query.ToListAsync();
-                messages = messages.OrderBy(m => m.SentAt).ToList(); // re-sort oldest?newest
-
-                // Deserialize MediaItems
-                foreach (var msg in messages)
-                {
-                    if (!string.IsNullOrEmpty(msg.MediaItemsJson))
-                    {
-                        try
-                        {
-                            msg.MediaItems = System.Text.Json.JsonSerializer
-                                .Deserialize<List<ChatMediaItem>>(msg.MediaItemsJson)
-                                ?? new List<ChatMediaItem>();
-                        }
-                        catch { msg.MediaItems = new List<ChatMediaItem>(); }
-                    }
-                    else
-                    {
-                        msg.MediaItems = new List<ChatMediaItem>();
-                    }
-
-                    // Backward compat: build MediaItems from legacy fields
-                    if (msg.MediaItems.Count == 0 && !string.IsNullOrEmpty(msg.MediaPath))
-                    {
-                        if (msg.IsVoiceMessage)
-                        {
-                            msg.MediaItems = new List<ChatMediaItem>
-                    {
-                        ChatMediaItem.CreateAudio(
-                            msg.MediaPath,
-                            msg.VoiceDurationSeconds ?? 5,
-                            msg.VoiceWaveformData)
-                    };
-                        }
-                        else if (msg.MediaType == "image")
-                        {
-                            msg.MediaItems = new List<ChatMediaItem>
-                    {
-                        ChatMediaItem.CreateImage(msg.MediaPath)
-                    };
-                        }
-
-                        if (msg.MediaItems.Count > 0)
-                        {
-                            msg.MediaItemsJson = System.Text.Json.JsonSerializer.Serialize(msg.MediaItems);
-                            await db.UpdateAsync(msg);
-                        }
-                    }
-                }
-
-                return messages;
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error in GetMessagesAsync: {ex.Message}");
-                return new List<ChatMessage>();
-            }
-        }
 
         private async void OnEndorsementRequestTapped(object sender, TappedEventArgs e)
         {
@@ -2914,16 +2825,16 @@ private async Task MigrateOldRecordingsAsync()
                 await DisplayAlert("Error", "Could not process endorsement request", "OK");
             }
         }
+        // Update ProcessEndorsementResponseAsync - replace with Supabase version
         private async Task ProcessEndorsementResponseAsync(string requestId, bool accept, ChatMessage originalMessage)
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
                 // Get current user (the endorser)
                 string currentUserPhone = Preferences.Get("current_user_phone", string.Empty);
-                var currentUser = await db.Table<User>().Where(u => u.PhoneNumber == currentUserPhone).FirstOrDefaultAsync();
+                var users = await SupabaseService.GetAsync<User>("Users",
+                    $"PhoneNumber=eq.{Uri.EscapeDataString(currentUserPhone)}&limit=1");
+                var currentUser = users.FirstOrDefault();
 
                 if (currentUser == null) return;
 
@@ -2984,7 +2895,8 @@ private async Task MigrateOldRecordingsAsync()
 
                         // Update the original message to show it was accepted
                         originalMessage.EndorsementStatus = "accepted";
-                        await ChatRepository.UpdateMessageAsync(originalMessage);
+                        await SupabaseService.UpdateAsync("ChatMessages", $"Id=eq.{originalMessage.Id}",
+                            new { EndorsementStatus = "accepted" });
 
                         // Find and update the message in the collection to refresh UI
                         var index = Messages.IndexOf(originalMessage);
@@ -3028,7 +2940,8 @@ private async Task MigrateOldRecordingsAsync()
 
                     // Update the original message status
                     originalMessage.EndorsementStatus = "declined";
-                    await ChatRepository.UpdateMessageAsync(originalMessage);
+                    await SupabaseService.UpdateAsync("ChatMessages", $"Id=eq.{originalMessage.Id}",
+                        new { EndorsementStatus = "declined" });
 
                     // Find and update the message in the collection to refresh UI
                     var index = Messages.IndexOf(originalMessage);
@@ -3049,6 +2962,7 @@ private async Task MigrateOldRecordingsAsync()
                 await DisplayAlert("Error", $"Failed to process endorsement: {ex.Message}", "OK");
             }
         }
+
 
         private async void EncryptionNotice_Tapped(object sender, TappedEventArgs e)
         {
@@ -3107,58 +3021,48 @@ private async Task MigrateOldRecordingsAsync()
                 var postMessages = messages.Where(m => m.MessageType == "post").ToList();
                 if (!postMessages.Any()) return;
 
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
+                // Get all users at once for efficiency
+                var allUsers = await SupabaseService.GetAsync<Lock.Models.User>("Users", "");
+                var userDict = allUsers.ToDictionary(u => u.PhoneNumber, u => u, StringComparer.OrdinalIgnoreCase);
 
                 foreach (var msg in postMessages)
                 {
                     try
                     {
-                        // Try to find the post author by PostAuthor name or SenderPhone
                         User user = null;
 
-                        // First try: look up by the original post's author phone
-                        // The PostAuthor field has the display name, so search by name
-                        if (!string.IsNullOrEmpty(msg.PostAuthor))
+                        // First try: PostAuthorPhone
+                        if (!string.IsNullOrEmpty(msg.PostAuthorPhone))
                         {
-                            user = await db.Table<User>()
-                                .Where(u => u.Name == msg.PostAuthor)
-                                .FirstOrDefaultAsync();
+                            userDict.TryGetValue(msg.PostAuthorPhone, out user);
                         }
 
-                        // Second try: look up the post itself to get the author phone
+                        // Second try: PostAuthor by name
+                        if (user == null && !string.IsNullOrEmpty(msg.PostAuthor))
+                        {
+                            user = allUsers.FirstOrDefault(u => u.Name == msg.PostAuthor);
+                        }
+
+                        // Third try: look up the post itself
                         if (user == null && msg.PostId.HasValue && msg.PostId.Value > 0)
                         {
-                            var post = await db.Table<Lock.Models.Post>()
-                                .Where(p => p.Id == msg.PostId.Value)
-                                .FirstOrDefaultAsync();
+                            var posts = await SupabaseService.GetAsync<Lock.Models.Post>("Posts",
+                                $"Id=eq.{msg.PostId.Value}&limit=1");
+                            var post = posts.FirstOrDefault();
 
                             if (post != null && !string.IsNullOrEmpty(post.AuthorPhone))
                             {
-                                user = await db.Table<User>()
-                                    .Where(u => u.PhoneNumber == post.AuthorPhone)
-                                    .FirstOrDefaultAsync();
+                                userDict.TryGetValue(post.AuthorPhone, out user);
                             }
                         }
 
-                        // Inside the foreach loop, add PostAuthorPhone as first priority:
-                        if (user == null && !string.IsNullOrEmpty(msg.PostAuthorPhone))
-                        {
-                            user = await db.Table<User>()
-                                .Where(u => u.PhoneNumber == msg.PostAuthorPhone)
-                                .FirstOrDefaultAsync();
-                        }
-
-                        // Third try: use sender phone as fallback
+                        // Fourth try: use sender phone as fallback
                         if (user == null && !string.IsNullOrEmpty(msg.SenderPhone))
                         {
-                            user = await db.Table<User>()
-                                .Where(u => u.PhoneNumber == msg.SenderPhone)
-                                .FirstOrDefaultAsync();
+                            userDict.TryGetValue(msg.SenderPhone, out user);
                         }
 
-                        if (user != null && !string.IsNullOrEmpty(user.ProfileImagePath)
-                            && File.Exists(user.ProfileImagePath))
+                        if (user != null && !string.IsNullOrEmpty(user.ProfileImagePath) && File.Exists(user.ProfileImagePath))
                         {
                             msg.PostAuthorProfileImage = user.ProfileImagePath;
                             Debug.WriteLine($"Resolved post author image for msg {msg.Id}: {user.ProfileImagePath}");
@@ -3166,7 +3070,6 @@ private async Task MigrateOldRecordingsAsync()
                         else
                         {
                             msg.PostAuthorProfileImage = string.Empty;
-                            Debug.WriteLine($"No profile image found for post author in msg {msg.Id}");
                         }
                     }
                     catch (Exception ex)
@@ -3490,14 +3393,11 @@ private async Task MigrateOldRecordingsAsync()
             if (message == null || !message.IsEncrypted)
                 return;
 
-            // Decrypt the message
             await ChatEncryptionService.DecryptMessageAsync(message);
 
-            // Find and update in collection
             var index = Messages.IndexOf(message);
             if (index >= 0)
             {
-                // Force UI update by replacing the item
                 Messages[index] = message;
             }
         }
@@ -4116,24 +4016,35 @@ private async Task MigrateOldRecordingsAsync()
         }
 
 
-
         private async Task SaveDisappearingMessagesSettingAsync(string setting)
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
-                var conversation = await db.Table<Conversation>()
-                    .Where(c => c.ConversationId == _conversationId)
-                    .FirstOrDefaultAsync();
-
-                if (conversation != null)
+                int timerSeconds = setting switch
                 {
-                    // Use the helper method we added to the Conversation model
-                    conversation.UpdateDisappearingSetting(setting, _me);
-                    await db.UpdateAsync(conversation);
+                    "5 seconds" => 5,
+                    "5 minutes" => 300,
+                    "15 minutes" => 900,
+                    "1 hour" => 3600,
+                    "24 hours" => 86400,
+                    "1 week" => 604800,
+                    _ => 0
+                };
 
+                bool enabled = setting != "Off";
+
+                var success = await SupabaseService.UpdateAsync("Conversations", $"ConversationId=eq.{Uri.EscapeDataString(_conversationId)}",
+                    new
+                    {
+                        DisappearingMessagesSetting = setting,
+                        DisappearingMessagesEnabled = enabled,
+                        DisappearingMessagesTimer = timerSeconds,
+                        DisappearingMessagesChangedBy = _me,
+                        DisappearingMessagesChangedAt = DateTime.UtcNow
+                    });
+
+                if (success)
+                {
                     Debug.WriteLine($"Saved disappearing messages setting: {setting} for conversation {_conversationId}");
                 }
             }
@@ -4147,12 +4058,9 @@ private async Task MigrateOldRecordingsAsync()
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
-                var conversation = await db.Table<Conversation>()
-                    .Where(c => c.ConversationId == _conversationId)
-                    .FirstOrDefaultAsync();
+                var conversations = await SupabaseService.GetAsync<Conversation>("Conversations",
+                    $"ConversationId=eq.{Uri.EscapeDataString(_conversationId)}&limit=1");
+                var conversation = conversations.FirstOrDefault();
 
                 if (conversation != null && conversation.HasDisappearingMessages)
                 {
@@ -4665,7 +4573,8 @@ private async Task MigrateOldRecordingsAsync()
                     Type = "image"
                 }).ToList();
 
-                int originalMessageId = _editingMessage.Id;
+                // FIXED: Use string for message ID
+                string originalMessageId = _editingMessage.Id;
                 DateTime originalSentAt = _editingMessage.SentAt;
                 bool wasPinned = _editingMessage.IsPinned;
                 bool wasStarred = _editingMessage.IsStarred;
@@ -4676,7 +4585,7 @@ private async Task MigrateOldRecordingsAsync()
 
                 var updatedMessage = new ChatMessage
                 {
-                    Id = originalMessageId,
+                    Id = originalMessageId,  // Now string to string
                     ConversationId = _editingMessage.ConversationId,
                     SenderPhone = _editingMessage.SenderPhone,
                     RecipientPhone = _editingMessage.RecipientPhone,
@@ -6503,23 +6412,12 @@ END:VCARD";
                     forwardedPost.MediaPath = originalPost.MediaPath;
                 }
 
-                // Save to database
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-                await db.InsertAsync(forwardedPost);
+                // Save to Supabase
+                await SupabaseService.InsertAsync("ChatMessages", forwardedPost);
 
                 // Update conversation last message
-                var conversation = await db.Table<Conversation>()
-                    .Where(c => c.ConversationId == targetConversationId)
-                    .FirstOrDefaultAsync();
-
-                if (conversation != null)
-                {
-                    conversation.LastMessagePreview = $"?? Forwarded post: {originalPost.PostPreview}";
-                    conversation.LastMessageAt = DateTime.UtcNow;
-                    conversation.LastMessageType = "post";
-                    await db.UpdateAsync(conversation);
-                }
+                await SupabaseService.UpdateAsync("Conversations", $"ConversationId=eq.{Uri.EscapeDataString(targetConversationId)}",
+                    new { LastMessagePreview = $"?? Forwarded post: {originalPost.PostPreview}", LastMessageAt = DateTime.UtcNow, LastMessageType = "post" });
 
                 // Notify that messages have been updated
                 MessagingCenter.Send(this, "MessagesUpdated");
@@ -6676,12 +6574,10 @@ END:VCARD";
                     return;
                 }
 
-                // Verify the post still exists
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-                var post = await db.Table<Lock.Models.Post>()
-                    .Where(p => p.Id == message.PostId.Value)
-                    .FirstOrDefaultAsync();
+                // Verify the post still exists in Supabase
+                var posts = await SupabaseService.GetAsync<Lock.Models.Post>("Posts",
+                    $"Id=eq.{message.PostId.Value}&limit=1");
+                var post = posts.FirstOrDefault();
 
                 if (post == null)
                 {
@@ -6767,14 +6663,12 @@ END:VCARD";
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
                 // Check if conversation already exists
-                var existingConversation = await db.Table<Conversation>()
-                    .Where(c => (c.ParticipantA == userPhone && c.ParticipantB == contactPhone) ||
-                               (c.ParticipantA == contactPhone && c.ParticipantB == userPhone))
-                    .FirstOrDefaultAsync();
+                var existingConvs = await SupabaseService.GetAsync<Conversation>("Conversations",
+                    $"or(and(ParticipantA.eq.{Uri.EscapeDataString(userPhone)},ParticipantB.eq.{Uri.EscapeDataString(contactPhone)})," +
+                    $"and(ParticipantA.eq.{Uri.EscapeDataString(contactPhone)},ParticipantB.eq.{Uri.EscapeDataString(userPhone)}))&limit=1");
+
+                var existingConversation = existingConvs.FirstOrDefault();
 
                 if (existingConversation != null)
                     return existingConversation.ConversationId;
@@ -6791,7 +6685,7 @@ END:VCARD";
                     CreatedAt = DateTime.UtcNow
                 };
 
-                await db.InsertAsync(conversation);
+                await SupabaseService.InsertAsync("Conversations", conversation);
                 return conversationId;
             }
             catch (Exception ex)
@@ -6800,6 +6694,8 @@ END:VCARD";
                 throw;
             }
         }
+
+
 
         // ?? Gift button tapped ?????????????????????????????????????????????
         private async void GiftButton_Tapped(object sender, TappedEventArgs e)

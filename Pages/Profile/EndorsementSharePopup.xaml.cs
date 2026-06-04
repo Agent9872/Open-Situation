@@ -6,6 +6,7 @@ using Lock.Pages.Chat;
 using Lock.Services;
 using Microsoft.Maui.ApplicationModel;
 using System.Diagnostics;
+using System.Linq;
 
 namespace Lock.Pages.Profile;
 
@@ -123,9 +124,11 @@ public partial class EndorsementSharePopup : Popup
             // Get or create conversation
             string conversationId = await GetOrCreateConversationAsync(currentUserPhone, targetUserPhone, targetUserName);
 
-            // Create message
+            // Create message - DON'T set Id, let Supabase auto-generate it or use int
             var message = new ChatMessage
             {
+                // Remove the Id assignment - let Supabase handle it
+                // If your ChatMessage uses int Id, you cannot assign a string GUID
                 ConversationId = conversationId,
                 SenderPhone = currentUserPhone,
                 RecipientPhone = targetUserPhone,
@@ -137,20 +140,20 @@ public partial class EndorsementSharePopup : Popup
                 IsLocalOutgoing = true
             };
 
-            await DatabaseService.InitializeAsync();
-            var db = DatabaseService.GetConnection();
-            await db.InsertAsync(message);
+            // Insert message to Supabase
+            await SupabaseService.InsertAsync("ChatMessages", message);
 
             // Update conversation
-            var conversation = await db.Table<Conversation>()
-                .Where(c => c.ConversationId == conversationId)
-                .FirstOrDefaultAsync();
+            var conversations = await SupabaseService.GetAsync<Conversation>("Conversations",
+                $"ConversationId=eq.{Uri.EscapeDataString(conversationId)}&limit=1");
+
+            var conversation = conversations.FirstOrDefault();
 
             if (conversation != null)
             {
                 conversation.LastMessagePreview = _shareText.Length > 50 ? _shareText.Substring(0, 50) + "..." : _shareText;
                 conversation.LastMessageAt = DateTime.UtcNow;
-                await db.UpdateAsync(conversation);
+                await SupabaseService.UpdateAsync("Conversations", $"ConversationId=eq.{Uri.EscapeDataString(conversationId)}", conversation);
             }
 
             MessagingCenter.Send(this, "MessagesUpdated");
@@ -175,13 +178,12 @@ public partial class EndorsementSharePopup : Popup
     {
         try
         {
-            await DatabaseService.InitializeAsync();
-            var db = DatabaseService.GetConnection();
+            // Check for existing conversation in Supabase
+            var existingConversations = await SupabaseService.GetAsync<Conversation>("Conversations",
+                $"(ParticipantA=eq.{Uri.EscapeDataString(userPhone)}&ParticipantB=eq.{Uri.EscapeDataString(contactPhone)})" +
+                $"or(ParticipantA=eq.{Uri.EscapeDataString(contactPhone)}&ParticipantB=eq.{Uri.EscapeDataString(userPhone)})&limit=1");
 
-            var existingConversation = await db.Table<Conversation>()
-                .Where(c => (c.ParticipantA == userPhone && c.ParticipantB == contactPhone) ||
-                           (c.ParticipantA == contactPhone && c.ParticipantB == userPhone))
-                .FirstOrDefaultAsync();
+            var existingConversation = existingConversations.FirstOrDefault();
 
             if (existingConversation != null)
                 return existingConversation.ConversationId;
@@ -197,7 +199,7 @@ public partial class EndorsementSharePopup : Popup
                 CreatedAt = DateTime.UtcNow
             };
 
-            await db.InsertAsync(conversation);
+            await SupabaseService.InsertAsync("Conversations", conversation);
             return conversationId;
         }
         catch (Exception ex)

@@ -233,15 +233,19 @@ private CancellationTokenSource _loaderCts = new();
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-                var allUsers = await db.Table<User>().ToListAsync();
+                // Replace this:
+                // await DatabaseService.InitializeAsync();
+                // var db = DatabaseService.GetConnection();
+                // var allUsers = await db.Table<User>().ToListAsync();
+
+                // With this:
+                var allUsers = await SupabaseService.GetAsync<User>("Users", "GhostModeMoodShield=eq.false");
 
                 var filtered = allUsers
                     .Where(u => !string.Equals(u.PhoneNumber, _currentUserPhone,
                                 StringComparison.OrdinalIgnoreCase)
                              && !u.GhostModeMoodShield
-                             && !u.HidePhoneNumber)  // ADD THIS - exclude users hiding phone number
+                             && !u.HidePhoneNumber)
                     .ToList();
 
                 // Store for reshuffling
@@ -255,6 +259,8 @@ private CancellationTokenSource _loaderCts = new();
                 Debug.WriteLine($"LoadSuggestedUsersAsync error: {ex}");
             }
         }
+
+
         private List<User> _allSuggestedUsers = new();
 
         private void PopulateSuggestedCards()
@@ -642,18 +648,16 @@ private CancellationTokenSource _loaderCts = new();
                     // Load author mood and display name
                     if (!string.IsNullOrEmpty(_post.AuthorPhone))
                     {
-                        await DatabaseService.InitializeAsync();
-                        var db = DatabaseService.GetConnection();
-                        var authorUser = await db.Table<User>()
-                            .Where(u => u.PhoneNumber == _post.AuthorPhone)
-                            .FirstOrDefaultAsync();
+                       
+                        var authorUsers = await SupabaseService.GetAsync<User>("Users",
+                            $"PhoneNumber=eq.{Uri.EscapeDataString(_post.AuthorPhone)}&limit=1");
+                        var authorUser = authorUsers.FirstOrDefault();
 
                         if (authorUser != null)
                         {
                             _post.AuthorMood = authorUser.Mood ?? string.Empty;
                             _post.AuthorDisplayName = string.IsNullOrWhiteSpace(authorUser.Name) ? _post.AuthorPhone : authorUser.Name;
 
-                            // ── Hide phone number if user has toggled it on ──────────────
                             var currentUserPhone = Preferences.Get("current_user_phone", string.Empty);
                             bool isOwnPost = string.Equals(currentUserPhone, authorUser.PhoneNumber,
                                               StringComparison.OrdinalIgnoreCase);
@@ -747,11 +751,20 @@ private CancellationTokenSource _loaderCts = new();
                     return;
                 }
 
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
+                // Replace this:
+                // await DatabaseService.InitializeAsync();
+                // var db = DatabaseService.GetConnection();
+                // var currentUser = await db.Table<User>().Where(u => u.PhoneNumber == currentUserPhone).FirstOrDefaultAsync();
+                // var targetUser = await db.Table<User>().Where(u => u.PhoneNumber == post.AuthorPhone).FirstOrDefaultAsync();
 
-                var currentUser = await db.Table<User>().Where(u => u.PhoneNumber == currentUserPhone).FirstOrDefaultAsync();
-                var targetUser = await db.Table<User>().Where(u => u.PhoneNumber == post.AuthorPhone).FirstOrDefaultAsync();
+                // With this:
+                var currentUsers = await SupabaseService.GetAsync<User>("Users",
+                    $"PhoneNumber=eq.{Uri.EscapeDataString(currentUserPhone)}&limit=1");
+                var currentUser = currentUsers.FirstOrDefault();
+
+                var targetUsers = await SupabaseService.GetAsync<User>("Users",
+                    $"PhoneNumber=eq.{Uri.EscapeDataString(post.AuthorPhone)}&limit=1");
+                var targetUser = targetUsers.FirstOrDefault();
 
                 if (currentUser == null || targetUser == null)
                 {
@@ -959,9 +972,16 @@ private CancellationTokenSource _loaderCts = new();
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-                var user = await db.Table<User>().Where(u => u.PhoneNumber == phone).FirstOrDefaultAsync();
+                // Replace this SQLite code:
+                // await DatabaseService.InitializeAsync();
+                // var db = DatabaseService.GetConnection();
+                // var user = await db.Table<User>().Where(u => u.PhoneNumber == phone).FirstOrDefaultAsync();
+                // return user?.Name ?? phone;
+
+                // With this Supabase code:
+                var users = await SupabaseService.GetAsync<Lock.Models.User>("Users",
+                    $"PhoneNumber=eq.{Uri.EscapeDataString(phone)}&limit=1");
+                var user = users.FirstOrDefault();
                 return user?.Name ?? phone;
             }
             catch { return phone; }
@@ -981,9 +1001,15 @@ private CancellationTokenSource _loaderCts = new();
                 }
                 catch { }
 
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-                var user = await db.Table<User>().Where(u => u.PhoneNumber == phone).FirstOrDefaultAsync();
+                // Replace this SQLite code:
+                // await DatabaseService.InitializeAsync();
+                // var db = DatabaseService.GetConnection();
+                // var user = await db.Table<User>().Where(u => u.PhoneNumber == phone).FirstOrDefaultAsync();
+
+                // With this Supabase code:
+                var users = await SupabaseService.GetAsync<Lock.Models.User>("Users",
+                    $"PhoneNumber=eq.{Uri.EscapeDataString(phone)}&limit=1");
+                var user = users.FirstOrDefault();
 
                 if (user != null && !string.IsNullOrWhiteSpace(user.ProfileImagePath) && File.Exists(user.ProfileImagePath))
                 {

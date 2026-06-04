@@ -621,7 +621,67 @@ namespace Lock.Pages.Admin
                 LoadingIndicator.IsVisible = false;
                 LoadingIndicator.IsRunning = false;
                 Debug.WriteLine($"LoadActivities error: {ex}");
+                await DisplayAlert("Error", $"Failed to load activities: {ex.Message}", "OK");
             }
+        }
+
+        private async Task<List<UserActivity>> LoadUserActivitiesFromDatabase()
+        {
+            var activities = new List<UserActivity>();
+            try
+            {
+                // Get recent posts from Supabase
+                var posts = await SupabaseService.GetAsync<Lock.Models.Post>("Posts",
+                    "order=CreatedAt.desc&limit=50");
+
+                foreach (var post in posts)
+                {
+                    // Get the author's user info - changed variable name to 'authorUsers'
+                    var authorUsers = await SupabaseService.GetAsync<User>("Users",
+                        $"PhoneNumber=eq.{Uri.EscapeDataString(post.AuthorPhone)}&limit=1");
+                    var author = authorUsers.FirstOrDefault();
+
+                    activities.Add(new UserActivity
+                    {
+                        Id = $"post_{post.Id}",
+                        UserId = post.AuthorPhone,
+                        UserName = author?.Name ?? post.AuthorPhone,
+                        ProfileImage = GetValidProfileImagePath(author?.ProfileImagePath),
+                        ActivityType = "Post Created",
+                        Title = "New Post",
+                        Description = post.Content?.Length > 100
+                            ? post.Content.Substring(0, 100) + "..."
+                            : post.Content ?? "Shared a post",
+                        Icon = "M160-200v-80h80v-560h400l120 120v440h80v80H160Zm300-160q17 0 28.5-11.5T500-400q0-17-11.5-28.5T460-440q-17 0-28.5 11.5T420-400q0 17 11.5 28.5T460-360Zm0-160q17 0 28.5-11.5T500-560v-160q0-17-11.5-28.5T460-760q-17 0-28.5 11.5T420-720v160q0 17 11.5 28.5T460-520Z",
+                        Timestamp = post.CreatedAt
+                    });
+                }
+
+                // Get recent user joins from Supabase - changed variable name to 'recentUsers'
+                var recentUsers = await SupabaseService.GetAsync<User>("Users",
+                    "order=JoinDate.desc&limit=50");
+
+                foreach (var user in recentUsers)
+                {
+                    activities.Add(new UserActivity
+                    {
+                        Id = $"user_{user.Id}_{user.JoinDate.Ticks}",
+                        UserId = user.PhoneNumber,
+                        UserName = user.Name,
+                        ProfileImage = GetValidProfileImagePath(user.ProfileImagePath),
+                        ActivityType = "User Joined",
+                        Title = "New User Registered",
+                        Description = $"{user.Name} joined Lock",
+                        Icon = "M480-480q-66 0-113-47t-47-113q0-66 47-113t113-47q66 0 113 47t47 113q0 66-47 113t-113 47ZM160-160v-112q0-34 17.5-62.5T224-378q62-31 126-46.5T480-440q66 0 130 15.5T736-378q29 15 46.5 43.5T800-272v112H160Z",
+                        Timestamp = user.JoinDate
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"LoadUserActivitiesFromDatabase error: {ex}");
+            }
+            return activities;
         }
 
         protected override void OnNavigatedTo(NavigatedToEventArgs args)
@@ -996,76 +1056,14 @@ namespace Lock.Pages.Admin
                 });
             }
         }
-        private async Task<List<UserActivity>> LoadUserActivitiesFromDatabase()
-        {
-            var activities = new List<UserActivity>();
-            try
-            {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
-                var posts = await db.Table<Lock.Models.Post>()
-                                    .OrderByDescending(p => p.CreatedAt)
-                                    .Take(50).ToListAsync();
-
-                foreach (var post in posts)
-                {
-                    var user = await db.Table<User>()
-                                       .Where(u => u.PhoneNumber == post.AuthorPhone)
-                                       .FirstOrDefaultAsync();
-
-                    activities.Add(new UserActivity
-                    {
-                        Id = $"post_{post.Id}",
-                        UserId = post.AuthorPhone,
-                        UserName = user?.Name ?? post.AuthorPhone,
-                        ProfileImage = GetValidProfileImagePath(user?.ProfileImagePath),
-                        ActivityType = "Post Created",
-                        Title = "New Post",
-                        Description = post.Content?.Length > 100
-                            ? post.Content.Substring(0, 100) + "..."
-                            : post.Content ?? "Shared a post",
-                        Icon = "M160-200v-80h80v-560h400l120 120v440h80v80H160Zm300-160q17 0 28.5-11.5T500-400q0-17-11.5-28.5T460-440q-17 0-28.5 11.5T420-400q0 17 11.5 28.5T460-360Zm0-160q17 0 28.5-11.5T500-560v-160q0-17-11.5-28.5T460-760q-17 0-28.5 11.5T420-720v160q0 17 11.5 28.5T460-520Z",
-                        Timestamp = post.CreatedAt
-                    });
-                }
-
-                var users = await db.Table<User>()
-                                    .OrderByDescending(u => u.JoinDate)
-                                    .Take(50).ToListAsync();
-
-                foreach (var user in users)
-                {
-                    activities.Add(new UserActivity
-                    {
-                        Id = $"user_{user.Id}_{user.JoinDate.Ticks}",
-                        UserId = user.PhoneNumber,
-                        UserName = user.Name,
-                        ProfileImage = GetValidProfileImagePath(user.ProfileImagePath),
-                        ActivityType = "User Joined",
-                        Title = "New User Registered",
-                        Description = $"{user.Name} joined Lock",
-                        Icon = "M480-480q-66 0-113-47t-47-113q0-66 47-113t113-47q66 0 113 47t47 113q0 66-47 113t-113 47ZM160-160v-112q0-34 17.5-62.5T224-378q62-31 126-46.5T480-440q66 0 130 15.5T736-378q29 15 46.5 43.5T800-272v112H160Z",
-                        Timestamp = user.JoinDate
-                    });
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"LoadUserActivitiesFromDatabase error: {ex}");
-            }
-            return activities;
-        }
-
         private async Task<List<ProfileChange>> LoadProfileChangesFromDatabase()
         {
             var changes = new List<ProfileChange>();
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
+                // FIXED: Use Supabase instead of SQLite
+                var users = await SupabaseService.GetAsync<User>("Users", "");
 
-                var users = await db.Table<User>().ToListAsync();
                 foreach (var user in users)
                 {
                     var resolvedImage = GetValidProfileImagePath(user.ProfileImagePath);

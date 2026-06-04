@@ -1,5 +1,5 @@
-﻿using Lock.Chat.Services;
-using Lock.Models;
+﻿using Lock.Models;
+using Lock.Services;
 using Microsoft.Maui.Storage;
 using System;
 using System.Diagnostics;
@@ -19,12 +19,9 @@ namespace Lock.Services
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
-                var user = await db.Table<User>()
-                    .Where(u => u.PhoneNumber == phone)
-                    .FirstOrDefaultAsync();
+                var users = await SupabaseService.GetAsync<User>("Users",
+                    $"PhoneNumber=eq.{Uri.EscapeDataString(phone)}&limit=1");
+                var user = users.FirstOrDefault();
 
                 if (user == null)
                 {
@@ -43,8 +40,12 @@ namespace Lock.Services
                     : $"Your account has been temporarily suspended until {expiresAt:MMM dd, yyyy 'at' h:mm tt}.\nReason: {reason}";
                 user.ModerationUpdatedAt = DateTime.UtcNow;
 
-                await db.UpdateAsync(user);
-                Debug.WriteLine($"BanUserAsync: {phone} banned ({banType}) expires={expiresAt}");
+                var success = await SupabaseService.UpdateAsync("Users", $"Id=eq.{user.Id}", user);
+
+                if (success)
+                {
+                    Debug.WriteLine($"BanUserAsync: {phone} banned ({banType}) expires={expiresAt}");
+                }
 
                 // Force logout if currently logged in
                 var currentPhone = Preferences.Get(CurrentUserPhoneKey, string.Empty);
@@ -55,7 +56,7 @@ namespace Lock.Services
                         new object(), "UserForcedLogout", user.ModerationNote);
                 }
 
-                return true;
+                return success;
             }
             catch (Exception ex)
             {
@@ -68,12 +69,9 @@ namespace Lock.Services
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
-                var user = await db.Table<User>()
-                    .Where(u => u.PhoneNumber == phone)
-                    .FirstOrDefaultAsync();
+                var users = await SupabaseService.GetAsync<User>("Users",
+                    $"PhoneNumber=eq.{Uri.EscapeDataString(phone)}&limit=1");
+                var user = users.FirstOrDefault();
 
                 if (user == null) return false;
 
@@ -85,7 +83,7 @@ namespace Lock.Services
                 user.ModerationNote = $"You have received a warning from the moderation team.\n\n{warningMessage}";
                 user.ModerationUpdatedAt = DateTime.UtcNow;
 
-                await db.UpdateAsync(user);
+                var success = await SupabaseService.UpdateAsync("Users", $"Id=eq.{user.Id}", user);
 
                 // If user is online, notify them immediately
                 var currentPhone = Preferences.Get(CurrentUserPhoneKey, string.Empty);
@@ -95,7 +93,7 @@ namespace Lock.Services
                         new object(), "UserWarningIssued", user.ModerationNote);
                 }
 
-                return true;
+                return success;
             }
             catch (Exception ex)
             {
@@ -108,12 +106,9 @@ namespace Lock.Services
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
-                var user = await db.Table<User>()
-                    .Where(u => u.PhoneNumber == phone)
-                    .FirstOrDefaultAsync();
+                var users = await SupabaseService.GetAsync<User>("Users",
+                    $"PhoneNumber=eq.{Uri.EscapeDataString(phone)}&limit=1");
+                var user = users.FirstOrDefault();
 
                 if (user == null) return false;
 
@@ -123,8 +118,7 @@ namespace Lock.Services
                     : note;
                 user.ModerationUpdatedAt = DateTime.UtcNow;
 
-                await db.UpdateAsync(user);
-                return true;
+                return await SupabaseService.UpdateAsync("Users", $"Id=eq.{user.Id}", user);
             }
             catch (Exception ex)
             {
@@ -137,12 +131,9 @@ namespace Lock.Services
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
-                var user = await db.Table<User>()
-                    .Where(u => u.PhoneNumber == phone)
-                    .FirstOrDefaultAsync();
+                var users = await SupabaseService.GetAsync<User>("Users",
+                    $"PhoneNumber=eq.{Uri.EscapeDataString(phone)}&limit=1");
+                var user = users.FirstOrDefault();
 
                 if (user == null) return false;
 
@@ -150,8 +141,7 @@ namespace Lock.Services
                 user.ModerationNote = "A report against your account was reviewed. No violation was found and no action was taken.";
                 user.ModerationUpdatedAt = DateTime.UtcNow;
 
-                await db.UpdateAsync(user);
-                return true;
+                return await SupabaseService.UpdateAsync("Users", $"Id=eq.{user.Id}", user);
             }
             catch (Exception ex)
             {
@@ -164,12 +154,9 @@ namespace Lock.Services
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
-                var user = await db.Table<User>()
-                    .Where(u => u.PhoneNumber == phone)
-                    .FirstOrDefaultAsync();
+                var users = await SupabaseService.GetAsync<User>("Users",
+                    $"PhoneNumber=eq.{Uri.EscapeDataString(phone)}&limit=1");
+                var user = users.FirstOrDefault();
 
                 if (user == null) return false;
 
@@ -182,9 +169,14 @@ namespace Lock.Services
                 user.ModerationNote = string.Empty;
                 user.ModerationUpdatedAt = DateTime.UtcNow;
 
-                await db.UpdateAsync(user);
-                Debug.WriteLine($"UnbanUserAsync: {phone} unbanned");
-                return true;
+                var success = await SupabaseService.UpdateAsync("Users", $"Id=eq.{user.Id}", user);
+
+                if (success)
+                {
+                    Debug.WriteLine($"UnbanUserAsync: {phone} unbanned");
+                }
+
+                return success;
             }
             catch (Exception ex)
             {
@@ -197,18 +189,16 @@ namespace Lock.Services
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
-                var user = await db.Table<User>()
-                    .Where(u => u.PhoneNumber == phone)
-                    .FirstOrDefaultAsync();
+                var users = await SupabaseService.GetAsync<User>("Users",
+                    $"PhoneNumber=eq.{Uri.EscapeDataString(phone)}&limit=1");
+                var user = users.FirstOrDefault();
 
                 if (user == null) return false;
 
                 user.WarningAcknowledged = true;
-                await db.UpdateAsync(user);
-                return true;
+
+                return await SupabaseService.UpdateAsync("Users", $"Id=eq.{user.Id}",
+                    new { WarningAcknowledged = true });
             }
             catch (Exception ex)
             {
@@ -222,12 +212,9 @@ namespace Lock.Services
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
-                var user = await db.Table<User>()
-                    .Where(u => u.PhoneNumber == phone)
-                    .FirstOrDefaultAsync();
+                var users = await SupabaseService.GetAsync<User>("Users",
+                    $"PhoneNumber=eq.{Uri.EscapeDataString(phone)}&limit=1");
+                var user = users.FirstOrDefault();
 
                 if (user == null) return false;
                 if (!user.IsBanned || user.BanType != "temporary") return false;

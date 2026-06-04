@@ -1,18 +1,14 @@
-// Added Category property (keeps same style as other persisted properties)
 using System;
 using System.Text.Json;
 using System.ComponentModel;
-using SQLite;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
 using Lock.Pages.Post;
 
 namespace Lock.Models
 {
-    [Table("Posts")]
     public class Post : INotifyPropertyChanged
     {
-        [PrimaryKey, AutoIncrement]
         public int Id { get; set; }
 
         // Author identifier (stores phone like User.PhoneNumber)
@@ -24,10 +20,10 @@ namespace Lock.Models
         // Category for the post (optional)
         public string Category { get; set; } = string.Empty;
 
-        // Add these properties to your Post class (near the Category property)
+        // Visibility for the post
         public string Visibility { get; set; } = "Everyone";  // "Everyone" or "By Mood"
 
-        [Ignore]
+        // Runtime property (not persisted)
         public string AuthorMood { get; set; } = string.Empty;
 
         // Stored as JSON array of local file paths
@@ -37,68 +33,42 @@ namespace Lock.Models
         public string Mood { get; set; } = string.Empty;
 
         // Mood last updated timestamp - this will be populated from User model when loading
-        [Ignore]
         public DateTime MoodLastUpdated { get; set; } = DateTime.UtcNow;
 
         // Created timestamp (UTC)
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
         // Computed relative time string for UI (e.g. "12m", "1h", "2d", "Mar 3")
-        [Ignore]
         public string CreatedAtRelative => GetRelativeTime(CreatedAt);
 
-        // Added StatusImagePath to store a separate "status" image (keeps same style as other persisted properties)
         public string StatusImagePath { get; set; } = string.Empty;
-
         public string AuthorLookingFor { get; set; } = string.Empty;
-
-        // Add this property
-        public string AuthorProfileImagePath { get; set; }
-
+        public string AuthorProfileImagePath { get; set; } = string.Empty;
         public bool IsCurrentUserPost { get; set; }
-        public string AuthorDisplayName { get; set; }
+        public string AuthorDisplayName { get; set; } = string.Empty;
 
-        // Add these to your existing Post class
-        [Ignore]
+        // Search properties (runtime only)
         public string SearchQuery { get; set; } = string.Empty;
-
-        [Ignore]
         public DateTime SearchTime { get; set; }
-
-        [Ignore]
         public int SearchResultCount { get; set; }
 
         // Computed properties
-        [Ignore]
         public string SearchDisplayTime => SearchTime.ToString("hh:mm tt");
-
-        [Ignore]
         public string SearchDisplayResultCount => SearchResultCount > 0 ? $"({SearchResultCount})" : "(no results)";
-
-        [Ignore]
         public bool SearchHasResults => SearchResultCount > 0;
 
-        [Ignore]
+        // Location properties (runtime only)
         public string Country { get; set; } = string.Empty;
-
-        [Ignore]
         public string State { get; set; } = string.Empty;
-
-        [Ignore]
         public double? Latitude { get; set; }
-
-        [Ignore]
         public double? Longitude { get; set; }
 
-        // Add this property to your Post class
+        // Hidden by users (JSON array)
         public string HiddenByJson { get; set; } = "[]";
 
-        // ?? Link preview properties ??????????????????????????????????????
-        [Ignore]
+        // Link preview properties
         public string? FirstUrl => ExtractFirstUrl(Content);
 
-
-        [Ignore]
         public string LinkDomain
         {
             get
@@ -116,8 +86,6 @@ namespace Lock.Models
 
         // Live-updated by LinkPreviewService — triggers UI refresh
         private LinkPreviewData? _linkPreview;
-
-        [Ignore]
         public LinkPreviewData? LinkPreview
         {
             get => _linkPreview;
@@ -134,12 +102,12 @@ namespace Lock.Models
             }
         }
 
-        [Ignore] public string PreviewTitle => LinkPreview?.Title ?? FirstUrl ?? string.Empty;
-        [Ignore] public string PreviewDescription => LinkPreview?.Description ?? string.Empty;
-        [Ignore] public string PreviewImageUrl => LinkPreview?.ImageUrl ?? string.Empty;
-        [Ignore] public string PreviewSiteName => LinkPreview?.SiteName ?? LinkDomain.ToUpperInvariant();
-        [Ignore] public string PreviewFaviconUrl => LinkPreview?.FaviconUrl ?? string.Empty;
-        [Ignore] public bool PreviewHasImage => !string.IsNullOrEmpty(PreviewImageUrl);
+        public string PreviewTitle => LinkPreview?.Title ?? FirstUrl ?? string.Empty;
+        public string PreviewDescription => LinkPreview?.Description ?? string.Empty;
+        public string PreviewImageUrl => LinkPreview?.ImageUrl ?? string.Empty;
+        public string PreviewSiteName => LinkPreview?.SiteName ?? LinkDomain.ToUpperInvariant();
+        public string PreviewFaviconUrl => LinkPreview?.FaviconUrl ?? string.Empty;
+        public bool PreviewHasImage => !string.IsNullOrEmpty(PreviewImageUrl);
 
         private static string? ExtractFirstUrl(string? text)
         {
@@ -153,7 +121,6 @@ namespace Lock.Models
             return m.Success ? m.Value.TrimEnd('.', ',', ')', ']', '/') : null;
         }
 
-        [Ignore]
         public string ContentWithoutUrl
         {
             get
@@ -163,7 +130,6 @@ namespace Lock.Models
                 var url = FirstUrl;
                 if (string.IsNullOrEmpty(url)) return Content;
 
-                // Remove the URL and clean up leftover whitespace/newlines
                 var cleaned = Content
                     .Replace(url, string.Empty)
                     .Trim()
@@ -174,15 +140,10 @@ namespace Lock.Models
             }
         }
 
-        [Ignore]
         public bool HasTextBesideUrl => HasLinkPreview && !string.IsNullOrWhiteSpace(ContentWithoutUrl);
-
-        [Ignore]
         public bool HasLinkPreview => FirstUrl != null;
 
-        // Add this property near your other properties (around line 20-30)
         private int _matchPercent;
-        [Ignore]
         public int MatchPercent
         {
             get => _matchPercent;
@@ -196,16 +157,11 @@ namespace Lock.Models
             }
         }
 
-        // Add these properties to your Post class (near the Love reactions section)
         // Spark reactions
         public int SparkCount { get; set; } = 0;
-
-        // Store which users have sparked this post (JSON array of user phones)
         public string SparkedByJson { get; set; } = "[]";
 
-        // For UI binding - check if current user sparked this post
         private bool _isSparkedByCurrentUser;
-        [Ignore]
         public bool IsSparkedByCurrentUser
         {
             get => _isSparkedByCurrentUser;
@@ -220,10 +176,7 @@ namespace Lock.Models
             }
         }
 
-        [Ignore]
         public Color SparkIconColor => IsSparkedByCurrentUser ? Color.FromArgb("#FFA500") : Color.FromArgb("#888888");
-
-        [Ignore]
         public string SparkCountDisplay => SparkCount > 0 ? SparkCount.ToString() : string.Empty;
 
         private bool _isAuthorVerified;
@@ -240,8 +193,6 @@ namespace Lock.Models
             }
         }
 
-        // Helper to get/set sparked by list
-        [Ignore]
         public List<string> SparkedBy
         {
             get
@@ -267,7 +218,6 @@ namespace Lock.Models
             }
         }
 
-        // Method to toggle spark
         public void ToggleSpark(string userPhone)
         {
             var sparkedBy = SparkedBy;
@@ -311,8 +261,6 @@ namespace Lock.Models
 
         public string SaveIconFill => IsSavedByCurrentUser ? "#FFD24D" : "#888888";
 
-        // Add this ignore property for easy access
-        [Ignore]
         public List<string> HiddenBy
         {
             get
@@ -335,13 +283,11 @@ namespace Lock.Models
             }
         }
 
-        // Add this method to check if a user has hidden this post
         public bool IsHiddenByUser(string userPhone)
         {
             return HiddenBy.Contains(userPhone);
         }
 
-        // Add these public methods to your Post class in Post.cs
         public void RefreshLoveState()
         {
             OnPropertyChanged(nameof(IsLovedByCurrentUser));
@@ -365,7 +311,6 @@ namespace Lock.Models
             OnPropertyChanged(nameof(NeedsToggle));
         }
 
-        [Ignore]
         public bool IsMoodRecent
         {
             get
@@ -382,9 +327,7 @@ namespace Lock.Models
             }
         }
 
-        // NEW: Relative time for mood last updated
-        private string _moodLastUpdatedRelative;
-        [Ignore]
+        private string _moodLastUpdatedRelative = string.Empty;
         public string MoodLastUpdatedRelative
         {
             get => _moodLastUpdatedRelative;
@@ -398,8 +341,6 @@ namespace Lock.Models
             }
         }
 
-        // NEW: Formatted mood display with timer (for XAML binding)
-        [Ignore]
         public FormattedString MoodDisplayFormatted
         {
             get
@@ -408,7 +349,6 @@ namespace Lock.Models
 
                 if (!string.IsNullOrEmpty(Mood))
                 {
-                    // Add mood text
                     var moodSpan = new Span
                     {
                         Text = Mood,
@@ -418,7 +358,6 @@ namespace Lock.Models
                     };
                     fs.Spans.Add(moodSpan);
 
-                    // Add separator and timer if available
                     if (!string.IsNullOrEmpty(MoodLastUpdatedRelative))
                     {
                         var separatorSpan = new Span
@@ -443,8 +382,6 @@ namespace Lock.Models
             }
         }
 
-        // Helper (ignored by SQLite) to expose paths as string[]
-        [Ignore]
         public string[] ImagePathsList
         {
             get
@@ -471,7 +408,6 @@ namespace Lock.Models
 
         // UI-only: whether content is expanded (not persisted)
         private bool _isExpanded;
-        [Ignore]
         public bool IsExpanded
         {
             get => _isExpanded;
@@ -485,9 +421,8 @@ namespace Lock.Models
             }
         }
 
-        // UI-only: the text actually displayed (used when no toggle needed)
+        // UI-only: the text actually displayed
         private string _displayContent = string.Empty;
-        [Ignore]
         public string DisplayContent
         {
             get => _displayContent;
@@ -505,9 +440,7 @@ namespace Lock.Models
             OnPropertyChanged(nameof(CommentCountDisplay));
         }
 
-        // UI-only: split parts for FormattedString (first part + remaining)
         private string _truncatedPart = string.Empty;
-        [Ignore]
         public string TruncatedPart
         {
             get => _truncatedPart;
@@ -520,7 +453,6 @@ namespace Lock.Models
         }
 
         private string _hiddenPart = string.Empty;
-        [Ignore]
         public string HiddenPart
         {
             get => _hiddenPart;
@@ -532,27 +464,12 @@ namespace Lock.Models
             }
         }
 
-
-        // UI-only: computed toggle text
-        [Ignore]
         public string DisplayToggleText => IsExpanded ? "Show less" : "Show all";
-
-        // UI-only: whether content needs a toggle button
-        [Ignore]
         public bool NeedsToggle => !string.IsNullOrEmpty(Content) && Content.Length > 200;
 
-        // FormattedString properties (for binding directly to Label.FormattedText)
-        // DisplayFormatted: used when there is no toggle (full content)
-        [Ignore]
         public FormattedString DisplayFormatted { get; private set; } = new FormattedString();
-
-        // ToggleFormatted: used when a toggle exists; combines TruncatedPart + HiddenPart
-        [Ignore]
         public FormattedString ToggleFormatted { get; private set; } = new FormattedString();
 
-        /// <summary>
-        /// Formats text with hashtags highlighted in blue - catches ALL hashtags anywhere
-        /// </summary>
         private FormattedString FormatTextWithHashtags(string text)
         {
             if (string.IsNullOrWhiteSpace(text))
@@ -576,7 +493,6 @@ namespace Lock.Models
 
             foreach (System.Text.RegularExpressions.Match match in matches)
             {
-                // Add text before the hashtag
                 if (match.Index > lastIndex)
                 {
                     var beforeText = text.Substring(lastIndex, match.Index - lastIndex);
@@ -587,24 +503,19 @@ namespace Lock.Models
                     });
                 }
 
-                // Add the hashtag with click handler
                 var hashtagSpan = new Span
                 {
                     Text = match.Value,
-                    TextColor = Color.FromArgb("#1da1f2"), // Twitter blue
+                    TextColor = Color.FromArgb("#1da1f2"),
                     FontAttributes = FontAttributes.Bold
                 };
 
-                // Add tap gesture to the span
                 var tapGesture = new TapGestureRecognizer();
-                var hashtagText = match.Value; // Capture the hashtag text
+                var hashtagText = match.Value;
                 tapGesture.Tapped += async (s, e) =>
                 {
-                    // Navigate to SearchPage with the hashtag
                     var searchPage = new SearchPage();
                     await Application.Current.MainPage.Navigation.PushAsync(searchPage);
-
-                    // Set the search text after a short delay to ensure page is loaded
                     await Task.Delay(100);
                     searchPage.SetSearchText(hashtagText);
                 };
@@ -615,7 +526,6 @@ namespace Lock.Models
                 lastIndex = match.Index + match.Length;
             }
 
-            // Add any remaining text after the last hashtag
             if (lastIndex < text.Length)
             {
                 var afterText = text.Substring(lastIndex);
@@ -628,8 +538,7 @@ namespace Lock.Models
 
             return formattedString;
         }
-        
-        // Updated UpdateDisplayContent with hashtag highlighting
+
         public void UpdateDisplayContent(int limit = 200)
         {
             if (string.IsNullOrEmpty(Content))
@@ -648,12 +557,11 @@ namespace Lock.Models
 
             if (Content.Length <= limit)
             {
-                // short content: show everything with hashtag formatting
                 DisplayContent = Content;
                 TruncatedPart = Content;
                 HiddenPart = string.Empty;
                 DisplayFormatted = FormatTextWithHashtags(DisplayContent);
-                ToggleFormatted = DisplayFormatted; // IMPORTANT: Set ToggleFormatted too
+                ToggleFormatted = DisplayFormatted;
             }
             else
             {
@@ -662,23 +570,18 @@ namespace Lock.Models
 
                 if (IsExpanded)
                 {
-                    // expanded: full content visible with hashtag formatting
                     DisplayContent = Content;
                     TruncatedPart = first;
                     HiddenPart = rest;
                     DisplayFormatted = FormatTextWithHashtags(DisplayContent);
-                    // For expanded state, ToggleFormatted should show full content
                     ToggleFormatted = DisplayFormatted;
                 }
                 else
                 {
-                    // collapsed: show truncated preview with ellipsis with hashtag formatting
                     DisplayContent = first + "…";
                     TruncatedPart = first + "…";
                     HiddenPart = string.Empty;
                     DisplayFormatted = FormatTextWithHashtags(DisplayContent);
-
-                    // Build toggle formatted for collapsed state
                     var truncatedFs = FormatTextWithHashtags(TruncatedPart);
                     ToggleFormatted = truncatedFs;
                 }
@@ -694,7 +597,7 @@ namespace Lock.Models
             OnPropertyChanged(nameof(CreatedAtRelative));
             OnPropertyChanged(nameof(MoodDisplayFormatted));
         }
-        // NEW: Update mood and its relative time
+
         public void UpdateMood(string newMood, DateTime? lastUpdated = null)
         {
             if (Mood != newMood)
@@ -707,7 +610,6 @@ namespace Lock.Models
             }
         }
 
-        // NEW: Update the relative time string for mood
         public void UpdateMoodRelativeTime()
         {
             MoodLastUpdatedRelative = GetMoodRelativeTime(MoodLastUpdated);
@@ -715,7 +617,6 @@ namespace Lock.Models
             OnPropertyChanged(nameof(MoodDisplayFormatted));
         }
 
-        // NEW: Get relative time string specifically for mood
         private static string GetMoodRelativeTime(DateTime moodTime)
         {
             try
@@ -750,16 +651,11 @@ namespace Lock.Models
             }
         }
 
-        // Add to your Post class in Lock.Models
         // Love reactions
         public int LoveCount { get; set; } = 0;
-
-        // Store which users have loved this post (JSON array of user phones)
         public string LovedByJson { get; set; } = "[]";
 
-        // Comment count (not stored, loaded on demand)
         private int _commentCount;
-        [Ignore]
         public int CommentCount
         {
             get => _commentCount;
@@ -774,13 +670,9 @@ namespace Lock.Models
             }
         }
 
-        // Optional: Add a display property for formatting
-        [Ignore]
         public string CommentCountDisplay => CommentCount > 0 ? CommentCount.ToString() : "";
 
-        // For UI binding - check if current user loved this post
         private bool _isLovedByCurrentUser;
-        [Ignore]
         public bool IsLovedByCurrentUser
         {
             get => _isLovedByCurrentUser;
@@ -796,17 +688,10 @@ namespace Lock.Models
             }
         }
 
-        [Ignore]
         public Color LoveIconColor => IsLovedByCurrentUser ? Color.FromArgb("#C05050") : Color.FromArgb("#888888");
-
-        [Ignore]
         public string LoveIcon => IsLovedByCurrentUser ? "??" : "??";
-
-        [Ignore]
         public string LoveCountDisplay => LoveCount > 0 ? LoveCount.ToString() : string.Empty;
 
-        // Helper to get/set loved by list
-        [Ignore]
         public List<string> LovedBy
         {
             get
@@ -832,7 +717,6 @@ namespace Lock.Models
             }
         }
 
-        // Method to toggle love
         public void ToggleLove(string userPhone)
         {
             var lovedBy = LovedBy;
@@ -848,17 +732,14 @@ namespace Lock.Models
                 IsLovedByCurrentUser = true;
             }
 
-            LovedBy = lovedBy; // This updates LoveCount and saves JSON
+            LovedBy = lovedBy;
         }
 
-        // Returns a compact relative-time string for the provided UTC timestamp.
-        // Examples: "5s", "12m", "3h", "2d", "Mar 3", "Mar 3, 2022"
         private static string GetRelativeTime(DateTime utcTime)
         {
             try
             {
                 var nowUtc = DateTime.UtcNow;
-                // ensure the provided time is treated as UTC
                 if (utcTime.Kind == DateTimeKind.Unspecified)
                 {
                     utcTime = DateTime.SpecifyKind(utcTime, DateTimeKind.Utc);
@@ -879,15 +760,12 @@ namespace Lock.Models
                 if (ts.TotalDays < 7)
                     return $"{(int)ts.TotalDays}d";
 
-                // older than a week: show short date in local time
                 var local = utcTime.ToLocalTime();
                 if (nowUtc.Year == utcTime.Year)
                 {
-                    // same year -> "Mar 3"
                     return local.ToString("MMM d");
                 }
 
-                // different year -> "Mar 3, 2022"
                 return local.ToString("MMM d, yyyy");
             }
             catch

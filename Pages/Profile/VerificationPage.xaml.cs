@@ -65,9 +65,15 @@ public string UserPhone
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-                _profileUser = await db.Table<User>().Where(u => u.PhoneNumber == phone).FirstOrDefaultAsync();
+                // Remove this SQLite code:
+                // await DatabaseService.InitializeAsync();
+                // var db = DatabaseService.GetConnection();
+                // _profileUser = await db.Table<User>().Where(u => u.PhoneNumber == phone).FirstOrDefaultAsync();
+
+                // Replace with Supabase code:
+                var users = await SupabaseService.GetAsync<User>("Users",
+                    $"PhoneNumber=eq.{Uri.EscapeDataString(phone)}&limit=1");
+                _profileUser = users.FirstOrDefault();
 
                 if (_profileUser != null)
                 {
@@ -139,6 +145,7 @@ public string UserPhone
                 await DisplayAlert("Error", "Could not load profile data. Please try again.", "OK");
             }
         }
+
 
         private void UpdateVerificationBadge()
         {

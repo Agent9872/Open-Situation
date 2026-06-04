@@ -111,12 +111,9 @@ namespace Lock.Pages.Post
                 var duration = Preferences.Get($"status_duration_{currentUserPhone}", "24 hours");
                 var expirationHours = GetExpirationHours(duration);
 
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
-                var allStatuses = await db.Table<Lock.Models.Post>()
-                    .Where(p => p.AuthorPhone == currentUserPhone && !string.IsNullOrEmpty(p.StatusImagePath))
-                    .ToListAsync();
+                // Get all status posts from Supabase
+                var allStatuses = await SupabaseService.GetAsync<Lock.Models.Post>("Posts",
+                    $"AuthorPhone=eq.{Uri.EscapeDataString(currentUserPhone)}&not.StatusImagePath=is.null");
 
                 var now = DateTime.UtcNow;
                 var expiredStatuses = new List<Lock.Models.Post>();
@@ -132,7 +129,8 @@ namespace Lock.Pages.Post
 
                 foreach (var expired in expiredStatuses)
                 {
-                    await db.DeleteAsync(expired);
+                    // Delete from Supabase
+                    await SupabaseService.DeleteAsync("Posts", $"Id=eq.{Uri.EscapeDataString(expired.Id.ToString())}");
 
                     // Delete the actual image file
                     if (!string.IsNullOrEmpty(expired.StatusImagePath) && System.IO.File.Exists(expired.StatusImagePath))
@@ -229,16 +227,14 @@ namespace Lock.Pages.Post
 
                     if (!string.IsNullOrEmpty(currentUserPhone))
                     {
-                        await DatabaseService.InitializeAsync();
-                        var db = DatabaseService.GetConnection();
-
-                        var statusPosts = await db.Table<Lock.Models.Post>()
-                            .Where(p => p.AuthorPhone == currentUserPhone && !string.IsNullOrEmpty(p.StatusImagePath))
-                            .ToListAsync();
+                        // Get all status posts from Supabase
+                        var statusPosts = await SupabaseService.GetAsync<Lock.Models.Post>("Posts",
+                            $"AuthorPhone=eq.{Uri.EscapeDataString(currentUserPhone)}&not.StatusImagePath=is.null");
 
                         foreach (var post in statusPosts)
                         {
-                            await db.DeleteAsync(post);
+                            // Delete from Supabase
+                            await SupabaseService.DeleteAsync("Posts", $"Id=eq.{Uri.EscapeDataString(post.Id.ToString())}");
 
                             // Delete the actual image file if it exists
                             if (!string.IsNullOrEmpty(post.StatusImagePath) && System.IO.File.Exists(post.StatusImagePath))

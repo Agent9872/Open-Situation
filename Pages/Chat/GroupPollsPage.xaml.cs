@@ -55,15 +55,19 @@ namespace Lock.Pages.Chat
             {
                 ShowSkeleton(true);
 
-                await GroupDatabaseService.InitializeAsync();
-                var db = GroupDatabaseService.GetConnection();
+                // Remove this SQLite code:
+                // await GroupDatabaseService.InitializeAsync();
+                // var db = GroupDatabaseService.GetConnection();
+                // var pollMessages = await db.Table<GroupMessage>()
+                //     .Where(m => m.GroupId == _groupId &&
+                //                 m.MessageType == GroupMessageType.Poll &&
+                //                 !m.IsDeleted)
+                //     .OrderByDescending(m => m.SentAt)
+                //     .ToListAsync();
 
-                var pollMessages = await db.Table<GroupMessage>()
-                    .Where(m => m.GroupId == _groupId &&
-                                m.MessageType == GroupMessageType.Poll &&
-                                !m.IsDeleted)
-                    .OrderByDescending(m => m.SentAt)
-                    .ToListAsync();
+                // Replace with Supabase code:
+                var pollMessages = await SupabaseService.GetAsync<GroupMessage>("GroupMessages",
+                    $"GroupId=eq.{Uri.EscapeDataString(_groupId)}&MessageType=eq.Poll&IsDeleted=eq.false&order=SentAt.desc");
 
                 _polls.Clear();
 
@@ -413,6 +417,11 @@ namespace Lock.Pages.Chat
         {
             try
             {
+                // Change this line:
+                // var ok = await GroupRepository.VoteOnPollAsync(
+                //     poll.MessageId, _currentUserPhone, optionIndex);
+
+                // To:
                 var ok = await GroupRepository.VoteOnPollAsync(
                     poll.MessageId, _currentUserPhone, optionIndex);
 
@@ -465,6 +474,10 @@ namespace Lock.Pages.Chat
                 await DisplayAlert("Error", "Please provide at least 2 options.", "OK"); return;
             }
 
+            // Change this line:
+            // if (await GroupRepository.EditPollAsync(poll.MessageId, _groupId, q, newOpts))
+
+            // To:
             if (await GroupRepository.EditPollAsync(poll.MessageId, _groupId, q, newOpts))
                 await LoadPollsAsync();
             else
@@ -477,6 +490,10 @@ namespace Lock.Pages.Chat
                 $"Permanently delete this poll?\n\n\"{poll.Question}\"",
                 "Delete", "Cancel")) return;
 
+            // Change this line:
+            // if (await GroupRepository.DeletePollAsync(poll.MessageId, _groupId))
+
+            // To:
             if (await GroupRepository.DeletePollAsync(poll.MessageId, _groupId))
                 await LoadPollsAsync();
             else
@@ -493,7 +510,7 @@ namespace Lock.Pages.Chat
 
     public class GroupPollViewModel : BindableObject
     {
-        public int MessageId { get; set; }
+            public string MessageId { get; set; } = string.Empty;
         public string Question { get; set; } = string.Empty;
         public DateTime CreatedAt { get; set; }
         public string CreatorName { get; set; } = string.Empty;

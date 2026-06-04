@@ -5,8 +5,8 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Maui.Controls;
 using Lock.Models.Chat;
-using SQLite;
-using ChatDatabaseService = Lock.Chat.Services.DatabaseService;
+using Lock.Services;
+using Lock.Chat.Services;
 
 namespace Lock.Pages.Chat
 {
@@ -18,7 +18,6 @@ namespace Lock.Pages.Chat
 
         public ConversationActionsPage(Conversation conversation, Func<Task>? onChanged = null)
         {
-            // Use a robust initializer that works whether XAML was compiled/generated or not.
             EnsureInitializeComponent();
 
             _conversation = conversation ?? throw new ArgumentNullException(nameof(conversation));
@@ -40,7 +39,7 @@ namespace Lock.Pages.Chat
                     preview = string.Join(" ", words.Take(4)) + "…";
             }
 
-            // safe set of named controls (use FindByName to avoid relying on generated fields)
+            // safe set of named controls
             var previewLabel = this.FindByName<Label>("PreviewLabel");
             if (previewLabel != null)
                 previewLabel.Text = preview;
@@ -53,8 +52,7 @@ namespace Lock.Pages.Chat
                 _conversation.IsPinned ? "Unpin chat" : "Pin chat",
                 "Mark as unread",
                 _conversation.IsStarred ? "Remove from favorites" : "Add to favorites",
-                    _conversation.IsArchived ? "Unarchive chat" : "Archive chat",
-
+                _conversation.IsArchived ? "Unarchive chat" : "Archive chat",
                 "Add to list",
                 "Block",
                 "Delete chat"
@@ -65,8 +63,6 @@ namespace Lock.Pages.Chat
                 actionsCv.ItemsSource = actions;
         }
 
-        // EnsureInitializeComponent fallback used across pages so code works whether XAML was compiled
-        // into generated InitializeComponent or requires runtime load.
         private void EnsureInitializeComponent()
         {
             var mi = this.GetType().GetMethod("InitializeComponent", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public);
@@ -76,7 +72,6 @@ namespace Lock.Pages.Chat
                 return;
             }
 
-            // Fallback: load the XAML at runtime if the generated method is not present
             Microsoft.Maui.Controls.Xaml.Extensions.LoadFromXaml(this, this.GetType());
         }
 
@@ -85,7 +80,6 @@ namespace Lock.Pages.Chat
             await CloseModalAsync();
         }
 
-
         private async void ActionButton_Clicked(object? sender, EventArgs e)
         {
             if (_isClosing) return;
@@ -93,17 +87,14 @@ namespace Lock.Pages.Chat
 
             string action = string.Empty;
 
-            // TapGestureRecognizer sender (when using Grid + TapGestureRecognizer)
             if (sender is TapGestureRecognizer tg)
             {
                 action = tg.CommandParameter as string ?? tg.BindingContext as string ?? string.Empty;
             }
-            // If called from a Grid or other VisualElement (Tapped routed), use its BindingContext
             else if (sender is VisualElement ve)
             {
                 action = ve.BindingContext as string ?? string.Empty;
             }
-            // If button was used (older template), fall back to Button.CommandParameter/Text
             else if (sender is Button btn)
             {
                 action = btn.CommandParameter as string ?? btn.Text ?? string.Empty;
@@ -111,7 +102,6 @@ namespace Lock.Pages.Chat
 
             if (string.IsNullOrEmpty(action))
             {
-                // nothing to do, close the modal
                 try { await CloseModalAsync(); } catch { }
                 _isClosing = false;
                 return;
@@ -119,58 +109,99 @@ namespace Lock.Pages.Chat
 
             try
             {
-                // use explicit chat DB service to avoid ambiguous reference
-                await ChatDatabaseService.InitializeAsync();
-                var db = ChatDatabaseService.GetConnection();
-
                 switch (action)
                 {
                     case "Archive chat":
-                        await DisplayAlert("Archive", "Conversation archived (UI only).", "OK");
+                        _conversation.IsArchived = !_conversation.IsArchived;
+                        await SafeUpdateConversationAsync(_conversation);
+                        await DisplayAlert(_conversation.IsArchived ? "Archived" : "Unarchived",
+                            _conversation.IsArchived ? "Conversation archived." : "Conversation unarchived.", "OK");
                         break;
 
                     case var s when s == "Mute notifications" || s == "Unmute notifications":
                         _conversation.IsMuted = !_conversation.IsMuted;
-                        await SafeUpdateConversationAsync(db, _conversation);
+                        await SafeUpdateConversationAsync(_conversation);
+                        await DisplayAlert(_conversation.IsMuted ? "Muted" : "Unmuted",
+                            _conversation.IsMuted ? "Notifications muted." : "Notifications unmuted.", "OK");
                         break;
 
                     case var s2 when s2 == "Pin chat" || s2 == "Unpin chat":
                         _conversation.IsPinned = !_conversation.IsPinned;
-                        await SafeUpdateConversationAsync(db, _conversation);
+                        await SafeUpdateConversationAsync(_conversation);
+                        await DisplayAlert(_conversation.IsPinned ? "Pinned" : "Unpinned",
+                            _conversation.IsPinned ? "Conversation pinned." : "Conversation unpinned.", "OK");
                         break;
 
                     case "Mark as unread":
-                        await DisplayAlert("Marked", "Conversation marked as unread (UI only).", "OK");
+                        var currentUserPhone = Microsoft.Maui.Storage.Preferences.Get("current_user_phone", string.Empty);
+                        if (!string.IsNullOrEmpty(currentUserPhone))
+                        {
+                            await SupabaseService.UpdateAsync("ChatMessages",
+                                $"ConversationId=eq.{Uri.EscapeDataString(_conversation.ConversationId)}&RecipientPhone=eq.{Uri.EscapeDataString(currentUserPhone)}",
+                                new { IsRead = false });
+                            await DisplayAlert("Marked", "Conversation marked as unread.", "OK");
+                        }
+                        else
+                        {
+                            await DisplayAlert("Error", "Could not mark as unread.", "OK");
+                        }
                         break;
 
                     case var s3 when s3 == "Add to favorites" || s3 == "Remove from favorites":
                         _conversation.IsStarred = !_conversation.IsStarred;
-                        await SafeUpdateConversationAsync(db, _conversation);
+                        await SafeUpdateConversationAsync(_conversation);
+                        await DisplayAlert(_conversation.IsStarred ? "Added to favorites" : "Removed from favorites",
+                            _conversation.IsStarred ? "Added to favorites." : "Removed from favorites.", "OK");
                         break;
 
                     case "Add to list":
                         var listName = await DisplayPromptAsync("Add to list", "Enter list name:");
                         if (!string.IsNullOrWhiteSpace(listName))
-                            await DisplayAlert("Added", $"Conversation added to '{listName}' (UI only).", "OK");
+                        {
+                            var map = LoadConversationLists();
+                            map[_conversation.ConversationId] = listName.Trim();
+                            SaveConversationLists(map);
+                            await DisplayAlert("Added", $"Conversation added to '{listName}'", "OK");
+                        }
                         break;
 
                     case "Block":
-                        var confirm = await DisplayAlert("Block", "Block this contact? You can unblock later.", "Block", "Cancel");
+                        var currentUser = Microsoft.Maui.Storage.Preferences.Get("current_user_phone", string.Empty);
+                        var otherPhone = _conversation.ParticipantA == currentUser ? _conversation.ParticipantB : _conversation.ParticipantA;
+                        var confirm = await DisplayAlert("Block", $"Block {otherPhone}? You can unblock later.", "Block", "Cancel");
                         if (confirm)
                         {
-                            _conversation.IsMuted = true;
-                            await SafeUpdateConversationAsync(db, _conversation);
-                            await DisplayAlert("Blocked", "Contact blocked (muted).", "OK");
+                            var success = await ChatRepository.BlockUserAsync(currentUser, otherPhone);
+                            if (success)
+                            {
+                                _conversation.IsMuted = true;
+                                await SafeUpdateConversationAsync(_conversation);
+                                await DisplayAlert("Blocked", "Contact blocked.", "OK");
+                            }
+                            else
+                            {
+                                await DisplayAlert("Error", "Could not block user.", "OK");
+                            }
                         }
                         break;
 
                     case "Delete chat":
-                        var del = await DisplayAlert("Delete", "Delete this conversation and messages?", "Delete", "Cancel");
+                        var del = await DisplayAlert("Delete", "Delete this conversation and all messages? This cannot be undone.", "Delete", "Cancel");
                         if (del)
                         {
                             try
                             {
-                                await db.DeleteAsync(_conversation);
+                                // Delete all messages in conversation
+                                await SupabaseService.DeleteAsync("ChatMessages", $"ConversationId=eq.{Uri.EscapeDataString(_conversation.ConversationId)}");
+                                // Delete the conversation
+                                await SupabaseService.DeleteAsync("Conversations", $"ConversationId=eq.{Uri.EscapeDataString(_conversation.ConversationId)}");
+
+                                // Remove from lists if present
+                                var map = LoadConversationLists();
+                                if (map.Remove(_conversation.ConversationId))
+                                    SaveConversationLists(map);
+
+                                await DisplayAlert("Deleted", "Conversation deleted.", "OK");
                             }
                             catch (Exception ex)
                             {
@@ -181,7 +212,6 @@ namespace Lock.Pages.Chat
                         break;
 
                     default:
-                        // no-op for unknown actions
                         break;
                 }
 
@@ -203,21 +233,53 @@ namespace Lock.Pages.Chat
             }
         }
 
-        // local safe update helper
-        private static async Task SafeUpdateConversationAsync(SQLiteAsyncConnection db, Conversation conv)
+        // Helper methods for conversation lists
+        private Dictionary<string, string> LoadConversationLists()
         {
             try
             {
-                await db.UpdateAsync(conv);
+                var me = Microsoft.Maui.Storage.Preferences.Get("current_user_phone", string.Empty);
+                if (string.IsNullOrEmpty(me)) return new Dictionary<string, string>();
+                var json = Microsoft.Maui.Storage.Preferences.Get($"conversation_lists_{me}", string.Empty);
+                if (string.IsNullOrWhiteSpace(json)) return new Dictionary<string, string>();
+                return System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(json) ?? new Dictionary<string, string>();
             }
-            catch
+            catch { return new Dictionary<string, string>(); }
+        }
+
+        private void SaveConversationLists(Dictionary<string, string> map)
+        {
+            try
             {
-                try { await db.InsertAsync(conv); } catch { }
+                var me = Microsoft.Maui.Storage.Preferences.Get("current_user_phone", string.Empty);
+                if (string.IsNullOrEmpty(me)) return;
+                Microsoft.Maui.Storage.Preferences.Set($"conversation_lists_{me}", System.Text.Json.JsonSerializer.Serialize(map));
+            }
+            catch { }
+        }
+
+        // local safe update helper using Supabase
+        private static async Task SafeUpdateConversationAsync(Conversation conv)
+        {
+            try
+            {
+                await SupabaseService.UpdateAsync("Conversations", $"ConversationId=eq.{Uri.EscapeDataString(conv.ConversationId)}", conv);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"SafeUpdateConversationAsync error: {ex}");
+                try
+                {
+                    await SupabaseService.InsertAsync("Conversations", conv);
+                }
+                catch (Exception insertEx)
+                {
+                    Debug.WriteLine($"SafeUpdateConversationAsync insert fallback error: {insertEx}");
+                }
             }
         }
 
-
-        // Safely close the modal dialog (handles re-entrancy)
+        // Safely close the modal dialog
         private async Task CloseModalAsync()
         {
             if (_isClosing) return;

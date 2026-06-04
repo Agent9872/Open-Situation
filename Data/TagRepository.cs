@@ -1,21 +1,17 @@
 using Lock.Models;
-using SQLite;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Threading.Tasks;
 using System.Linq;
 
 namespace Lock.Data
 {
     /// <summary>
-    /// Repository class for managing tags in the database.
+    /// Repository class for managing tags in Supabase.
     /// </summary>
     public class TagRepository
     {
-        private SQLiteAsyncConnection _database;
-        private bool _hasBeenInitialized = false;
         private readonly ILogger _logger;
 
         /// <summary>
@@ -28,38 +24,20 @@ namespace Lock.Data
         }
 
         /// <summary>
-        /// Initializes the database connection and creates the Tag and ProjectsTags tables if they do not exist.
-        /// </summary>
-        private async Task Init()
-        {
-            if (_hasBeenInitialized)
-                return;
-
-            var dbPath = Path.Combine(FileSystem.AppDataDirectory, "lock.db3");
-            _database = new SQLiteAsyncConnection(dbPath);
-
-            try
-            {
-                await _database.CreateTableAsync<Tag>();
-                await _database.CreateTableAsync<ProjectsTags>();
-            }
-            catch (Exception e)
-            {
-                _logger.LogError(e, "Error creating tables");
-                throw;
-            }
-
-            _hasBeenInitialized = true;
-        }
-
-        /// <summary>
-        /// Retrieves a list of all tags from the database.
+        /// Retrieves a list of all tags from Supabase.
         /// </summary>
         /// <returns>A list of <see cref="Tag"/> objects.</returns>
         public async Task<List<Tag>> ListAsync()
         {
-            await Init();
-            return await _database.Table<Tag>().ToListAsync();
+            try
+            {
+                return await SupabaseService.GetAsync<Tag>("Tags", "order=ID.asc");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error fetching tags from Supabase");
+                return new List<Tag>();
+            }
         }
 
         /// <summary>
@@ -69,24 +47,31 @@ namespace Lock.Data
         /// <returns>A list of <see cref="Tag"/> objects.</returns>
         public async Task<List<Tag>> ListAsync(int projectID)
         {
-            await Init();
+            try
+            {
+                // Get all project-tag associations for this project
+                var projectTags = await SupabaseService.GetAsync<ProjectsTags>("ProjectsTags", $"ProjectID=eq.{projectID}");
 
-            // Get all tag IDs for this project
-            var projectTags = await _database.Table<ProjectsTags>()
-                .Where(pt => pt.ProjectID == projectID)
-                .ToListAsync();
+                var tagIds = projectTags.Select(pt => pt.TagID).ToList();
 
-            var tagIds = projectTags.Select(pt => pt.TagID).ToList();
+                if (!tagIds.Any())
+                    return new List<Tag>();
 
-            if (!tagIds.Any())
+                if (tagIds.Count == 1)
+                {
+                    return await SupabaseService.GetAsync<Tag>("Tags", $"ID=eq.{tagIds.First()}");
+                }
+                else
+                {
+                    var tagIdList = string.Join(",", tagIds);
+                    return await SupabaseService.GetAsync<Tag>("Tags", $"ID=in.({tagIdList})");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error fetching tags for project {projectID} from Supabase");
                 return new List<Tag>();
-
-            // Get all tags with those IDs
-            var tags = await _database.Table<Tag>()
-                .Where(t => tagIds.Contains(t.ID))
-                .ToListAsync();
-
-            return tags;
+            }
         }
 
         /// <summary>
@@ -96,120 +81,200 @@ namespace Lock.Data
         /// <returns>A <see cref="Tag"/> object if found; otherwise, null.</returns>
         public async Task<Tag?> GetAsync(int id)
         {
-            await Init();
-            return await _database.Table<Tag>()
-                .Where(t => t.ID == id)
-                .FirstOrDefaultAsync();
+            try
+            {
+                var tags = await SupabaseService.GetAsync<Tag>("Tags", $"ID=eq.{id}&limit=1");
+                return tags.FirstOrDefault();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error fetching tag with ID {id} from Supabase");
+                return null;
+            }
         }
 
         /// <summary>
-        /// Saves a tag to the database. If the tag ID is 0, a new tag is created; otherwise, the existing tag is updated.
+        /// Retrieves a tag by its name.
+        /// </summary>
+        /// <param name="name">The name of the tag.</param>
+        /// <returns>A <see cref="Tag"/> object if found; otherwise, null.</returns>
+        public async Task<Tag?> GetByNameAsync(string name)
+        {
+            try
+            {
+                var tags = await SupabaseService.GetAsync<Tag>("Tags", $"Name=eq.{Uri.EscapeDataString(name)}&limit=1");
+                return tags.FirstOrDefault();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error fetching tag with name {name} from Supabase");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Saves a tag to Supabase. If the tag ID is 0, a new tag is created; otherwise, the existing tag is updated.
         /// </summary>
         /// <param name="item">The tag to save.</param>
         /// <returns>The ID of the saved tag.</returns>
         public async Task<int> SaveItemAsync(Tag item)
         {
-            await Init();
-
-            if (item.ID == 0)
+            try
             {
-                return await _database.InsertAsync(item);
+                if (item.ID == 0)
+                {
+                    // Insert new tag
+                    var inserted = await SupabaseService.InsertAndReturnAsync<Tag>("Tags", item);
+                    return inserted?.ID ?? 0;
+                }
+                else
+                {
+                    // Update existing tag
+                    var success = await SupabaseService.UpdateAsync("Tags", $"ID=eq.{item.ID}", item);
+                    return success ? item.ID : 0;
+                }
             }
-            else
+            catch (Exception ex)
             {
-                await _database.UpdateAsync(item);
-                return item.ID;
+                _logger.LogError(ex, $"Error saving tag with ID {item.ID}");
+                return 0;
             }
         }
 
         /// <summary>
-        /// Saves a tag to the database and associates it with a specific project.
+        /// Saves a tag to Supabase and associates it with a specific project.
         /// </summary>
         /// <param name="item">The tag to save.</param>
         /// <param name="projectID">The ID of the project.</param>
-        /// <returns>The number of rows affected.</returns>
+        /// <returns>The number of rows affected or the association ID.</returns>
         public async Task<int> SaveItemAsync(Tag item, int projectID)
         {
-            await Init();
-
-            // Save the tag first if it's new
-            if (item.ID == 0)
+            try
             {
-                await SaveItemAsync(item);
-            }
-
-            // Check if association already exists
-            var existing = await _database.Table<ProjectsTags>()
-                .Where(pt => pt.ProjectID == projectID && pt.TagID == item.ID)
-                .FirstOrDefaultAsync();
-
-            if (existing == null)
-            {
-                var projectTag = new ProjectsTags
+                // Save the tag first if it's new
+                if (item.ID == 0)
                 {
-                    ProjectID = projectID,
-                    TagID = item.ID
-                };
-                return await _database.InsertAsync(projectTag);
-            }
+                    var saved = await SaveItemAsync(item);
+                    if (saved == 0) return 0;
+                    item.ID = saved;
+                }
 
-            return existing.ID; // Return existing ID
+                // Check if association already exists
+                var existing = await SupabaseService.GetAsync<ProjectsTags>("ProjectsTags",
+                    $"ProjectID=eq.{projectID}&TagID=eq.{item.ID}&limit=1");
+
+                if (!existing.Any())
+                {
+                    var projectTag = new ProjectsTags
+                    {
+                        ProjectID = projectID,
+                        TagID = item.ID
+                    };
+                    var inserted = await SupabaseService.InsertAndReturnAsync<ProjectsTags>("ProjectsTags", projectTag);
+                    return inserted?.ID ?? 0;
+                }
+
+                return existing.First().ID; // Return existing ID
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error saving tag with ID {item.ID} for project {projectID}");
+                return 0;
+            }
         }
 
         /// <summary>
-        /// Deletes a tag from the database.
+        /// Deletes a tag from Supabase.
         /// </summary>
         /// <param name="item">The tag to delete.</param>
         /// <returns>The number of rows affected.</returns>
         public async Task<int> DeleteItemAsync(Tag item)
         {
-            await Init();
-
-            // First delete all associations for this tag
-            var associations = await _database.Table<ProjectsTags>()
-                .Where(pt => pt.TagID == item.ID)
-                .ToListAsync();
-
-            foreach (var assoc in associations)
+            try
             {
-                await _database.DeleteAsync(assoc);
-            }
+                // First delete all associations for this tag
+                var associations = await SupabaseService.GetAsync<ProjectsTags>("ProjectsTags", $"TagID=eq.{item.ID}");
 
-            // Then delete the tag itself
-            return await _database.DeleteAsync(item);
+                foreach (var assoc in associations)
+                {
+                    await SupabaseService.DeleteAsync("ProjectsTags", $"ID=eq.{assoc.ID}");
+                }
+
+                // Then delete the tag itself
+                var success = await SupabaseService.DeleteAsync("Tags", $"ID=eq.{item.ID}");
+                return success ? item.ID : 0;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error deleting tag with ID {item.ID}");
+                return 0;
+            }
         }
 
         /// <summary>
-        /// Deletes a tag from a specific project in the database.
+        /// Deletes a tag from a specific project in Supabase.
         /// </summary>
         /// <param name="item">The tag to delete.</param>
         /// <param name="projectID">The ID of the project.</param>
         /// <returns>The number of rows affected.</returns>
         public async Task<int> DeleteItemAsync(Tag item, int projectID)
         {
-            await Init();
-
-            var projectTag = await _database.Table<ProjectsTags>()
-                .Where(pt => pt.ProjectID == projectID && pt.TagID == item.ID)
-                .FirstOrDefaultAsync();
-
-            if (projectTag != null)
+            try
             {
-                return await _database.DeleteAsync(projectTag);
-            }
+                var projectTags = await SupabaseService.GetAsync<ProjectsTags>("ProjectsTags",
+                    $"ProjectID=eq.{projectID}&TagID=eq.{item.ID}&limit=1");
 
-            return 0;
+                if (projectTags.Any())
+                {
+                    var success = await SupabaseService.DeleteAsync("ProjectsTags", $"ID=eq.{projectTags.First().ID}");
+                    return success ? 1 : 0;
+                }
+
+                return 0;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error deleting tag with ID {item.ID} from project {projectID}");
+                return 0;
+            }
         }
 
         /// <summary>
-        /// Drops the Tag and ProjectsTags tables from the database.
+        /// Gets all tags for multiple projects (useful for batch operations).
         /// </summary>
-        public async Task DropTableAsync()
+        /// <param name="projectIds">List of project IDs.</param>
+        /// <returns>A dictionary mapping project ID to list of tags.</returns>
+        public async Task<Dictionary<int, List<Tag>>> GetTagsForProjectsAsync(List<int> projectIds)
         {
-            await Init();
-            await _database.DropTableAsync<ProjectsTags>();
-            await _database.DropTableAsync<Tag>();
-            _hasBeenInitialized = false;
+            try
+            {
+                if (!projectIds.Any())
+                    return new Dictionary<int, List<Tag>>();
+
+                var projectIdList = string.Join(",", projectIds);
+                var projectTags = await SupabaseService.GetAsync<ProjectsTags>("ProjectsTags", $"ProjectID=in.({projectIdList})");
+                var allTags = await SupabaseService.GetAsync<Tag>("Tags", "");
+
+                var tagDict = allTags.ToDictionary(t => t.ID, t => t);
+
+                var result = new Dictionary<int, List<Tag>>();
+
+                foreach (var pt in projectTags)
+                {
+                    if (!result.ContainsKey(pt.ProjectID))
+                        result[pt.ProjectID] = new List<Tag>();
+
+                    if (tagDict.ContainsKey(pt.TagID))
+                        result[pt.ProjectID].Add(tagDict[pt.TagID]);
+                }
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting tags for multiple projects");
+                return new Dictionary<int, List<Tag>>();
+            }
         }
     }
 }

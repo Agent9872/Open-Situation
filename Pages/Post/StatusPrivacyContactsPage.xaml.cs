@@ -86,8 +86,10 @@ namespace Lock.Pages.Post
                 }
 
                 // Also add users from conversations (they might not be in device contacts)
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
+                // Remove this SQLite code:
+                // await DatabaseService.InitializeAsync();
+                // var db = DatabaseService.GetConnection();
+
                 var conversations = await ChatRepository.GetConversationsForUserAsync(currentUserPhone);
 
                 foreach (var conv in conversations)
@@ -101,10 +103,10 @@ namespace Lock.Pages.Post
                     // Check if already added
                     if (contacts.Any(c => c.Phone == otherPhone)) continue;
 
-                    // Get user details
-                    var user = await db.Table<User>()
-                        .Where(u => u.PhoneNumber == otherPhone)
-                        .FirstOrDefaultAsync();
+                    // Get user details - using Supabase
+                    var users = await SupabaseService.GetAsync<User>("Users",
+                        $"PhoneNumber=eq.{Uri.EscapeDataString(otherPhone)}&limit=1");
+                    var user = users.FirstOrDefault();
 
                     var contact = new ContactItem
                     {
@@ -182,13 +184,17 @@ namespace Lock.Pages.Post
 
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
+                // Remove this SQLite code:
+                // await DatabaseService.InitializeAsync();
+                // var db = DatabaseService.GetConnection();
+                // var user = await db.Table<User>()
+                //     .Where(u => u.PhoneNumber == phoneNumber)
+                //     .FirstOrDefaultAsync();
 
-                // Try to find user by exact match
-                var user = await db.Table<User>()
-                    .Where(u => u.PhoneNumber == phoneNumber)
-                    .FirstOrDefaultAsync();
+                // Replace with Supabase code:
+                var users = await SupabaseService.GetAsync<User>("Users",
+                    $"PhoneNumber=eq.{Uri.EscapeDataString(phoneNumber)}&limit=1");
+                var user = users.FirstOrDefault();
 
                 return user;
             }
