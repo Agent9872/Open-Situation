@@ -209,17 +209,16 @@ namespace Lock.Pages.Post
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
                 var currentPhone = Preferences.Get("current_user_phone", string.Empty);
 
-                var sessions = (await db.Table<LiveSession>().ToListAsync())
-                    .Where(s => s.IsLive && s.EndedAt == null
-                             && !string.Equals(s.UserPhoneNumber, currentPhone, StringComparison.OrdinalIgnoreCase))
+                // FIXED: Use Supabase instead of SQLite
+                var allSessions = await SupabaseService.GetAsync<LiveSession>("LiveSessions",
+                    $"IsLive=eq.true&EndedAt=is.null&UserPhoneNumber=neq.{Uri.EscapeDataString(currentPhone)}");
+
+                var sessions = allSessions
                     .GroupBy(s => s.UserPhoneNumber)
                     .Select(g => g.First())
-                    .Take(10) // Limit to 10 live users in PostPage
+                    .Take(10)
                     .ToList();
 
                 var cards = new List<PostPageLiveUserCard>();
@@ -232,11 +231,14 @@ namespace Lock.Pages.Post
                         {
                             session.IsLive = false;
                             session.EndedAt = DateTime.UtcNow;
-                            await db.UpdateAsync(session);
+                            await SupabaseService.UpdateAsync("LiveSessions", $"Id=eq.{session.Id}", session);
                             continue;
                         }
 
-                        var user = await db.Table<User>().Where(u => u.PhoneNumber == session.UserPhoneNumber).FirstOrDefaultAsync();
+                        // FIXED: Get user from Supabase
+                        var users = await SupabaseService.GetAsync<User>("Users",
+                            $"PhoneNumber=eq.{Uri.EscapeDataString(session.UserPhoneNumber)}&limit=1");
+                        var user = users.FirstOrDefault();
                         if (user == null) continue;
 
                         string heightText = string.Empty;
@@ -291,8 +293,7 @@ namespace Lock.Pages.Post
                                 card.ImageCarouselPaths = new List<string>();
                             }
                         }
-                        card.StartCarousel(); // mood blinking removed entirely
-
+                        card.StartCarousel();
                         cards.Add(card);
                     }
                     catch (Exception ex)
@@ -789,16 +790,14 @@ namespace Lock.Pages.Post
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
                 var currentUserPhone = Preferences.Get("current_user_phone", string.Empty);
                 if (string.IsNullOrEmpty(currentUserPhone)) return;
 
-                // Load all users except current user and ghost mode users
-                _allNearbyUsers = await db.Table<User>()
-                    .Where(u => u.PhoneNumber != currentUserPhone)
-                    .ToListAsync();
+                // FIXED: Use Supabase instead of SQLite
+                var allUsers = await SupabaseService.GetAsync<User>("Users",
+                    $"PhoneNumber=neq.{Uri.EscapeDataString(currentUserPhone)}");
+
+                _allNearbyUsers = allUsers.ToList();
 
                 _filteredNearbyUsers = _allNearbyUsers
                     .Where(u => !u.GhostModeMoodShield)
@@ -1159,13 +1158,11 @@ namespace Lock.Pages.Post
                 var phone = Preferences.Get("current_user_phone", string.Empty);
                 if (string.IsNullOrEmpty(phone)) return false;
 
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-                var session = await db.Table<LiveSession>()
-                    .Where(s => s.UserPhoneNumber == phone && s.IsLive && s.EndedAt == null)
-                    .FirstOrDefaultAsync();
+                // FIXED: Use Supabase instead of SQLite
+                var sessions = await SupabaseService.GetAsync<LiveSession>("LiveSessions",
+                    $"UserPhoneNumber=eq.{Uri.EscapeDataString(phone)}&IsLive=eq.true&EndedAt=is.null&limit=1");
 
-                return session != null;
+                return sessions.Any();
             }
             catch (Exception ex)
             {
@@ -1386,11 +1383,9 @@ namespace Lock.Pages.Post
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-                var user = await db.Table<User>()
-                    .Where(u => u.PhoneNumber == phone)
-                    .FirstOrDefaultAsync();
+                var users = await SupabaseService.GetAsync<User>("Users",
+                    $"PhoneNumber=eq.{Uri.EscapeDataString(phone)}&limit=1");
+                var user = users.FirstOrDefault();
 
                 return user?.Name ?? phone;
             }
@@ -1407,12 +1402,9 @@ namespace Lock.Pages.Post
                 var currentUserPhone = Preferences.Get("current_user_phone", string.Empty);
                 if (string.IsNullOrEmpty(currentUserPhone)) return string.Empty;
 
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
-                var user = await db.Table<Lock.Models.User>()
-                    .Where(u => u.PhoneNumber == currentUserPhone)
-                    .FirstOrDefaultAsync();
+                var users = await SupabaseService.GetAsync<User>("Users",
+                    $"PhoneNumber=eq.{Uri.EscapeDataString(currentUserPhone)}&limit=1");
+                var user = users.FirstOrDefault();
 
                 return user?.Mood ?? string.Empty;
             }
@@ -1421,19 +1413,16 @@ namespace Lock.Pages.Post
                 return string.Empty;
             }
         }
+
+
         private async Task<bool> IsFollowerAsync(string followerPhone, string followingPhone)
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
+                var follows = await SupabaseService.GetAsync<Follow>("Follows",
+                    $"FollowerPhone=eq.{Uri.EscapeDataString(followerPhone)}&FollowingPhone=eq.{Uri.EscapeDataString(followingPhone)}&limit=1");
 
-                // Check if there's a follow relationship
-                var follow = await db.Table<Follow>()
-                    .Where(f => f.FollowerPhone == followerPhone && f.FollowingPhone == followingPhone)
-                    .FirstOrDefaultAsync();
-
-                return follow != null;
+                return follows.Any();
             }
             catch
             {
@@ -1686,12 +1675,9 @@ namespace Lock.Pages.Post
                 var duration = Preferences.Get($"status_duration_{currentUserPhone}", "24 hours");
                 var expirationHours = GetExpirationHours(duration);
 
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
-                var allStatuses = await db.Table<Lock.Models.Post>()
-                    .Where(p => !string.IsNullOrEmpty(p.StatusImagePath))
-                    .ToListAsync();
+                // FIXED: Use Supabase instead of SQLite
+                var allStatuses = await SupabaseService.GetAsync<Lock.Models.Post>("Posts",
+                    "StatusImagePath=not.is.null");
 
                 var now = DateTime.UtcNow;
                 var expiredStatuses = new List<Lock.Models.Post>();
@@ -1709,7 +1695,8 @@ namespace Lock.Pages.Post
 
                 foreach (var expired in expiredStatuses)
                 {
-                    await db.DeleteAsync(expired);
+                    // FIXED: Delete from Supabase
+                    await SupabaseService.DeleteAsync("Posts", $"Id=eq.{expired.Id}");
 
                     // Delete the actual image file
                     if (!string.IsNullOrEmpty(expired.StatusImagePath) && System.IO.File.Exists(expired.StatusImagePath))
@@ -1736,7 +1723,6 @@ namespace Lock.Pages.Post
                 Debug.WriteLine($"Error cleaning up expired statuses: {ex}");
             }
         }
-
 
 
         private void StartStatusCleanupTimer()
@@ -2376,23 +2362,24 @@ namespace Lock.Pages.Post
             {
                 var currentUserPhone = Preferences.Get("current_user_phone", string.Empty)?.Trim();
 
-                // Don't calculate for self
                 if (string.Equals(currentUserPhone, targetUserPhone, StringComparison.OrdinalIgnoreCase))
                     return 0;
 
                 if (string.IsNullOrEmpty(currentUserPhone) || string.IsNullOrEmpty(targetUserPhone))
                     return 0;
 
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
+                // FIXED: Use Supabase instead of SQLite
+                var currentUsers = await SupabaseService.GetAsync<User>("Users",
+                    $"PhoneNumber=eq.{Uri.EscapeDataString(currentUserPhone)}&limit=1");
+                var currentUser = currentUsers.FirstOrDefault();
 
-                var currentUser = await db.Table<User>().Where(u => u.PhoneNumber == currentUserPhone).FirstOrDefaultAsync();
-                var targetUser = await db.Table<User>().Where(u => u.PhoneNumber == targetUserPhone).FirstOrDefaultAsync();
+                var targetUsers = await SupabaseService.GetAsync<User>("Users",
+                    $"PhoneNumber=eq.{Uri.EscapeDataString(targetUserPhone)}&limit=1");
+                var targetUser = targetUsers.FirstOrDefault();
 
                 if (currentUser == null || targetUser == null)
                     return 0;
 
-                // Call your existing CompatibilityService
                 return await CompatibilityService.CalculateCompatibilityScoreAsync(currentUser, targetUser);
             }
             catch (Exception ex)
@@ -2401,7 +2388,6 @@ namespace Lock.Pages.Post
                 return 0;
             }
         }
-
 
 
 
@@ -2419,11 +2405,10 @@ namespace Lock.Pages.Post
                 if (string.IsNullOrEmpty(currentUserPhone))
                     return;
 
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
-                // Get current user with preferences
-                var currentUser = await db.Table<User>().Where(u => u.PhoneNumber == currentUserPhone).FirstOrDefaultAsync();
+                // FIXED: Use Supabase instead of SQLite
+                var currentUsers = await SupabaseService.GetAsync<User>("Users",
+                    $"PhoneNumber=eq.{Uri.EscapeDataString(currentUserPhone)}&limit=1");
+                var currentUser = currentUsers.FirstOrDefault();
 
                 if (currentUser == null)
                     return;
@@ -2450,7 +2435,10 @@ namespace Lock.Pages.Post
                 var targetUsers = new Dictionary<string, User>(StringComparer.OrdinalIgnoreCase);
                 foreach (var phone in authorPhones)
                 {
-                    var targetUser = await db.Table<User>().Where(u => u.PhoneNumber == phone).FirstOrDefaultAsync();
+                    // FIXED: Use Supabase instead of SQLite
+                    var targetUsersList = await SupabaseService.GetAsync<User>("Users",
+                        $"PhoneNumber=eq.{Uri.EscapeDataString(phone)}&limit=1");
+                    var targetUser = targetUsersList.FirstOrDefault();
                     if (targetUser != null)
                     {
                         targetUsers[phone] = targetUser;
@@ -2546,10 +2534,10 @@ namespace Lock.Pages.Post
                 if (string.IsNullOrEmpty(currentUserPhone))
                     return posts;
 
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
-                var currentUser = await db.Table<User>().Where(u => u.PhoneNumber == currentUserPhone).FirstOrDefaultAsync();
+                // FIXED: Use Supabase instead of SQLite
+                var currentUsers = await SupabaseService.GetAsync<User>("Users",
+                    $"PhoneNumber=eq.{Uri.EscapeDataString(currentUserPhone)}&limit=1");
+                var currentUser = currentUsers.FirstOrDefault();
 
                 if (currentUser == null || string.IsNullOrEmpty(currentUser.Interest) || currentUser.Interest == "Everyone")
                     return posts;
@@ -2568,7 +2556,10 @@ namespace Lock.Pages.Post
                 var authorUsers = new Dictionary<string, User>(StringComparer.OrdinalIgnoreCase);
                 foreach (var phone in authorPhones)
                 {
-                    var authorUser = await db.Table<User>().Where(u => u.PhoneNumber == phone).FirstOrDefaultAsync();
+                    // FIXED: Use Supabase instead of SQLite
+                    var authorUsersList = await SupabaseService.GetAsync<User>("Users",
+                        $"PhoneNumber=eq.{Uri.EscapeDataString(phone)}&limit=1");
+                    var authorUser = authorUsersList.FirstOrDefault();
                     if (authorUser != null)
                     {
                         authorUsers[phone] = authorUser;
@@ -2622,9 +2613,6 @@ namespace Lock.Pages.Post
         {
             try
             {
-                await ChatDatabaseService.InitializeAsync();
-                var db = ChatDatabaseService.GetConnection();
-
                 var currentUserPhone = Preferences.Get("current_user_phone", string.Empty)?.Trim();
                 if (string.IsNullOrEmpty(currentUserPhone))
                 {
@@ -2633,10 +2621,9 @@ namespace Lock.Pages.Post
                     return;
                 }
 
-                var conversations = await db.Table<Conversation>()
-                    .Where(c => c.ParticipantA == currentUserPhone ||
-                               c.ParticipantB == currentUserPhone)
-                    .ToListAsync();
+                // FIXED: Use Supabase instead of SQLite
+                var conversations = await SupabaseService.GetAsync<Conversation>("Conversations",
+                    $"or(ParticipantA.eq.{Uri.EscapeDataString(currentUserPhone)},ParticipantB.eq.{Uri.EscapeDataString(currentUserPhone)})");
 
                 int unreadConversationsCount = 0;
 
@@ -2644,13 +2631,10 @@ namespace Lock.Pages.Post
                 {
                     try
                     {
-                        var unreadMessages = await db.Table<ChatMessage>()
-                            .Where(m => m.ConversationId == conv.ConversationId &&
-                                       m.RecipientPhone == currentUserPhone &&
-                                       m.IsRead == false)
-                            .CountAsync();
+                        var unreadMessages = await SupabaseService.GetAsync<ChatMessage>("ChatMessages",
+                            $"ConversationId=eq.{conv.ConversationId}&RecipientPhone=eq.{Uri.EscapeDataString(currentUserPhone)}&IsRead=eq.false");
 
-                        if (unreadMessages > 0)
+                        if (unreadMessages.Count > 0)
                         {
                             unreadConversationsCount++;
                         }
@@ -2677,7 +2661,6 @@ namespace Lock.Pages.Post
                     }
                 });
 
-                // Also update the bottom nav badge to match
                 await UpdateBottomNavChatBadge();
             }
             catch (Exception ex)
@@ -2696,7 +2679,6 @@ namespace Lock.Pages.Post
             {
                 System.Diagnostics.Debug.WriteLine("=== AddImageFloatingButton_Clicked started ===");
 
-                // Request permissions first
                 var hasPermission = await PermissionsHelper.RequestStoragePermissionsAsync();
                 if (!hasPermission)
                 {
@@ -2706,7 +2688,6 @@ namespace Lock.Pages.Post
                     return;
                 }
 
-                // Use PickMultipleAsync with proper options
                 var results = await FilePicker.PickMultipleAsync(new PickOptions
                 {
                     PickerTitle = "Select one or more images for status",
@@ -2721,7 +2702,6 @@ namespace Lock.Pages.Post
 
                 System.Diagnostics.Debug.WriteLine($"Selected {results.Count()} images");
 
-                // ========== ASK FOR MOOD ONCE FOR ALL IMAGES ==========
                 var moodChoice = await DisplayActionSheet(
                     $"Select mood for {results.Count()} image(s)",
                     "Cancel",
@@ -2763,12 +2743,10 @@ namespace Lock.Pages.Post
                     return;
                 }
 
-                // Process all images with the SAME mood
                 foreach (var r in results)
                 {
                     try
                     {
-                        // Save file
                         var destFileName = $"status_{Guid.NewGuid():N}{System.IO.Path.GetExtension(r.FileName)}";
                         var saved = await SavePickedFileAsync(r, destFileName);
 
@@ -2781,7 +2759,7 @@ namespace Lock.Pages.Post
                         savedPaths.Add(saved);
                         System.Diagnostics.Debug.WriteLine($"Saved file to: {saved} with mood: {mood}");
 
-                        // Save to database with the SAME mood for all images
+                        // FIXED: Insert into Supabase
                         var statusPost = new Lock.Models.Post
                         {
                             AuthorPhone = authorPhone,
@@ -2792,7 +2770,7 @@ namespace Lock.Pages.Post
                             CreatedAt = DateTime.UtcNow
                         };
 
-                        await PostRepository.InsertAsync(statusPost);
+                        await SupabaseService.InsertAsync("Posts", statusPost);
                         System.Diagnostics.Debug.WriteLine($"Status post inserted with ID: {statusPost.Id}, mood: {mood}");
                     }
                     catch (Exception ex)
@@ -2837,20 +2815,15 @@ namespace Lock.Pages.Post
             }
         }
 
-
         private async void TopImage_Tapped(object? sender, EventArgs e)
         {
             try
             {
                 var authorPhone = Preferences.Get("current_user_phone", string.Empty) ?? string.Empty;
 
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
-                var statusPosts = await db.Table<Lock.Models.Post>()
-                                          .Where(p => p.AuthorPhone == authorPhone && p.StatusImagePath != string.Empty)
-                                          .OrderByDescending(p => p.CreatedAt)
-                                          .ToListAsync();
+                // FIXED: Use Supabase instead of SQLite
+                var statusPosts = await SupabaseService.GetAsync<Lock.Models.Post>("Posts",
+                    $"AuthorPhone=eq.{Uri.EscapeDataString(authorPhone)}&StatusImagePath=not.is.null&order=CreatedAt.desc");
 
                 if (statusPosts == null || statusPosts.Count == 0)
                 {
@@ -2931,16 +2904,13 @@ namespace Lock.Pages.Post
                 else if (TopImage?.Source is UriImageSource uis && uis.Uri != null)
                     currentPath = uis.Uri.ToString();
 
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
+                // FIXED: Use Supabase instead of SQLite
                 Lock.Models.Post? target = null;
                 if (!string.IsNullOrEmpty(currentPath))
                 {
-                    target = (await db.Table<Lock.Models.Post>()
-                                     .Where(p => p.AuthorPhone == authorPhone && p.StatusImagePath == currentPath)
-                                     .OrderByDescending(p => p.CreatedAt)
-                                     .ToListAsync()).FirstOrDefault();
+                    var statuses = await SupabaseService.GetAsync<Lock.Models.Post>("Posts",
+                        $"AuthorPhone=eq.{Uri.EscapeDataString(authorPhone)}&StatusImagePath=eq.{Uri.EscapeDataString(currentPath)}&order=CreatedAt.desc");
+                    target = statuses.FirstOrDefault();
                 }
 
                 if (target != null)
@@ -2948,7 +2918,7 @@ namespace Lock.Pages.Post
                     target.StatusImagePath = saved;
                     if (!string.IsNullOrEmpty(mood)) target.Mood = mood;
                     target.CreatedAt = DateTime.UtcNow;
-                    await db.UpdateAsync(target);
+                    await SupabaseService.UpdateAsync("Posts", $"Id=eq.{target.Id}", target);
                 }
                 else
                 {
@@ -2961,7 +2931,7 @@ namespace Lock.Pages.Post
                         Mood = mood,
                         CreatedAt = DateTime.UtcNow
                     };
-                    await db.InsertAsync(statusPost);
+                    await SupabaseService.InsertAsync("Posts", statusPost);
                 }
 
                 if (TopImage != null)
@@ -2997,24 +2967,19 @@ namespace Lock.Pages.Post
                 try
                 {
                     var authorPhone = Preferences.Get("current_user_phone", string.Empty) ?? string.Empty;
-                    await DatabaseService.InitializeAsync();
-                    var db = DatabaseService.GetConnection();
 
-                    var matches = await db.Table<Lock.Models.Post>()
-                                          .Where(p => p.AuthorPhone == authorPhone && p.StatusImagePath == currentPath)
-                                          .OrderByDescending(p => p.CreatedAt)
-                                          .ToListAsync();
+                    // FIXED: Use Supabase instead of SQLite
+                    var statuses = await SupabaseService.GetAsync<Lock.Models.Post>("Posts",
+                        $"AuthorPhone=eq.{Uri.EscapeDataString(authorPhone)}&StatusImagePath=eq.{Uri.EscapeDataString(currentPath)}&order=CreatedAt.desc");
+                    var toDelete = statuses.FirstOrDefault();
 
-                    var toDelete = matches.FirstOrDefault();
                     if (toDelete != null)
                     {
-                        await db.DeleteAsync(toDelete);
+                        await SupabaseService.DeleteAsync("Posts", $"Id=eq.{toDelete.Id}");
                     }
 
-                    var remaining = await db.Table<Lock.Models.Post>()
-                                            .Where(p => p.AuthorPhone == authorPhone && p.StatusImagePath != string.Empty)
-                                            .OrderByDescending(p => p.CreatedAt)
-                                            .ToListAsync();
+                    var remaining = await SupabaseService.GetAsync<Lock.Models.Post>("Posts",
+                        $"AuthorPhone=eq.{Uri.EscapeDataString(authorPhone)}&StatusImagePath=not.is.null&order=CreatedAt.desc");
 
                     if (remaining.Any() && !string.IsNullOrEmpty(remaining.First().StatusImagePath) && System.IO.File.Exists(remaining.First().StatusImagePath))
                     {
@@ -3197,16 +3162,13 @@ namespace Lock.Pages.Post
                 // ── Filter out posts from Ghost Mode + Mood Shield users ──────────
                 try
                 {
-                    await DatabaseService.InitializeAsync();
-                    var dbGhost = DatabaseService.GetConnection();
+                    var ghostUsers = await SupabaseService.GetAsync<User>("Users",
+                        "GhostModeMoodShield=eq.true");
 
-                    var ghostedPhones = (await dbGhost.Table<User>()
-                        .ToListAsync())
-                        .Where(u => u.GhostModeMoodShield)
+                    var ghostedPhones = ghostUsers
+                        .Where(u => !string.Equals(u.PhoneNumber, currentUserPhone, StringComparison.OrdinalIgnoreCase))
                         .Select(u => (u.PhoneNumber ?? "").Trim())
-                        .Where(p => !string.IsNullOrEmpty(p) &&
-                                    !string.Equals(p, currentUserPhone,
-                                        StringComparison.OrdinalIgnoreCase))
+                        .Where(p => !string.IsNullOrEmpty(p))
                         .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
                     if (ghostedPhones.Count > 0)
@@ -3250,9 +3212,11 @@ namespace Lock.Pages.Post
                     {
                         try
                         {
-                            var user = await db.Table<Lock.Models.User>()
-                                               .Where(u => u.PhoneNumber == phone)
-                                               .FirstOrDefaultAsync();
+                            // FIXED: Use Supabase instead of SQLite
+                            var users = await SupabaseService.GetAsync<Lock.Models.User>("Users",
+                                $"PhoneNumber=eq.{Uri.EscapeDataString(phone)}&limit=1");
+                            var user = users.FirstOrDefault();
+
                             if (user != null)
                             {
                                 nameMap[phone] = string.IsNullOrWhiteSpace(user.Name) ? phone : user.Name;
@@ -3382,10 +3346,10 @@ namespace Lock.Pages.Post
                     var currentUserPhoneForInterest = Preferences.Get("current_user_phone", string.Empty)?.Trim();
                     if (!string.IsNullOrEmpty(currentUserPhoneForInterest))
                     {
-                        await DatabaseService.InitializeAsync();
-                        var db = DatabaseService.GetConnection();
-
-                        var currentUser = await db.Table<User>().Where(u => u.PhoneNumber == currentUserPhoneForInterest).FirstOrDefaultAsync();
+                        // FIXED: Use Supabase instead of SQLite
+                        var currentUsers = await SupabaseService.GetAsync<User>("Users",
+                            $"PhoneNumber=eq.{Uri.EscapeDataString(currentUserPhoneForInterest)}&limit=1");
+                        var currentUser = currentUsers.FirstOrDefault();
 
                         if (currentUser != null && !string.IsNullOrEmpty(currentUser.Interest) && currentUser.Interest != "Everyone")
                         {
@@ -3546,9 +3510,10 @@ namespace Lock.Pages.Post
                 phone = phone.Trim();
                 if (string.IsNullOrWhiteSpace(phone)) return;
 
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-                var user = await db.Table<User>().Where(u => u.PhoneNumber == phone).FirstOrDefaultAsync();
+                // FIXED: Use Supabase instead of SQLite
+                var users = await SupabaseService.GetAsync<User>("Users",
+                    $"PhoneNumber=eq.{Uri.EscapeDataString(phone)}&limit=1");
+                var user = users.FirstOrDefault();
 
                 if (user != null)
                 {
@@ -3707,15 +3672,16 @@ namespace Lock.Pages.Post
                 ? filteredPosts.Where(p => !mutedPhones.Any(m => string.Equals(m.Trim(), (p.AuthorPhone ?? "").Trim(), StringComparison.OrdinalIgnoreCase))).ToList()
                 : filteredPosts;
 
-            // Ghost mode filter
+            // Ghost mode filter - FIXED: Use Supabase
             try
             {
-                await DatabaseService.InitializeAsync();
-                var dbGhost = DatabaseService.GetConnection();
-                var ghostedPhones = (await dbGhost.Table<User>().ToListAsync())
-                    .Where(u => u.GhostModeMoodShield)
+                var ghostUsers = await SupabaseService.GetAsync<User>("Users",
+                    "GhostModeMoodShield=eq.true");
+
+                var ghostedPhones = ghostUsers
+                    .Where(u => !string.Equals(u.PhoneNumber, currentUserPhone, StringComparison.OrdinalIgnoreCase))
                     .Select(u => (u.PhoneNumber ?? "").Trim())
-                    .Where(p => !string.IsNullOrEmpty(p) && !string.Equals(p, currentUserPhone, StringComparison.OrdinalIgnoreCase))
+                    .Where(p => !string.IsNullOrEmpty(p))
                     .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
                 if (ghostedPhones.Count > 0)
@@ -3748,15 +3714,15 @@ namespace Lock.Pages.Post
             }
             filteredPosts = moodFilteredPosts;
 
-            // Dating interest filter
+            // Dating interest filter - FIXED: Use Supabase
             try
             {
                 var currentUserPhoneForInterest = Preferences.Get("current_user_phone", string.Empty)?.Trim();
                 if (!string.IsNullOrEmpty(currentUserPhoneForInterest))
                 {
-                    await DatabaseService.InitializeAsync();
-                    var db = DatabaseService.GetConnection();
-                    var currentUser = await db.Table<User>().Where(u => u.PhoneNumber == currentUserPhoneForInterest).FirstOrDefaultAsync();
+                    var currentUsers = await SupabaseService.GetAsync<User>("Users",
+                        $"PhoneNumber=eq.{Uri.EscapeDataString(currentUserPhoneForInterest)}&limit=1");
+                    var currentUser = currentUsers.FirstOrDefault();
 
                     if (currentUser != null && !string.IsNullOrEmpty(currentUser.Interest) && currentUser.Interest != "Everyone")
                     {
@@ -3809,13 +3775,11 @@ namespace Lock.Pages.Post
             return filteredPosts;
         }
 
+
         private async Task ResolveAuthorData(List<Lock.Models.Post> posts, string currentUserPhone)
         {
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
                 var phones = posts.Select(p =>
                 {
                     var phone = p.AuthorPhone ?? string.Empty;
@@ -3834,22 +3798,24 @@ namespace Lock.Pages.Post
                 var profileImageMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
                 var moodMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
                 var verifiedMap = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
-                var hidePhoneMap = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase); // ADD THIS
+                var hidePhoneMap = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
 
                 foreach (var phone in phones)
                 {
                     try
                     {
-                        var user = await db.Table<Lock.Models.User>()
-                            .Where(u => u.PhoneNumber == phone)
-                            .FirstOrDefaultAsync();
+                        // FIXED: Get user from Supabase
+                        var users = await SupabaseService.GetAsync<Lock.Models.User>("Users",
+                            $"PhoneNumber=eq.{Uri.EscapeDataString(phone)}&limit=1");
+                        var user = users.FirstOrDefault();
+
                         if (user != null)
                         {
                             nameMap[phone] = string.IsNullOrWhiteSpace(user.Name) ? phone : user.Name;
                             profileImageMap[phone] = user.ProfileImagePath ?? string.Empty;
                             moodMap[phone] = user.Mood ?? string.Empty;
                             verifiedMap[phone] = user.IsVerified;
-                            hidePhoneMap[phone] = user.HidePhoneNumber; // ADD THIS
+                            hidePhoneMap[phone] = user.HidePhoneNumber;
                         }
                     }
                     catch (Exception ex)
@@ -3881,11 +3847,9 @@ namespace Lock.Pages.Post
                         if (verifiedMap.TryGetValue(cleanPhone, out var isVerified))
                             p.IsAuthorVerified = isVerified;
 
-                        // HIDE PHONE if toggle is on - show name only, no phone
                         if (hidePhoneMap.TryGetValue(cleanPhone, out var hidePhone) && hidePhone)
                         {
-                            // Clear the phone from AuthorPhone display - keep only name part
-                            p.AuthorPhone = resolvedName ?? cleanPhone; // just name, no phone suffix
+                            p.AuthorPhone = resolvedName ?? cleanPhone;
                         }
                     }
 
@@ -3898,6 +3862,8 @@ namespace Lock.Pages.Post
                 Debug.WriteLine($"Error resolving user data: {ex}");
             }
         }
+
+
         public static void ClearPostCache()
         {
             _cachedFeedPosts = null;
@@ -4095,9 +4061,8 @@ namespace Lock.Pages.Post
                     {
                         try
                         {
-                            await DatabaseService.InitializeAsync();
-                            var db = DatabaseService.GetConnection();
-                            await db.DeleteAsync(status);
+                            // FIXED: Delete from Supabase
+                            await SupabaseService.DeleteAsync("Posts", $"Id=eq.{status.Id}");
 
                             if (!string.IsNullOrEmpty(status.StatusImagePath) &&
                                 System.IO.File.Exists(status.StatusImagePath))
@@ -4119,17 +4084,16 @@ namespace Lock.Pages.Post
                 // Resolve author names for status posts
                 try
                 {
-                    await DatabaseService.InitializeAsync();
-                    var db = DatabaseService.GetConnection();
-
                     foreach (var sp in _allStatusPosts)
                     {
                         if (string.IsNullOrEmpty(sp.AuthorPhone)) continue;
                         try
                         {
-                            var user = await db.Table<Lock.Models.User>()
-                                               .Where(u => u.PhoneNumber == sp.AuthorPhone)
-                                               .FirstOrDefaultAsync();
+                            // FIXED: Get user from Supabase
+                            var users = await SupabaseService.GetAsync<Lock.Models.User>("Users",
+                                $"PhoneNumber=eq.{Uri.EscapeDataString(sp.AuthorPhone)}&limit=1");
+                            var user = users.FirstOrDefault();
+
                             if (user != null)
                             {
                                 sp.AuthorDisplayName = string.IsNullOrWhiteSpace(user.Name)
@@ -4160,14 +4124,11 @@ namespace Lock.Pages.Post
 
                     if (statusLayout != null && statusScrollView != null)
                     {
-                        // Clear all children first
                         statusLayout.Children.Clear();
 
-                        // IMPORTANT: ALWAYS add the "Add Story" button FIRST
                         var addStoryButton = CreateAddStoryButton();
                         statusLayout.Children.Add(addStoryButton);
 
-                        // Then add all user statuses
                         foreach (var userStatus in usersWithStatus)
                         {
                             var userPhone = userStatus.UserPhone;
@@ -4178,7 +4139,6 @@ namespace Lock.Pages.Post
                             statusLayout.Children.Add(statusView);
                         }
 
-                        // Always show the scroll view (don't hide it even if no statuses)
                         statusScrollView.IsVisible = true;
                         statusLayout.IsVisible = true;
 
@@ -4196,8 +4156,6 @@ namespace Lock.Pages.Post
                 System.Diagnostics.Debug.WriteLine($"Error processing status posts for top bar: {ex}");
             }
         }
-
-
         private async Task<List<Lock.Models.Post>> GetNonExpiredStatuses(string userPhone, bool deleteExpired = true)
         {
             try
@@ -4205,13 +4163,9 @@ namespace Lock.Pages.Post
                 var duration = Preferences.Get($"status_duration_{userPhone}", "24 hours");
                 var expirationHours = GetExpirationHours(duration);
 
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-
-                var allStatuses = await db.Table<Lock.Models.Post>()
-                    .Where(p => p.AuthorPhone == userPhone && !string.IsNullOrEmpty(p.StatusImagePath))
-                    .OrderByDescending(p => p.CreatedAt)
-                    .ToListAsync();
+                // FIXED: Use Supabase instead of SQLite
+                var allStatuses = await SupabaseService.GetAsync<Lock.Models.Post>("Posts",
+                    $"AuthorPhone=eq.{Uri.EscapeDataString(userPhone)}&StatusImagePath=not.is.null&order=CreatedAt.desc");
 
                 var now = DateTime.UtcNow;
                 var validStatuses = new List<Lock.Models.Post>();
@@ -4226,7 +4180,7 @@ namespace Lock.Pages.Post
                     else if (deleteExpired)
                     {
                         // Delete expired status
-                        await db.DeleteAsync(status);
+                        await SupabaseService.DeleteAsync("Posts", $"Id=eq.{status.Id}");
 
                         // Delete the actual image file if it exists
                         if (!string.IsNullOrEmpty(status.StatusImagePath) && System.IO.File.Exists(status.StatusImagePath))
@@ -4249,7 +4203,6 @@ namespace Lock.Pages.Post
                 return new List<Lock.Models.Post>();
             }
         }
-
         private async void OnHiddenPostsButtonClicked(object sender, EventArgs e)
         {
             try
@@ -5574,11 +5527,10 @@ namespace Lock.Pages.Post
                 }
                 catch { }
 
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-                var user = await db.Table<Lock.Models.User>()
-                                   .Where(u => u.PhoneNumber == phone)
-                                   .FirstOrDefaultAsync();
+                // FIXED: Use Supabase instead of SQLite
+                var users = await SupabaseService.GetAsync<User>("Users",
+                    $"PhoneNumber=eq.{Uri.EscapeDataString(phone)}&limit=1");
+                var user = users.FirstOrDefault();
 
                 if (user != null && !string.IsNullOrWhiteSpace(user.ProfileImagePath) && File.Exists(user.ProfileImagePath))
                 {
@@ -5991,14 +5943,9 @@ namespace Lock.Pages.Post
                     return;
                 }
 
-                // Get unread conversations count from Chat repository
-                await ChatDatabaseService.InitializeAsync();
-                var db = ChatDatabaseService.GetConnection();
-
-                // Get all conversations for the current user
-                var conversations = await db.Table<Conversation>()
-                    .Where(c => c.ParticipantA == currentUserPhone || c.ParticipantB == currentUserPhone)
-                    .ToListAsync();
+                // FIXED: Use Supabase instead of SQLite
+                var conversations = await SupabaseService.GetAsync<Conversation>("Conversations",
+                    $"or(ParticipantA.eq.{Uri.EscapeDataString(currentUserPhone)},ParticipantB.eq.{Uri.EscapeDataString(currentUserPhone)})");
 
                 int conversationsWithUnread = 0;
 
@@ -6006,14 +5953,10 @@ namespace Lock.Pages.Post
                 {
                     try
                     {
-                        // Count unread messages in this conversation
-                        var unreadMessages = await db.Table<ChatMessage>()
-                            .Where(m => m.ConversationId == conv.ConversationId &&
-                                       m.RecipientPhone == currentUserPhone &&
-                                       m.IsRead == false)
-                            .CountAsync();
+                        var unreadMessages = await SupabaseService.GetAsync<ChatMessage>("ChatMessages",
+                            $"ConversationId=eq.{conv.ConversationId}&RecipientPhone=eq.{Uri.EscapeDataString(currentUserPhone)}&IsRead=eq.false");
 
-                        if (unreadMessages > 0)
+                        if (unreadMessages.Count > 0)
                         {
                             conversationsWithUnread++;
                         }
@@ -6024,7 +5967,6 @@ namespace Lock.Pages.Post
                     }
                 }
 
-                // Update badge on UI thread
                 MainThread.BeginInvokeOnMainThread(() =>
                 {
                     SetBottomNavChatBadgeVisibility(conversationsWithUnread > 0);
@@ -7648,9 +7590,12 @@ namespace Lock.Pages.Post
                     MatchPercent = 0;
                     return;
                 }
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-                var currentUser = await db.Table<User>().Where(u => u.PhoneNumber == currentUserPhone).FirstOrDefaultAsync();
+
+                // FIXED: Use Supabase instead of SQLite
+                var currentUsers = await SupabaseService.GetAsync<User>("Users",
+                    $"PhoneNumber=eq.{Uri.EscapeDataString(currentUserPhone)}&limit=1");
+                var currentUser = currentUsers.FirstOrDefault();
+
                 if (currentUser == null)
                 {
                     MatchPercent = 0;

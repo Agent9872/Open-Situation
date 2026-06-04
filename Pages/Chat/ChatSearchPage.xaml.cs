@@ -118,7 +118,7 @@ namespace Lock.Pages.Chat
 
                         allResults.Add(new SearchResultItem
                         {
-                            MessageId = msg.Id,
+                            MessageId = msg.Id,  // Now string to string
                             ConversationId = conv.ConversationId,
                             SenderPhone = senderPhone,
                             SenderName = msg.SenderPhone == _currentUserPhone ? "You" : senderInfo.Name,
@@ -253,20 +253,20 @@ namespace Lock.Pages.Chat
 
     public class SearchResultItem
     {
-        public int MessageId { get; set; }
-        public string ConversationId { get; set; }
-        public string SenderPhone { get; set; }
-        public string SenderName { get; set; }
-        public string SenderInitials { get; set; }
-        public string SenderProfileImage { get; set; }
+        public string MessageId { get; set; } = string.Empty;  // Changed from int to string
+        public string ConversationId { get; set; } = string.Empty;
+        public string SenderPhone { get; set; } = string.Empty;
+        public string SenderName { get; set; } = string.Empty;
+        public string SenderInitials { get; set; } = string.Empty;
+        public string SenderProfileImage { get; set; } = string.Empty;
         public bool HasProfileImage { get; set; }
-        public string Content { get; set; }
-        public string ContentPreview { get; set; }
+        public string Content { get; set; } = string.Empty;
+        public string ContentPreview { get; set; } = string.Empty;
         public DateTime SentAt { get; set; }
         public bool IsVoiceMessage { get; set; }
         public bool HasMedia { get; set; }
         public int MediaCount { get; set; }
-        public string OtherUserPhone { get; set; }
+        public string OtherUserPhone { get; set; } = string.Empty;
 
         public string HighlightedContent => ContentPreview ?? Content;
     }

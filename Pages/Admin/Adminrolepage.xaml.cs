@@ -60,13 +60,10 @@ namespace Lock.Pages.Admin
                 OnPropChanged(nameof(CardStroke));
                 OnPropChanged(nameof(AvatarRingColor));
                 OnPropChanged(nameof(PermissionSummary));
-                // NOTE: PermissionsButtonVisible is now ALWAYS true
-                // Admins can also have page permissions managed
                 OnPropChanged(nameof(PermissionsButtonVisible));
             }
         }
 
-        // ?? Page Permissions ??????????????????????????????????????
         private string _deniedPages = string.Empty;
         public string DeniedPages
         {
@@ -88,8 +85,6 @@ namespace Lock.Pages.Admin
 
         public bool CanAccessPage(string pageKey)
         {
-            // ? FIX: Admins now also respect DeniedPages
-            // Previously admins always bypassed — now they can be restricted too
             return !DeniedPageSet.Contains(pageKey);
         }
 
@@ -101,11 +96,10 @@ namespace Lock.Pages.Admin
                 var allowed = PagePermissionDefinitions.Groups
                                 .SelectMany(g => g.Pages).Count() - denied;
                 if (denied == 0) return "? All pages allowed";
-                return $"? {allowed} allowed  ·  ? {denied} blocked";
+                return $"?? {allowed} allowed  ·  ?? {denied} blocked";
             }
         }
 
-        // ? FIX: Always true — both admins AND users can have permissions managed
         public bool PermissionsButtonVisible => true;
 
         public bool IsAdmin => Role == "Admin";
@@ -205,15 +199,19 @@ namespace Lock.Pages.Admin
             await LoadUsersAsync();
         }
 
-        // ?? Load ??????????????????????????????????????????????????
+        // ?? Load using Supabase ????????????????????????????????????
         private async Task LoadUsersAsync()
         {
             ShowLoading(true);
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-                var users = await db.Table<User>().OrderBy(u => u.JoinDate).ToListAsync();
+                // Remove SQLite code:
+                // await DatabaseService.InitializeAsync();
+                // var db = DatabaseService.GetConnection();
+                // var users = await db.Table<User>().OrderBy(u => u.JoinDate).ToListAsync();
+
+                // Replace with Supabase:
+                var users = await SupabaseService.GetAsync<User>("Users", "order=JoinDate.asc");
 
                 _allItems.Clear();
 
@@ -273,7 +271,6 @@ namespace Lock.Pages.Admin
             return string.Join(", ", parts);
         }
 
-        // ?? Filter ????????????????????????????????????????????????
         private void ApplyFilter(string query)
         {
             var trimmed = query?.Trim() ?? string.Empty;
@@ -307,7 +304,6 @@ namespace Lock.Pages.Admin
                 $"{_allItems.Count} USERS · {adminCount} ADMIN{(adminCount == 1 ? "" : "S")}";
         }
 
-        // ?? Search ????????????????????????????????????????????????
         private void OnSearchTextChanged(object sender, TextChangedEventArgs e)
         {
             _searchCts?.Cancel();
@@ -332,7 +328,7 @@ namespace Lock.Pages.Admin
             ApplyFilter(string.Empty);
         }
 
-        // ?? Role toggle ???????????????????????????????????????????
+        // ?? Role toggle using Supabase ?????????????????????????????
         private async void OnRoleToggleTapped(object sender, TappedEventArgs e)
         {
             if (e.Parameter is not UserRoleViewModel vm) return;
@@ -356,11 +352,18 @@ namespace Lock.Pages.Admin
 
             try
             {
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
-                var user = await db.Table<User>()
-                                   .Where(u => u.PhoneNumber == vm.PhoneNumber)
-                                   .FirstOrDefaultAsync();
+                // Remove SQLite code:
+                // await DatabaseService.InitializeAsync();
+                // var db = DatabaseService.GetConnection();
+                // var user = await db.Table<User>()
+                //                    .Where(u => u.PhoneNumber == vm.PhoneNumber)
+                //                    .FirstOrDefaultAsync();
+
+                // Replace with Supabase:
+                var users = await SupabaseService.GetAsync<User>("Users",
+                    $"PhoneNumber=eq.{Uri.EscapeDataString(vm.PhoneNumber)}&limit=1");
+                var user = users.FirstOrDefault();
+
                 if (user == null)
                 {
                     await DisplayAlert("Error", "User not found.", "OK");
@@ -368,10 +371,8 @@ namespace Lock.Pages.Admin
                 }
 
                 user.Role = newRole;
-                // ? Do NOT clear DeniedPages when promoting to Admin
-                // Admins can also have individual page restrictions
 
-                await db.UpdateAsync(user);
+                await SupabaseService.UpdateAsync("Users", $"PhoneNumber=eq.{Uri.EscapeDataString(vm.PhoneNumber)}", user);
 
                 vm.Role = newRole;
 
@@ -381,7 +382,7 @@ namespace Lock.Pages.Admin
                 UpdateSubtitle();
 
                 var toast = vm.IsAdmin
-                    ? $"?? {vm.Name} is now an Admin"
+                    ? $"? {vm.Name} is now an Admin"
                     : $"? {vm.Name}'s admin access has been revoked";
                 await AppShell.DisplayToastAsync(toast);
             }
@@ -392,12 +393,10 @@ namespace Lock.Pages.Admin
             }
         }
 
-        // ?? Page permissions ??????????????????????????????????????
+        // ?? Page permissions using Supabase ????????????????????????
         private async void OnManagePermissionsTapped(object sender, TappedEventArgs e)
         {
             if (e.Parameter is not UserRoleViewModel vm) return;
-            // ? FIX: No more "Admins can't have restrictions" gate
-            // Everyone can have their page access managed now
             await ShowPermissionsSheetAsync(vm);
         }
 
@@ -430,17 +429,23 @@ namespace Lock.Pages.Admin
 
                 try
                 {
-                    await DatabaseService.InitializeAsync();
-                    var db = DatabaseService.GetConnection();
-                    var user = await db.Table<User>()
-                                       .Where(u => u.PhoneNumber == vm.PhoneNumber)
-                                       .FirstOrDefaultAsync();
+                    // Remove SQLite code:
+                    // await DatabaseService.InitializeAsync();
+                    // var db = DatabaseService.GetConnection();
+                    // var user = await db.Table<User>()
+                    //                    .Where(u => u.PhoneNumber == vm.PhoneNumber)
+                    //                    .FirstOrDefaultAsync();
+
+                    // Replace with Supabase:
+                    var users = await SupabaseService.GetAsync<User>("Users",
+                        $"PhoneNumber=eq.{Uri.EscapeDataString(vm.PhoneNumber)}&limit=1");
+                    var user = users.FirstOrDefault();
+
                     if (user != null)
                     {
                         user.DeniedPages = deniedStr;
-                        await db.UpdateAsync(user);
+                        await SupabaseService.UpdateAsync("Users", $"PhoneNumber=eq.{Uri.EscapeDataString(vm.PhoneNumber)}", user);
 
-                        // ? Update vm — this triggers PermissionSummary to refresh in the list
                         vm.DeniedPages = deniedStr;
 
                         await AppShell.DisplayToastAsync(
