@@ -152,11 +152,14 @@ namespace Lock
                     await DatabaseService.InitializeAsync();
                     await GroupDatabaseService.InitializeAsync();
                     await GroupRepository.InitializeAsync();
-                    Debug.WriteLine("All databases initialized successfully");
+
+                    // ADD THIS
+                    await SupabaseService.GetClientAsync();
+                    Debug.WriteLine("Supabase connected successfully");
                 }
                 catch (Exception ex)
                 {
-                    Debug.WriteLine($"Database initialization error: {ex.Message}");
+                    Debug.WriteLine($"Initialization error: {ex.Message}");
                 }
             });
 

@@ -347,7 +347,7 @@ namespace Lock.Pages.Chat
                         msg.SetDecryptedContent(dec);
                         msg.Content = dec;
                     }
-                    catch { msg.SetDecryptedContent("?? Sent encrypted"); }
+                    catch { msg.SetDecryptedContent("Sent encrypted"); }
                 }
                 else if (!string.IsNullOrEmpty(msg.Content))
                 {

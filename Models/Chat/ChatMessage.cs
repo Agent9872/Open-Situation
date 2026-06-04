@@ -72,6 +72,30 @@ namespace Lock.Models.Chat
 
         // Post sharing properties
         private int? _postId;
+
+        [Ignore]
+        public string GiftEmoji
+        {
+            get
+            {
+                if (MessageType != "gift" || string.IsNullOrEmpty(Content))
+                    return string.Empty;
+                var def = Lock.Models.GiftDefinition.FindById(Content);
+                return def?.Name ?? "Gift";
+            }
+        }
+
+        [Ignore]
+        public string GiftName
+        {
+            get
+            {
+                if (MessageType != "gift" || string.IsNullOrEmpty(Content))
+                    return string.Empty;
+                var def = Lock.Models.GiftDefinition.FindById(Content);
+                return def?.Name ?? "Gift";
+            }
+        }
         public int? PostId
         {
             get => _postId;

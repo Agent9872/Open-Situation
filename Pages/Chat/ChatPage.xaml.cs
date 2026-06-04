@@ -272,11 +272,10 @@ namespace Lock.Pages.Chat
         {
             Debug.WriteLine($"Text changed: '{e.NewTextValue}', HasText: {!string.IsNullOrWhiteSpace(e.NewTextValue)}");
             var micIcon = this.FindByName<ContentView>("MicIcon");
+            var giftButton = this.FindByName<ContentView>("GiftButton");
             var sendGrid = this.FindByName<Grid>("SendActionGrid");
-            var recordingTimer = this.FindByName<Label>("RecordingTimerLabel");
             var messageEntry = this.FindByName<Editor>("MessageEntry");
 
-            // IMPORTANT: Check the ACTUAL text from the entry
             bool hasText = !string.IsNullOrWhiteSpace(messageEntry?.Text);
             bool isRecording = _isRecording;
 
@@ -284,33 +283,25 @@ namespace Lock.Pages.Chat
             {
                 if (isRecording)
                 {
-                    // Recording mode - show recording timer, hide both mic and send
                     if (micIcon != null) micIcon.IsVisible = false;
+                    if (giftButton != null) giftButton.IsVisible = false;
                     if (sendGrid != null) sendGrid.IsVisible = false;
-                    if (recordingTimer != null) recordingTimer.IsVisible = true;
                 }
                 else if (hasText)
                 {
-                    // Has text - show send button, hide mic
                     if (micIcon != null) micIcon.IsVisible = false;
+                    if (giftButton != null) giftButton.IsVisible = false;
                     if (sendGrid != null) sendGrid.IsVisible = true;
-                    if (recordingTimer != null) recordingTimer.IsVisible = false;
                 }
                 else
                 {
-                    // Empty - show mic button, hide send
+                    // Empty - show BOTH mic and gift
                     if (micIcon != null) micIcon.IsVisible = true;
+                    if (giftButton != null) giftButton.IsVisible = true;
                     if (sendGrid != null) sendGrid.IsVisible = false;
-                    if (recordingTimer != null) recordingTimer.IsVisible = false;
                 }
-
-                // Force layout update
-                if (micIcon != null) micIcon.InvalidateMeasure();
-                if (sendGrid != null) sendGrid.InvalidateMeasure();
             });
         }
-
-
         public ChatPage(IAudioManager audioManager) : this()
         {
             _audioManager = audioManager;
@@ -2044,19 +2035,19 @@ namespace Lock.Pages.Chat
                 var attachButton = this.FindByName<ContentView>("AttachButton");
                 var cancelRecordingIcon = this.FindByName<ContentView>("CancelRecordingIcon");
                 var micIcon = this.FindByName<ContentView>("MicIcon");
+                var giftButton = this.FindByName<ContentView>("GiftButton");
                 var sendActionGrid = this.FindByName<Grid>("SendActionGrid");
                 var messageEntry = this.FindByName<Editor>("MessageEntry");
                 var micPath = this.FindByName<Microsoft.Maui.Controls.Shapes.Path>("MicPath");
 
                 if (isRecording)
                 {
-                    // === ACTIVE RECORDING MODE ===
                     if (attachButton != null) attachButton.IsVisible = false;
-                    if (cancelRecordingIcon != null) cancelRecordingIcon.IsVisible = true;   // Show X
-                    if (micIcon != null) micIcon.IsVisible = true;                           // Keep mic visible (red)
+                    if (cancelRecordingIcon != null) cancelRecordingIcon.IsVisible = true;
+                    if (micIcon != null) micIcon.IsVisible = true;
+                    if (giftButton != null) giftButton.IsVisible = false;  // hide gift while recording
                     if (sendActionGrid != null) sendActionGrid.IsVisible = false;
 
-                    // Turn mic red
                     if (micPath != null) micPath.Fill = new SolidColorBrush(Colors.Red);
 
                     if (messageEntry != null)
@@ -2069,7 +2060,6 @@ namespace Lock.Pages.Chat
                 }
                 else
                 {
-                    // === NORMAL MODE (not recording) ===
                     if (attachButton != null) attachButton.IsVisible = true;
                     if (cancelRecordingIcon != null) cancelRecordingIcon.IsVisible = false;
                     if (micPath != null) micPath.Fill = new SolidColorBrush(Color.FromArgb("#00B5B5"));
@@ -2082,7 +2072,10 @@ namespace Lock.Pages.Chat
                     }
 
                     bool hasText = !string.IsNullOrWhiteSpace(messageEntry?.Text);
+
+                    // Show mic + gift together when idle, send when typing
                     if (micIcon != null) micIcon.IsVisible = !hasText;
+                    if (giftButton != null) giftButton.IsVisible = !hasText;
                     if (sendActionGrid != null) sendActionGrid.IsVisible = hasText;
                 }
             });
@@ -2092,6 +2085,7 @@ namespace Lock.Pages.Chat
             MainThread.BeginInvokeOnMainThread(() =>
             {
                 var micIcon = this.FindByName<ContentView>("MicIcon");
+                var giftButton = this.FindByName<ContentView>("GiftButton");
                 var cancelRecordingIcon = this.FindByName<ContentView>("CancelRecordingIcon");
                 var sendIcon = this.FindByName<Grid>("SendActionGrid");
                 var messageEntry = this.FindByName<Editor>("MessageEntry");
@@ -2099,6 +2093,7 @@ namespace Lock.Pages.Chat
                 if (showPreview)
                 {
                     if (micIcon != null) micIcon.IsVisible = false;
+                    if (giftButton != null) giftButton.IsVisible = false;
                     if (cancelRecordingIcon != null) cancelRecordingIcon.IsVisible = true;
                     if (sendIcon != null) sendIcon.IsVisible = true;
                     if (messageEntry != null)
@@ -2111,6 +2106,7 @@ namespace Lock.Pages.Chat
                 else
                 {
                     if (micIcon != null) micIcon.IsVisible = true;
+                    if (giftButton != null) giftButton.IsVisible = true;  // restore gift alongside mic
                     if (cancelRecordingIcon != null) cancelRecordingIcon.IsVisible = false;
                     if (sendIcon != null) sendIcon.IsVisible = false;
                     if (messageEntry != null)
@@ -4512,19 +4508,18 @@ private async Task MigrateOldRecordingsAsync()
             var cancelGrid = this.FindByName<Grid>("CancelActionGrid");
             var editImagesPreview = this.FindByName<Grid>("EditImagesPreviewGrid");
             var editImagesCollection = this.FindByName<CollectionView>("EditImagesCollection");
-
-            // Hide attach button, show cancel X in its place (column 0)
             var attachButton = this.FindByName<ContentView>("AttachButton");
+            var sendGrid = this.FindByName<Grid>("SendActionGrid");
+            var micIcon = this.FindByName<ContentView>("MicIcon");
+            var giftButton = this.FindByName<ContentView>("GiftButton");
+
             if (attachButton != null) attachButton.IsVisible = false;
             if (cancelGrid != null) cancelGrid.IsVisible = true;
-
-            // Show send button
-            var sendGrid = this.FindByName<Grid>("SendActionGrid");
             if (sendGrid != null) sendGrid.IsVisible = true;
 
-            // Hide mic
-            var micIcon = this.FindByName<ContentView>("MicIcon");
+            // Hide both mic and gift in edit mode
             if (micIcon != null) micIcon.IsVisible = false;
+            if (giftButton != null) giftButton.IsVisible = false;
 
             if (messageEntry != null)
             {
@@ -4737,14 +4732,14 @@ private async Task MigrateOldRecordingsAsync()
 
             var messageEntry = this.FindByName<Editor>("MessageEntry");
             var editImagesPreview = this.FindByName<Grid>("EditImagesPreviewGrid");
-            var attachContainer = this.FindByName<Border>("AttachButtonContainer");
-            var cancelEditContainer = this.FindByName<Border>("CancelEditContainer");
-            var micContainer = this.FindByName<Border>("MicButtonContainer");
-            var sendContainer = this.FindByName<Border>("SendButtonContainer");
+            var attachButton = this.FindByName<ContentView>("AttachButton");
+            var cancelGrid = this.FindByName<Grid>("CancelActionGrid");
+            var micIcon = this.FindByName<ContentView>("MicIcon");
+            var giftButton = this.FindByName<ContentView>("GiftButton");
+            var sendGrid = this.FindByName<Grid>("SendActionGrid");
 
-            // Restore attach button
-            if (attachContainer != null) attachContainer.IsVisible = true;
-            if (cancelEditContainer != null) cancelEditContainer.IsVisible = false;
+            if (attachButton != null) attachButton.IsVisible = true;
+            if (cancelGrid != null) cancelGrid.IsVisible = false;
 
             if (messageEntry != null)
                 messageEntry.Text = string.Empty;
@@ -4752,10 +4747,12 @@ private async Task MigrateOldRecordingsAsync()
             if (editImagesPreview != null)
                 editImagesPreview.IsVisible = false;
 
-            // Show mic or send based on text
             bool hasText = !string.IsNullOrWhiteSpace(messageEntry?.Text);
-            if (micContainer != null) micContainer.IsVisible = !hasText;
-            if (sendContainer != null) sendContainer.IsVisible = hasText;
+
+            // Restore mic + gift when cancelling edit
+            if (micIcon != null) micIcon.IsVisible = !hasText;
+            if (giftButton != null) giftButton.IsVisible = !hasText;
+            if (sendGrid != null) sendGrid.IsVisible = hasText;
         }
         private void CancelEditButton_Clicked(object sender, EventArgs e)
         {
@@ -5318,17 +5315,16 @@ private async Task MigrateOldRecordingsAsync()
             MainThread.BeginInvokeOnMainThread(() =>
             {
                 var micIcon = this.FindByName<ContentView>("MicIcon");
+                var giftButton = this.FindByName<ContentView>("GiftButton");
                 var sendActionGrid = this.FindByName<Grid>("SendActionGrid");
                 var cancelRecordingIcon = this.FindByName<ContentView>("CancelRecordingIcon");
                 var messageEntry = this.FindByName<Editor>("MessageEntry");
 
-                // Reset everything to initial clean state
                 if (micIcon != null)
                 {
                     micIcon.IsVisible = true;
                     micIcon.Scale = 1.0;
 
-                    // Reset mic color to normal teal
                     if (micIcon.Content is Grid grid)
                     {
                         foreach (var child in grid.Children.OfType<Microsoft.Maui.Controls.Shapes.Path>())
@@ -5338,6 +5334,9 @@ private async Task MigrateOldRecordingsAsync()
                         }
                     }
                 }
+
+                // Show gift button alongside mic
+                if (giftButton != null) giftButton.IsVisible = true;
 
                 if (sendActionGrid != null) sendActionGrid.IsVisible = false;
                 if (cancelRecordingIcon != null) cancelRecordingIcon.IsVisible = false;
@@ -5351,14 +5350,14 @@ private async Task MigrateOldRecordingsAsync()
                 }
 
                 _isRecording = false;
-                Debug.WriteLine("Voice UI initialized to default state (mic visible)");
+                Debug.WriteLine("Voice UI initialized to default state (mic + gift visible)");
             });
         }
 
         // Helper method to reset UI after voice message handling
         private void ResetVoiceMessageUI()
         {
-            InitializeVoiceUIState();   // Reuse the same clean logic
+            InitializeVoiceUIState();
 
             MainThread.BeginInvokeOnMainThread(() =>
             {
@@ -5366,6 +5365,7 @@ private async Task MigrateOldRecordingsAsync()
                 _tempRecordingPath = string.Empty;
 
                 var micIcon = this.FindByName<ContentView>("MicIcon");
+                var giftButton = this.FindByName<ContentView>("GiftButton");
                 var sendActionGrid = this.FindByName<Grid>("SendActionGrid");
                 var cancelRecordingIcon = this.FindByName<ContentView>("CancelRecordingIcon");
                 var messageEntry = this.FindByName<Editor>("MessageEntry");
@@ -5375,7 +5375,6 @@ private async Task MigrateOldRecordingsAsync()
                     micIcon.IsVisible = true;
                     micIcon.Scale = 1.0;
 
-                    // Reset mic color to normal
                     if (micIcon.Content is Grid grid)
                     {
                         foreach (var child in grid.Children)
@@ -5388,6 +5387,9 @@ private async Task MigrateOldRecordingsAsync()
                         }
                     }
                 }
+
+                // Show gift button alongside mic
+                if (giftButton != null) giftButton.IsVisible = true;
 
                 if (cancelRecordingIcon != null) cancelRecordingIcon.IsVisible = false;
                 if (sendActionGrid != null) sendActionGrid.IsVisible = false;
@@ -6796,6 +6798,84 @@ END:VCARD";
             {
                 Debug.WriteLine($"GetOrCreateConversationAsync error: {ex}");
                 throw;
+            }
+        }
+
+        // ?? Gift button tapped ?????????????????????????????????????????????
+        private async void GiftButton_Tapped(object sender, TappedEventArgs e)
+        {
+            try
+            {
+                bool theyBlockedMe = await HasThisUserBlockedMeAsync();
+                bool iBlockedThem = await HaveIBlockedThisUserAsync();
+
+                if (theyBlockedMe)
+                {
+                    await DisplayAlert("Cannot Send Gift",
+                        "You cannot send gifts to this user because they have blocked you.", "OK");
+                    return;
+                }
+
+                if (iBlockedThem)
+                {
+                    bool confirm = await DisplayAlert("User is Blocked",
+                        "You have blocked this user. Send a gift anyway?",
+                        "Send Anyway", "Cancel");
+                    if (!confirm) return;
+                }
+
+                var picker = new GiftPickerPopup();
+                picker.GiftSelected += async (_, gift) => await SendGiftAsync(gift);
+                await this.ShowPopupAsync(picker);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"GiftButton_Tapped error: {ex}");
+            }
+        }
+
+        // ?? Save gift to DB and show burst animation ???????????????????????
+        private async Task SendGiftAsync(GiftDefinition gift)
+        {
+            try
+            {
+                // Build the message first
+                var msg = new ChatMessage
+                {
+                    ConversationId = _conversationId,
+                    SenderPhone = _me,
+                    RecipientPhone = _otherPhone,
+                    MessageType = "gift",
+                    Content = gift.Id,       // store gift Id e.g. "diamond"
+                    SentAt = DateTime.UtcNow,
+                    IsDelivered = true,
+                    IsRead = false,
+                    IsLocalOutgoing = true,
+                    MediaItemsJson = "[]"
+                };
+
+                // Add to UI immediately
+                Messages.Add(msg);
+                ScrollToBottom();
+
+                // Save to database
+                await ChatRepository.AddMessageAsync(msg);
+                MessagingCenter.Send(this, "ConversationsUpdated");
+
+                // Play burst animation over the whole page
+                var rootGrid = this.FindByName<Grid>("ChatRootGrid");
+                if (rootGrid != null)
+                {
+                    var burst = new GiftBurstOverlay(gift);
+                    rootGrid.Add(burst);
+                    await burst.RunAndRemoveAsync(rootGrid);
+                }
+
+                Debug.WriteLine($"Gift sent: {gift.Name}");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"SendGiftAsync error: {ex}");
             }
         }
 

@@ -383,6 +383,12 @@ namespace Lock.Chat.Services
                     {
                         conversation.LastMessagePreview = "?? Photo";
                     }
+                    else if (lastMsg.MessageType == "gift")
+                    {
+                        var giftDef = GiftDefinition.FindById(lastMsg.Content ?? "");
+                        string name = giftDef?.Name ?? "Gift";
+                        conversation.LastMessagePreview = $"?? {name}";
+                    }
                     else if (!string.IsNullOrWhiteSpace(lastMsg.Content))
                     {
                         conversation.LastMessagePreview = lastMsg.Content.Length > 120
