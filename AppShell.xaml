@@ -3,7 +3,6 @@
     x:Class="Lock.AppShell"
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-    xmlns:sf="clr-namespace:Syncfusion.Maui.Toolkit.SegmentedControl;assembly=Syncfusion.Maui.Toolkit"
     xmlns:pages="clr-namespace:Lock.Pages"
     xmlns:admin="clr-namespace:Lock.Pages.Admin"
     xmlns:profile="clr-namespace:Lock.Pages.Profile"
@@ -269,18 +268,29 @@
 
                     <!-- Theme Toggle -->
                     <Border Grid.Row="3" BackgroundColor="#0D0D1E" Stroke="#1A1A2E"
-                            StrokeThickness="1" StrokeShape="RoundRectangle 14" Padding="5">
-                        <sf:SfSegmentedControl x:Name="ThemeSegmentedControl"
-                                               VerticalOptions="Center" HorizontalOptions="Fill"
-                                               SelectionChanged="SfSegmentedControl_SelectionChanged"
-                                               SegmentWidth="120" SegmentHeight="34">
-                            <sf:SfSegmentedControl.ItemsSource>
-                                <x:Array Type="{x:Type sf:SfSegmentItem}">
-                                    <sf:SfSegmentItem Text="☀  Light" />
-                                    <sf:SfSegmentItem Text="☾  Dark" />
-                                </x:Array>
-                            </sf:SfSegmentedControl.ItemsSource>
-                        </sf:SfSegmentedControl>
+        StrokeThickness="1" StrokeShape="RoundRectangle 14" Padding="5">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Button Grid.Column="0"
+                x:Name="LightThemeBtn"
+                Text="☀ Light"
+                BackgroundColor="Transparent"
+                TextColor="#888888"
+                FontSize="13"
+                CornerRadius="10"
+                Clicked="OnLightThemeClicked" />
+                            <Button Grid.Column="1"
+                x:Name="DarkThemeBtn"
+                Text="☾ Dark"
+                BackgroundColor="#00C9C9"
+                TextColor="White"
+                FontSize="13"
+                CornerRadius="10"
+                Clicked="OnDarkThemeClicked" />
+                        </Grid>
                     </Border>
                 </Grid>
 

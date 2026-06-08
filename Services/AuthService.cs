@@ -11,10 +11,11 @@ using System.Diagnostics;
 using System.Collections.Generic;
 using System.Linq;
 using Lock.Services.Admin;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace Lock.Services
 {
-    // Enhanced auth service that works with JWT backend API
     public static class AuthService
     {
         private const string CurrentUserPhoneKey = "current_user_phone";
@@ -27,7 +28,6 @@ namespace Lock.Services
         private static string? _currentRefreshToken;
         private static DateTime _tokenExpiry;
 
-        // Very basic phone validation: digits, optional +, length 7-15
         private static readonly Regex PhoneRegex = new(@"^\+?\d{7,15}$", RegexOptions.Compiled);
 
         static AuthService()
@@ -36,7 +36,6 @@ namespace Lock.Services
             _httpClient.BaseAddress = new Uri(ApiConfig.BaseUrl);
         }
 
-        // Normalize phone number by removing all non-digit characters except leading +
         private static string NormalizePhoneNumber(string phone)
         {
             if (string.IsNullOrWhiteSpace(phone))
@@ -47,7 +46,19 @@ namespace Lock.Services
             return hasPlus ? "+" + digits : digits;
         }
 
-        // Load tokens from secure storage on app start
+        private static string HashPassword(string password)
+        {
+            using var sha256 = SHA256.Create();
+            var hashedBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(password));
+            return Convert.ToBase64String(hashedBytes);
+        }
+
+        private static bool VerifyPassword(string password, string hash)
+        {
+            var hashedInput = HashPassword(password);
+            return hashedInput == hash;
+        }
+
         public static async Task LoadStoredTokensAsync()
         {
             try
@@ -59,7 +70,6 @@ namespace Lock.Services
                 if (DateTime.TryParse(expiryStr, out var expiry))
                     _tokenExpiry = expiry;
 
-                // ✅ Re-sync role from Supabase on app restart
                 var phone = Preferences.Get(CurrentUserPhoneKey, string.Empty);
                 if (!string.IsNullOrEmpty(phone))
                 {
@@ -78,11 +88,9 @@ namespace Lock.Services
             }
         }
 
-        // Check if user is authenticated with valid token
         public static bool IsAuthenticated =>
             !string.IsNullOrEmpty(_currentToken) && _tokenExpiry > DateTime.UtcNow;
 
-        // Get valid token (auto-refresh if needed)
         public static async Task<string?> GetValidTokenAsync()
         {
             if (!string.IsNullOrEmpty(_currentToken) && _tokenExpiry > DateTime.UtcNow.AddMinutes(5))
@@ -101,7 +109,6 @@ namespace Lock.Services
             return null;
         }
 
-        // Refresh the JWT token
         private static async Task<bool> RefreshTokenAsync()
         {
             try
@@ -134,7 +141,6 @@ namespace Lock.Services
             return false;
         }
 
-        // Async register that persists to Supabase AND backend API
         public static async Task<(bool Success, string Error)> RegisterAsync(
             string name,
             string phone,
@@ -194,85 +200,106 @@ namespace Lock.Services
             if (string.IsNullOrWhiteSpace(gender))
                 return (false, "Please select your gender.");
 
-            // Check if user already exists in Supabase
-            var existingUsers = await SupabaseService.GetAsync<User>("Users",
-                $"PhoneNumber=eq.{Uri.EscapeDataString(normalizedPhone)}&limit=1");
-            var existing = existingUsers.FirstOrDefault();
-
-            if (existing != null)
+            try
             {
-                if (existing.IsBanned && existing.BanType == "permanent")
-                    return (false,
-                        $"This phone number has been permanently banned and cannot be used to create an account.\nReason: {(string.IsNullOrEmpty(existing.BanReason) ? "Violation of terms of service" : existing.BanReason)}");
+                // Check if user already exists
+                var existingUsers = await SupabaseService.GetAsync<User>("Users",
+                    $"PhoneNumber=eq.{Uri.EscapeDataString(normalizedPhone)}&limit=1");
+                var existing = existingUsers.FirstOrDefault();
 
-                return (false, "A user with this phone number already exists.");
+                if (existing != null)
+                {
+                    if (existing.IsBanned && existing.BanType == "permanent")
+                        return (false,
+                            $"This phone number has been permanently banned.\nReason: {(string.IsNullOrEmpty(existing.BanReason) ? "Violation of terms of service" : existing.BanReason)}");
+
+                    return (false, "A user with this phone number already exists.");
+                }
+
+                // Get total user count for role assignment
+                var allUsers = await SupabaseService.GetAsync<User>("Users", "select=Id");
+                var totalUsers = allUsers.Count;
+
+                var hashedPassword = HashPassword(password);
+
+                var user = new User
+                {
+                    Name = name,
+                    DisplayName = name,
+                    PhoneNumber = normalizedPhone,
+                    Password = hashedPassword,
+                    DateOfBirth = dob,
+                    Gender = gender,
+                    Interest = interest ?? string.Empty,
+                    ProfileImagePath = profileImagePath ?? string.Empty,
+                    CoverImagePath = coverImagePath ?? string.Empty,
+                    Mood = mood ?? string.Empty,
+                    EnergyLevel = energyLevel ?? string.Empty,
+                    Country = country ?? string.Empty,
+                    State = state ?? string.Empty,
+                    Bio = bio ?? string.Empty,
+                    Interests = interests ?? string.Empty,
+                    Drinks = drinks ?? string.Empty,
+                    Smokes = smokes,
+                    HasPets = hasPets,
+                    Religion = religion ?? string.Empty,
+                    PoliticalViews = politicalViews ?? string.Empty,
+                    SexualOrientation = sexualOrientation ?? string.Empty,
+                    MusicGenres = musicGenres ?? string.Empty,
+                    FavoriteArtists = favoriteArtists ?? string.Empty,
+                    FavoriteMovies = favoriteMovies ?? string.Empty,
+                    FavoriteBooks = favoriteBooks ?? string.Empty,
+                    Languages = languages ?? string.Empty,
+                    Occupation = occupation ?? string.Empty,
+                    Education = education ?? string.Empty,
+                    Prompts = prompts ?? string.Empty,
+                    Dealbreakers = dealbreakers ?? string.Empty,
+                    TopInterest = topInterest ?? string.Empty,
+                    TopArtist = topArtist ?? string.Empty,
+                    TopMovie = topMovie ?? string.Empty,
+                    AllowMoodSearch = allowMoodSearch,
+                    GhostModeMoodShield = ghostModeMoodShield,
+                    IsVerified = isVerified,
+                    IpAddress = ipAddress ?? string.Empty,
+                    Role = totalUsers == 0 ? "Admin" : "User",
+                    JoinDate = DateTime.UtcNow,
+                    LastActive = DateTime.UtcNow
+                };
+
+                Debug.WriteLine($"[AUTH] Registering user: {normalizedPhone} | IP: {(string.IsNullOrEmpty(ipAddress) ? "unavailable" : ipAddress)}");
+
+                // Insert into Supabase
+                var inserted = await SupabaseService.InsertAndReturnAsync<User>("Users", user);
+
+                if (inserted == null)
+                {
+                    Debug.WriteLine("[AUTH] InsertAndReturnAsync returned null");
+                    return (false, "Failed to create user account.");
+                }
+
+                Debug.WriteLine($"[AUTH] User inserted successfully: {inserted.PhoneNumber}");
+
+                // API login is completely optional — never fail registration because of it
+                try
+                {
+                    var loginResult = await LoginWithApiAsync(normalizedPhone, password);
+                    if (!loginResult.Success)
+                        Debug.WriteLine($"[AUTH] API login failed (non-fatal): {loginResult.Error}");
+                }
+                catch (Exception apiEx)
+                {
+                    Debug.WriteLine($"[AUTH] API login exception (non-fatal): {apiEx.Message}");
+                }
+
+                return (true, string.Empty);
             }
-
-            // Get total user count for role assignment
-            var allUsers = await SupabaseService.GetAsync<User>("Users", "");
-            var totalUsers = allUsers.Count;
-
-            // Create user object
-            var user = new User(
-                name: name,
-                phoneNumber: normalizedPhone,
-                password: password,
-                dateOfBirth: dob,
-                gender: gender,
-                interest: interest,
-                profileImagePath: profileImagePath,
-                coverImagePath: coverImagePath,
-                mood: mood,
-                energyLevel: energyLevel,
-                country: country,
-                state: state,
-                bio: bio,
-                interests: interests,
-                drinks: drinks,
-                smokes: smokes,
-                hasPets: hasPets,
-                religion: religion,
-                politicalViews: politicalViews,
-                sexualOrientation: sexualOrientation
-            );
-
-            // Assign additional fields
-            user.MusicGenres = musicGenres ?? string.Empty;
-            user.FavoriteArtists = favoriteArtists ?? string.Empty;
-            user.FavoriteMovies = favoriteMovies ?? string.Empty;
-            user.FavoriteBooks = favoriteBooks ?? string.Empty;
-            user.Languages = languages ?? string.Empty;
-            user.Occupation = occupation ?? string.Empty;
-            user.Education = education ?? string.Empty;
-            user.Prompts = prompts ?? string.Empty;
-            user.Dealbreakers = dealbreakers ?? string.Empty;
-            user.TopInterest = topInterest ?? string.Empty;
-            user.TopArtist = topArtist ?? string.Empty;
-            user.TopMovie = topMovie ?? string.Empty;
-            user.AllowMoodSearch = allowMoodSearch;
-            user.GhostModeMoodShield = ghostModeMoodShield;
-            user.IsVerified = isVerified;
-            user.IpAddress = ipAddress ?? string.Empty;
-            user.Role = totalUsers == 0 ? "Admin" : "User";
-
-            Debug.WriteLine($"[AUTH] Registering user: {normalizedPhone} | IP: {(string.IsNullOrEmpty(ipAddress) ? "unavailable" : ipAddress)}");
-
-            // Insert into Supabase
-            var inserted = await SupabaseService.InsertAndReturnAsync<User>("Users", user);
-            if (inserted == null)
-                return (false, "Failed to create user account.");
-
-            // Also register/login to backend API to get JWT token
-            var loginResult = await LoginWithApiAsync(normalizedPhone, password);
-            if (!loginResult.Success)
+            catch (Exception ex)
             {
-                Debug.WriteLine($"Warning: User registered locally but API login failed: {loginResult.Error}");
+                Debug.WriteLine($"[AUTH] RegisterAsync exception: {ex.Message}");
+                return (false, $"Registration failed: {ex.Message}");
             }
-
-            return (true, string.Empty);
         }
 
-        // Login with backend API (returns JWT token)
         private static async Task<(bool Success, string Error, User? User)> LoginWithApiAsync(string phone, string password)
         {
             try
@@ -280,6 +307,7 @@ namespace Lock.Services
                 var response = await _httpClient.PostAsJsonAsync(ApiConfig.Endpoints.Login, new
                 {
                     phoneNumber = phone,
+                    password = password,  // Send plain password for API login
                     deviceId = await GetDeviceId()
                 });
 
@@ -309,7 +337,6 @@ namespace Lock.Services
             }
         }
 
-        // Async login that checks credentials against backend API and Supabase
         public static async Task<(bool Success, string Error, User? User)> LoginAsync(string phone, string password)
         {
             if (string.IsNullOrWhiteSpace(phone))
@@ -327,15 +354,15 @@ namespace Lock.Services
             if (user == null)
                 return (false, "User not found. Please check your phone number.", null);
 
-            if (user.Password != password)
+            // FIXED: Verify password using BCrypt
+            if (!VerifyPassword(password, user.Password))
                 return (false, "Incorrect password.", null);
 
-            // ── BAN CHECK ──────────────────────────────────────────────────────────
+            // Ban check
             if (user.IsBanned && user.BanType == "temporary" && user.BanExpiresAt.HasValue
                 && DateTime.UtcNow >= user.BanExpiresAt.Value)
             {
                 await UserService.UnbanUserAsync(normalizedPhone);
-                // Refresh user data
                 var refreshedUsers = await SupabaseService.GetAsync<User>("Users",
                     $"PhoneNumber=eq.{Uri.EscapeDataString(normalizedPhone)}&limit=1");
                 user = refreshedUsers.FirstOrDefault();
@@ -352,7 +379,6 @@ namespace Lock.Services
                     $"This account is suspended until {user.BanExpiresAt:MMM dd, yyyy 'at' h:mm tt} UTC.\nReason: {(string.IsNullOrEmpty(user.BanReason) ? "Violation of community guidelines" : user.BanReason)}",
                     null);
             }
-            // ───────────────────────────────────────────────────────────────────────
 
             // Authenticate with backend API to get JWT token
             var apiLoginResult = await LoginWithApiAsync(normalizedPhone, password);
@@ -369,7 +395,7 @@ namespace Lock.Services
             Preferences.Set(CurrentUserPhoneKey, normalizedPhone);
             Preferences.Set("current_user_role", user.Role);
 
-            // ========== TRACK USER LOGIN ==========
+            // Track user login
             try
             {
                 var deviceId = await GetDeviceId();
@@ -384,7 +410,6 @@ namespace Lock.Services
             return (true, string.Empty, user);
         }
 
-        // Migrate existing user roles (needed if coming from SQLite, otherwise can be removed)
         public static async Task MigrateExistingUserRolesAsync()
         {
             try
@@ -716,13 +741,16 @@ namespace Lock.Services
                 if (user == null)
                     return (false, "User not found.");
 
-                if (user.Password != oldPassword)
+                // FIXED: Verify old password using BCrypt
+                if (!VerifyPassword(oldPassword, user.Password))
                     return (false, "Current password is incorrect.");
 
                 if (newPassword.Length < 4)
                     return (false, "New password must be at least 4 characters.");
 
-                var success = await SupabaseService.UpdateAsync("Users", $"Id=eq.{user.Id}", new { Password = newPassword });
+                // FIXED: Hash the new password
+                var newHashedPassword = HashPassword(newPassword);
+                var success = await SupabaseService.UpdateAsync("Users", $"Id=eq.{user.Id}", new { Password = newHashedPassword });
                 return success ? (true, string.Empty) : (false, "Password change failed.");
             }
             catch (Exception ex)
@@ -743,7 +771,8 @@ namespace Lock.Services
                 if (user == null)
                     return (false, "User not found.");
 
-                if (user.Password != password)
+                // FIXED: Verify password using BCrypt
+                if (!VerifyPassword(password, user.Password))
                     return (false, "Incorrect password.");
 
                 var success = await SupabaseService.DeleteAsync("Users", $"Id=eq.{user.Id}");

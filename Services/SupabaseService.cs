@@ -73,17 +73,35 @@ namespace Lock.Services
             try
             {
                 EnsureHeaders();
+
+                // NOTE: DefaultValueHandling.Ignore has been intentionally removed.
+                // It was stripping valid false/0 fields (e.g. IsBanned, Smokes, CoinBalance)
+                // and causing Supabase to reject inserts due to missing required data.
                 var json = JsonConvert.SerializeObject(item, new JsonSerializerSettings
                 {
                     NullValueHandling = NullValueHandling.Ignore
                 });
+
                 var request = new HttpRequestMessage(HttpMethod.Post, $"{Url}/{table}");
                 request.Headers.Add("Prefer", "return=representation");
                 request.Content = new StringContent(json, Encoding.UTF8, "application/json");
                 var response = await _http.SendAsync(request);
                 var body = await response.Content.ReadAsStringAsync();
-                var list = JsonConvert.DeserializeObject<List<T>>(body);
-                return list != null && list.Count > 0 ? list[0] : default;
+
+                Debug.WriteLine($"[SUPABASE] INSERT {table} → {(int)response.StatusCode}");
+                Debug.WriteLine($"[SUPABASE] Body: {body}");
+
+                if (!response.IsSuccessStatusCode)
+                    return default;
+
+                // Supabase returns array on success
+                if (body.TrimStart().StartsWith("["))
+                {
+                    var list = JsonConvert.DeserializeObject<List<T>>(body);
+                    return list != null && list.Count > 0 ? list[0] : default;
+                }
+
+                return default;
             }
             catch (Exception ex)
             {
@@ -122,6 +140,7 @@ namespace Lock.Services
                 EnsureHeaders();
                 var json = JsonConvert.SerializeObject(patch);
                 var request = new HttpRequestMessage(HttpMethod.Patch, $"{Url}/{table}?{query}");
+                request.Headers.Add("Prefer", "return=minimal");
                 request.Content = new StringContent(json, Encoding.UTF8, "application/json");
                 var response = await _http.SendAsync(request);
                 return response.IsSuccessStatusCode;

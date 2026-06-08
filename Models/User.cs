@@ -1,4 +1,5 @@
 ﻿using Lock.Helpers;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -14,8 +15,9 @@ namespace Lock.Models
             => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
 
         // ── PRIMARY KEY ──────────────────────────────────────
+        // In User.cs
+        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
         public int Id { get; set; }
-
         // ── IDENTITY ─────────────────────────────────────────
         public string PhoneNumber { get; set; } = string.Empty;
         public string Name { get; set; } = string.Empty;
@@ -26,6 +28,7 @@ namespace Lock.Models
         public DateTime DateOfBirth { get; set; }
 
         // Runtime property (not persisted)
+        [JsonIgnore]
         public string ZodiacSign => CalculateZodiacSign(DateOfBirth);
 
         public string ProfileImagePath { get; set; } = string.Empty;
@@ -135,12 +138,16 @@ namespace Lock.Models
         public string Role { get; set; } = "User";
 
         // Runtime properties (not persisted)
+        [JsonIgnore]
         public bool IsAdmin => Role == "Admin";
+
+        [JsonIgnore]
         public bool IsModerator => Role == "Moderator" || IsAdmin;
 
         // ── PAGE PERMISSIONS ─────────────────────────────────
         public string DeniedPages { get; set; } = string.Empty;
 
+        [JsonIgnore]
         public HashSet<string> DeniedPageSet =>
             string.IsNullOrWhiteSpace(DeniedPages)
                 ? new HashSet<string>()

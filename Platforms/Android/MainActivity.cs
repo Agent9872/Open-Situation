@@ -9,7 +9,6 @@ using Lock.Platforms.Android;
 using Lock.Services;
 using Plugin.LocalNotification.EventArgs;
 using System.Text.Json;
-using SQLite;
 using Lock.Models.Chat;
 
 namespace Lock
@@ -33,6 +32,10 @@ namespace Lock
         protected override void OnCreate(Bundle? savedInstanceState)
         {
             base.OnCreate(savedInstanceState);
+
+            // Initialize ContactPickerService
+            Lock.Platforms.Android.ContactPickerService.Initialize(this);
+
             RequestNotificationPermission();
             HandleNotificationIntent(Intent);
 
@@ -71,8 +74,6 @@ namespace Lock
 
         private void HandleReply(NotificationPayload payload)
         {
-            // v11 of Plugin.LocalNotification does not support RemoteInput inline reply.
-            // Best we can do: open the chat page so the user can type there.
             MainThread.BeginInvokeOnMainThread(async () =>
             {
                 await Task.Delay(300);
@@ -82,34 +83,31 @@ namespace Lock
             });
         }
 
-        private void HandleMarkAsRead(NotificationPayload payload)
+        private async void HandleMarkAsRead(NotificationPayload payload)
         {
             MainThread.BeginInvokeOnMainThread(async () =>
             {
                 try
                 {
-                    await DatabaseService.InitializeAsync();
-                    var db = DatabaseService.GetConnection();
-
                     var currentPhone = Microsoft.Maui.Storage.Preferences
                         .Get("current_user_phone", string.Empty);
 
-                    var unread = await db.Table<Lock.Models.Chat.ChatMessage>()
-                        .Where(m => m.ConversationId == payload.ConversationId
-                                 && m.RecipientPhone == currentPhone
-                                 && !m.IsRead)
-                        .ToListAsync();
+                    // FIXED: Use Supabase instead of SQLite
+                    var unreadMessages = await SupabaseService.GetAsync<Lock.Models.Chat.ChatMessage>("ChatMessages",
+                        $"ConversationId=eq.{Uri.EscapeDataString(payload.ConversationId)}" +
+                        $"&RecipientPhone=eq.{Uri.EscapeDataString(currentPhone)}" +
+                        $"&IsRead=eq.false");
 
-                    foreach (var msg in unread)
+                    foreach (var msg in unreadMessages)
                     {
                         msg.IsRead = true;
-                        await db.UpdateAsync(msg);
+                        await SupabaseService.UpdateAsync("ChatMessages", $"Id=eq.{msg.Id}", msg);
                     }
 
                     Plugin.LocalNotification.LocalNotificationCenter.Current
                         .Cancel(payload.MessageId);
 
-                    System.Diagnostics.Debug.WriteLine($"✅ Marked {unread.Count} messages read in {payload.ConversationId}");
+                    System.Diagnostics.Debug.WriteLine($"✅ Marked {unreadMessages.Count} messages read in {payload.ConversationId}");
                 }
                 catch (Exception ex)
                 {

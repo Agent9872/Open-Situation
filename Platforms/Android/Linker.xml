@@ -1,0 +1,79 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<linker>
+
+	<!-- ===== MAUI CORE ===== -->
+	<assembly fullname="Microsoft.Maui" preserve="all" />
+	<assembly fullname="Microsoft.Maui.Controls" preserve="all" />
+	<assembly fullname="Microsoft.Maui.Controls.Compatibility" preserve="all" />
+	<assembly fullname="Microsoft.Maui.Essentials" preserve="all" />
+
+	<!-- ===== ANDROIDX LIFECYCLE - ALL VARIANTS ===== -->
+	<assembly fullname="Xamarin.AndroidX.Lifecycle.Common" preserve="all" />
+	<assembly fullname="Xamarin.AndroidX.Lifecycle.Common.Jvm" preserve="all" />
+	<assembly fullname="Xamarin.AndroidX.Lifecycle.Runtime" preserve="all" />
+	<assembly fullname="Xamarin.AndroidX.Lifecycle.Runtime.Ktx" preserve="all" />
+	<assembly fullname="Xamarin.AndroidX.Lifecycle.ViewModel" preserve="all" />
+	<assembly fullname="Xamarin.AndroidX.Lifecycle.ViewModel.Ktx" preserve="all" />
+	<assembly fullname="Xamarin.AndroidX.Lifecycle.LiveData" preserve="all" />
+	<assembly fullname="Xamarin.AndroidX.Lifecycle.LiveData.Core" preserve="all" />
+	<assembly fullname="Xamarin.AndroidX.Lifecycle.Process" preserve="all" />
+	<assembly fullname="Xamarin.AndroidX.Lifecycle.Service" preserve="all" />
+
+	<!-- ===== ANDROIDX FRAGMENT / APPCOMPAT ===== -->
+	<assembly fullname="Xamarin.AndroidX.Fragment" preserve="all" />
+	<assembly fullname="Xamarin.AndroidX.Fragment.Ktx" preserve="all" />
+	<assembly fullname="Xamarin.AndroidX.AppCompat" preserve="all" />
+	<assembly fullname="Xamarin.AndroidX.AppCompat.AppCompatResources" preserve="all" />
+	<assembly fullname="Xamarin.AndroidX.Activity" preserve="all" />
+	<assembly fullname="Xamarin.AndroidX.Activity.Ktx" preserve="all" />
+	<assembly fullname="Xamarin.AndroidX.Core" preserve="all" />
+	<assembly fullname="Xamarin.AndroidX.Core.Ktx" preserve="all" />
+	<assembly fullname="Xamarin.AndroidX.SavedState" preserve="all" />
+	<assembly fullname="Xamarin.AndroidX.SavedState.SavedState.Ktx" preserve="all" />
+	<assembly fullname="Xamarin.AndroidX.CursorAdapter" preserve="all" />
+	<assembly fullname="Xamarin.AndroidX.DocumentFile" preserve="all" />
+	<assembly fullname="Xamarin.AndroidX.Concurrent.Futures" preserve="all" />
+
+	<!-- ===== GOOGLE ML KIT ===== -->
+	<assembly fullname="Xamarin.Google.MLKit.Common" preserve="all" />
+	<assembly fullname="Xamarin.Google.MLKit.BarcodeScanning" preserve="all" />
+
+	<!-- ===== OCR PLUGIN ===== -->
+	<assembly fullname="Plugin.Maui.OCR" preserve="all" />
+
+	<assembly fullname="FFImageLoading" preserve="all" />
+	<assembly fullname="FFImageLoading.Transformations" preserve="all" />
+
+	<!-- ===== OTHER PLUGINS ===== -->
+	<assembly fullname="Plugin.LocalNotification" preserve="all" />
+	<assembly fullname="Plugin.Fingerprint" preserve="all" />
+	<assembly fullname="Plugin.Maui.Audio" preserve="all" />
+	<assembly fullname="CommunityToolkit.Maui" preserve="all" />
+	<assembly fullname="CommunityToolkit.Maui.MediaElement" preserve="all" />
+	<assembly fullname="FFImageLoading.Maui" preserve="all" />
+	<assembly fullname="Syncfusion.Maui.Toolkit" preserve="all" />
+
+	<!-- ===== SUPABASE (merged from Preservation.xml) ===== -->
+	<assembly fullname="Supabase" preserve="all" />
+	<assembly fullname="Supabase.Postgrest" preserve="all" />
+	<assembly fullname="Supabase.Realtime" preserve="all" />
+	<assembly fullname="Supabase.Storage" preserve="all" />
+	<assembly fullname="Supabase.Gotrue" preserve="all" />
+
+	<!-- ===== SERIALIZATION ===== -->
+	<assembly fullname="Newtonsoft.Json" preserve="all" />
+	<assembly fullname="System.Text.Json" preserve="all" />
+
+	<!-- ===== SIGNALR ===== -->
+	<assembly fullname="Microsoft.AspNetCore.SignalR.Client" preserve="all" />
+	<assembly fullname="Microsoft.AspNetCore.SignalR.Client.Core" preserve="all" />
+	<assembly fullname="Microsoft.AspNetCore.Http.Connections.Client" preserve="all" />
+
+	<!-- ===== AUDIO ===== -->
+	<assembly fullname="NAudio" preserve="all" />
+
+	<!-- ===== SECURITY ===== -->
+	<assembly fullname="BCrypt.Net-Next" preserve="all" />
+	<assembly fullname="Microsoft.IdentityModel.Tokens" preserve="all" />
+
+</linker>

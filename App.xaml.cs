@@ -26,15 +26,31 @@ namespace Lock
         public static bool IsNavigationHandled { get; set; } = false;
         public static bool IsInForeground { get; set; } = true;
 
-        private IMessagePollingService _pollingService;
-        private IMessageNotificationService _notificationService;
-        private ISystemNotificationService _systemNotificationService;
+        private IMessagePollingService? _pollingService;
+        private IMessageNotificationService? _notificationService;
+        private ISystemNotificationService? _systemNotificationService;
 
         public App()
         {
             Debug.WriteLine("=== APP CONSTRUCTOR START ===");
 
-            InitializeMoodMappingWithTimeout(TimeSpan.FromSeconds(2));
+            // ✅ FIX: Do NOT block the UI thread with .Wait() — this deadlocks on Android.
+            // MoodMapping is now initialised fire-and-forget in the background.
+            _ = Task.Run(() =>
+            {
+                try
+                {
+                    if (MoodMapping.EnsureInitialized())
+                    {
+                        _moodMappingInitialized = true;
+                        Debug.WriteLine("MoodMapping initialised successfully (background)");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"MoodMapping init error: {ex.Message}");
+                }
+            });
 
             try
             {
@@ -56,228 +72,183 @@ namespace Lock
                 Debug.WriteLine($"ERROR creating AppShell: {ex}");
             }
 
-            InitializeNotificationServices();
-            Task.Run(async () => await InitializeSupabaseAsync());
+            // ✅ FIX: Don't resolve services in constructor — Handler is null here.
+            // Services are resolved lazily in OnStart() after the app is fully running.
 
             Debug.WriteLine("=== APP CONSTRUCTOR END ===");
         }
+
+        // ── Service initialisation ────────────────────────────────────────────
+        // ✅ FIX: Called from OnStart() where Handler/MauiContext is available.
 
         private void InitializeNotificationServices()
         {
             try
             {
-                var services = Handler?.MauiContext?.Services;
+                var services = IPlatformApplication.Current?.Services;
                 if (services != null)
                 {
-                    _pollingService = services.GetService(typeof(IMessagePollingService)) as IMessagePollingService;
-                    _notificationService = services.GetService(typeof(IMessageNotificationService)) as IMessageNotificationService;
+                    _pollingService          = services.GetService(typeof(IMessagePollingService))      as IMessagePollingService;
+                    _notificationService     = services.GetService(typeof(IMessageNotificationService)) as IMessageNotificationService;
                     _systemNotificationService = services.GetService(typeof(ISystemNotificationService)) as ISystemNotificationService;
 
                     _systemNotificationService?.Initialize();
-                    Debug.WriteLine("Notification services initialized successfully");
+                    Debug.WriteLine("Notification services initialised successfully");
                 }
                 else
                 {
-                    Debug.WriteLine("Could not get services from Handler.MauiContext");
+                    Debug.WriteLine("IPlatformApplication.Current?.Services is null");
                 }
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Error initializing notification services: {ex}");
+                Debug.WriteLine($"Error initialising notification services: {ex}");
             }
         }
 
-        private void InitializeMoodMappingWithTimeout(TimeSpan timeout)
-        {
-            if (_moodMappingInitialized)
-                return;
-
-            lock (_moodMappingLock)
-            {
-                if (_moodMappingInitialized)
-                    return;
-
-                try
-                {
-                    Debug.WriteLine("Starting MoodMapping initialization...");
-                    var task = Task.Run(() => MoodMapping.EnsureInitialized());
-
-                    if (task.Wait(timeout))
-                    {
-                        if (task.Result)
-                        {
-                            _moodMappingInitialized = true;
-                            Debug.WriteLine("MoodMapping initialized successfully");
-                        }
-                    }
-                    else
-                    {
-                        Debug.WriteLine($"MoodMapping initialization timed out");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"Error initializing MoodMapping: {ex}");
-                }
-            }
-        }
-
-        private async Task InitializeSupabaseAsync()
-        {
-            if (!_databaseInitialized)
-            {
-                lock (_lock)
-                {
-                    if (!_databaseInitialized)
-                    {
-                        _databaseInitialized = true;
-                    }
-                    else
-                    {
-                        return;
-                    }
-                }
-
-                try
-                {
-                    Debug.WriteLine("Starting Supabase initialization...");
-                    // Supabase is already initialized in MauiProgram.cs
-                    // No need to initialize again, just verify connection if needed
-
-                    // Optional: Test connection by fetching a small amount of data
-                    try
-                    {
-                        var test = await SupabaseService.GetAsync<User>("Users", "limit=1");
-                        Debug.WriteLine($"Supabase connection verified. Found {test.Count} users.");
-                    }
-                    catch (Exception ex)
-                    {
-                        Debug.WriteLine($"Supabase connection test failed: {ex.Message}");
-                        throw;
-                    }
-
-                    Debug.WriteLine("Supabase initialization completed successfully");
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"Supabase initialization error: {ex}");
-                    lock (_lock)
-                    {
-                        _databaseInitialized = false;
-                    }
-                }
-            }
-        }
-
-        public static async Task RequestLocationPermissionAsync()
-        {
-            try
-            {
-                var status = await Permissions.CheckStatusAsync<Permissions.LocationWhenInUse>();
-                if (status != PermissionStatus.Granted)
-                {
-                    status = await Permissions.RequestAsync<Permissions.LocationWhenInUse>();
-                }
-
-                if (DeviceInfo.Platform == DevicePlatform.Android && OperatingSystem.IsAndroidVersionAtLeast(33))
-                {
-                    var notificationStatus = await Permissions.CheckStatusAsync<Permissions.PostNotifications>();
-                    if (notificationStatus != PermissionStatus.Granted)
-                    {
-                        await Permissions.RequestAsync<Permissions.PostNotifications>();
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Permission request error: {ex}");
-            }
-        }
+        // ── OnStart ───────────────────────────────────────────────────────────
 
         protected override async void OnStart()
         {
-            Debug.WriteLine("=== APP ONSTART ===");
+            Debug.WriteLine("=== APP ONSTART BEGIN ===");
 
-            LocalNotificationCenter.Current.NotificationActionTapped += OnNotificationActionTapped;
-
-            IsInForeground = true;
-            IsNavigationHandled = false;
-
-            if (!_moodMappingInitialized)
+            try
             {
-                InitializeMoodMappingWithTimeout(TimeSpan.FromSeconds(1));
+                LocalNotificationCenter.Current.NotificationActionTapped += OnNotificationActionTapped;
+                IsInForeground = true;
+                IsNavigationHandled = false;
+
+                if (_pollingService == null || _notificationService == null)
+                    InitializeNotificationServices();
+
+                // Non-blocking Supabase ping
+                _ = Task.Run(async () => await InitializeSupabaseAsync());
+
+                var phone = Preferences.Get(CurrentUserPhoneKey, string.Empty);
+                Debug.WriteLine($"[ONSTART] Saved phone: '{phone}'");
+
+                if (!string.IsNullOrWhiteSpace(phone))
+                {
+                    try
+                    {
+                        Debug.WriteLine("[ONSTART] Fetching user from Supabase...");
+
+                        // ✅ Timeout guard — Supabase hanging on mobile kills the app
+                        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(8));
+
+                        var usersTask = SupabaseService.GetAsync<Lock.Models.User>("Users",
+                            $"PhoneNumber=eq.{Uri.EscapeDataString(phone)}&limit=1");
+
+                        var completedTask = await Task.WhenAny(usersTask, Task.Delay(8000, cts.Token));
+
+                        if (completedTask != usersTask)
+                        {
+                            // Timed out — go to login, don't crash
+                            Debug.WriteLine("[ONSTART] Supabase timed out — navigating to login");
+                            Preferences.Remove(CurrentUserPhoneKey);
+                            await MainThread.InvokeOnMainThreadAsync(async () =>
+                                await Shell.Current.GoToAsync("//login", false));
+                            base.OnStart();
+                            return;
+                        }
+
+                        var users = await usersTask;
+                        var user = users?.FirstOrDefault();
+                        Debug.WriteLine($"[ONSTART] User found: {user != null}");
+
+                        if (user != null)
+                        {
+                            // Fire-and-forget last active update — don't block startup
+                            _ = Task.Run(async () =>
+                            {
+                                try
+                                {
+                                    await SupabaseService.UpdateAsync("Users", $"Id=eq.{user.Id}",
+                                        new { LastActive = DateTime.UtcNow });
+                                }
+                                catch (Exception ex)
+                                {
+                                    Debug.WriteLine($"[ONSTART] LastActive update failed: {ex.Message}");
+                                }
+                            });
+
+                            StartMessagePolling(phone);
+
+                            Debug.WriteLine("[ONSTART] Navigating to //post");
+                            await MainThread.InvokeOnMainThreadAsync(async () =>
+                                await Shell.Current.GoToAsync("//post", false));
+                        }
+                        else
+                        {
+                            Debug.WriteLine("[ONSTART] No user found — clearing phone and going to login");
+                            Preferences.Remove(CurrentUserPhoneKey);
+                            await MainThread.InvokeOnMainThreadAsync(async () =>
+                                await Shell.Current.GoToAsync("//login", false));
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"[ONSTART] User fetch error: {ex.GetType().Name}: {ex.Message}");
+                        Debug.WriteLine($"[ONSTART] StackTrace: {ex.StackTrace}");
+                        // Don't crash — just go to login
+                        await MainThread.InvokeOnMainThreadAsync(async () =>
+                            await Shell.Current.GoToAsync("//login", false));
+                    }
+                }
+                else
+                {
+                    Debug.WriteLine("[ONSTART] No saved phone — navigating to login");
+                    await MainThread.InvokeOnMainThreadAsync(async () =>
+                        await Shell.Current.GoToAsync("//login", false));
+                }
             }
-
-            if (_pollingService == null || _notificationService == null)
+            catch (Exception ex)
             {
-                InitializeNotificationServices();
-            }
+                Debug.WriteLine($"[ONSTART] *** TOP LEVEL CRASH: {ex.GetType().Name}: {ex.Message}");
+                Debug.WriteLine($"[ONSTART] *** StackTrace: {ex.StackTrace}");
 
-            var phone = Preferences.Get(CurrentUserPhoneKey, string.Empty);
-
-            if (!string.IsNullOrWhiteSpace(phone))
-            {
+                // Last resort — try to get to login without crashing
                 try
                 {
-                    // Get user from Supabase
-                    var users = await SupabaseService.GetAsync<Lock.Models.User>("Users",
-                        $"PhoneNumber=eq.{Uri.EscapeDataString(phone)}&limit=1");
-                    var user = users.FirstOrDefault();
-
-                    if (user != null)
-                    {
-                        // Update last active timestamp
-                        await SupabaseService.UpdateAsync("Users", $"Id=eq.{user.Id}",
-                            new { LastActive = DateTime.UtcNow });
-
-                        StartMessagePolling(phone);
-
-                        // Navigate IMMEDIATELY to PostPage
-                        await MainThread.InvokeOnMainThreadAsync(async () =>
-                        {
-                            await Shell.Current.GoToAsync("//post", new Dictionary<string, object>
-                            {
-                                ["animated"] = false
-                            });
-                        });
-                    }
-                    else
-                    {
-                        Preferences.Remove(CurrentUserPhoneKey);
-                        await MainThread.InvokeOnMainThreadAsync(async () =>
-                        {
-                            await Shell.Current.GoToAsync("//login", new Dictionary<string, object>
-                            {
-                                ["animated"] = false
-                            });
-                        });
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"Error in OnStart: {ex}");
                     await MainThread.InvokeOnMainThreadAsync(async () =>
-                    {
-                        await Shell.Current.GoToAsync("//login", new Dictionary<string, object>
-                        {
-                            ["animated"] = false
-                        });
-                    });
+                        await Shell.Current.GoToAsync("//login", false));
+                }
+                catch (Exception navEx)
+                {
+                    Debug.WriteLine($"[ONSTART] Even fallback navigation failed: {navEx.Message}");
                 }
             }
-            else
-            {
-                await MainThread.InvokeOnMainThreadAsync(async () =>
-                {
-                    await Shell.Current.GoToAsync("//login", new Dictionary<string, object>
-                    {
-                        ["animated"] = false
-                    });
-                });
-            }
 
+            Debug.WriteLine("=== APP ONSTART END ===");
             base.OnStart();
         }
+
+        // ── Supabase init ─────────────────────────────────────────────────────
+
+        private async Task InitializeSupabaseAsync()
+        {
+            if (_databaseInitialized) return;
+
+            lock (_lock)
+            {
+                if (_databaseInitialized) return;
+                _databaseInitialized = true;
+            }
+
+            try
+            {
+                Debug.WriteLine("Starting Supabase connection test...");
+                var test = await SupabaseService.GetAsync<User>("Users", "limit=1");
+                Debug.WriteLine($"Supabase connected. Found {test.Count} users.");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Supabase connection test failed: {ex.Message}");
+                lock (_lock) { _databaseInitialized = false; }
+            }
+        }
+
+        // ── Message polling ───────────────────────────────────────────────────
 
         private void StartMessagePolling(string userPhone)
         {
@@ -288,7 +259,7 @@ namespace Lock
                     _pollingService.MessageReceived -= OnMessageReceived;
                     _pollingService.MessageReceived += OnMessageReceived;
                     _pollingService.StartPolling(userPhone);
-                    Debug.WriteLine($"Message polling started for user: {userPhone}");
+                    Debug.WriteLine($"Message polling started for: {userPhone}");
                 }
             }
             catch (Exception ex)
@@ -315,43 +286,25 @@ namespace Lock
 
         private async Task OnMessageReceived(ChatMessage message)
         {
-            Debug.WriteLine($"📨 Message received from {message.SenderPhone}");
+            Debug.WriteLine($"Message received from {message.SenderPhone}");
 
             if (IsCurrentlyInChat(message.ConversationId))
             {
-                Debug.WriteLine("User is currently in this chat - skipping notification");
+                Debug.WriteLine("User is in this chat — skipping notification");
                 return;
             }
 
-            var senderName = await GetUserDisplayName(message.SenderPhone);
+            var senderName   = await GetUserDisplayName(message.SenderPhone);
             var senderAvatar = await GetUserAvatarPath(message.SenderPhone);
 
-            if (IsInForeground)
+            if (IsInForeground && _notificationService != null)
             {
-                await _notificationService?.ShowNewMessagePopupAsync(
+                await _notificationService.ShowNewMessagePopupAsync(
                     message, senderName, senderAvatar,
                     () => NavigateToChat(message.ConversationId, message.SenderPhone));
             }
 
             MessagingCenter.Send(this, "MessagesUpdated");
-        }
-
-        private async Task<int> GetUnreadMessageCount()
-        {
-            try
-            {
-                var currentUserPhone = Preferences.Get(CurrentUserPhoneKey, string.Empty);
-                if (string.IsNullOrEmpty(currentUserPhone)) return 0;
-
-                var messages = await SupabaseService.GetAsync<ChatMessage>("ChatMessages",
-                    $"RecipientPhone=eq.{Uri.EscapeDataString(currentUserPhone)}&IsRead=eq.false");
-                return messages.Count;
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error getting unread count: {ex}");
-                return 0;
-            }
         }
 
         private async Task<string> GetUserDisplayName(string phone)
@@ -360,13 +313,9 @@ namespace Lock
             {
                 var users = await SupabaseService.GetAsync<Lock.Models.User>("Users",
                     $"PhoneNumber=eq.{Uri.EscapeDataString(phone)}&limit=1");
-                var user = users.FirstOrDefault();
-                return user?.Name ?? phone;
+                return users.FirstOrDefault()?.Name ?? phone;
             }
-            catch
-            {
-                return phone;
-            }
+            catch { return phone; }
         }
 
         private async Task<string> GetUserAvatarPath(string phone)
@@ -375,40 +324,29 @@ namespace Lock
             {
                 var users = await SupabaseService.GetAsync<Lock.Models.User>("Users",
                     $"PhoneNumber=eq.{Uri.EscapeDataString(phone)}&limit=1");
-                var user = users.FirstOrDefault();
-                return user?.ProfileImagePath ?? string.Empty;
+                return users.FirstOrDefault()?.ProfileImagePath ?? string.Empty;
             }
-            catch
-            {
-                return string.Empty;
-            }
+            catch { return string.Empty; }
         }
 
         private bool IsCurrentlyInChat(string conversationId)
         {
             try
             {
-                var currentPage = GetCurrentPage();
-                if (currentPage is Pages.Chat.ChatPage chatPage)
-                {
-                    // You might want to check if the current conversation matches
-                    return false;
-                }
+                return GetCurrentPage() is Pages.Chat.ChatPage;
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"Error checking current chat: {ex}");
+                return false;
             }
-            return false;
         }
 
-        private Page GetCurrentPage()
+        private Page? GetCurrentPage()
         {
             var mainPage = Application.Current?.MainPage;
-            if (mainPage is NavigationPage navigationPage)
-                return navigationPage.CurrentPage;
-            if (mainPage is Shell shell)
-                return shell.CurrentPage;
+            if (mainPage is NavigationPage nav) return nav.CurrentPage;
+            if (mainPage is Shell shell)        return shell.CurrentPage;
             return mainPage;
         }
 
@@ -418,8 +356,8 @@ namespace Lock
             {
                 try
                 {
-                    await Shell.Current.GoToAsync($"//conversations/chat?conversationId={conversationId}&otherPhone={otherPhone}");
-                    Debug.WriteLine($"Navigated to chat: {conversationId}");
+                    await Shell.Current.GoToAsync(
+                        $"//conversations/chat?conversationId={conversationId}&otherPhone={otherPhone}");
                 }
                 catch (Exception ex)
                 {
@@ -428,12 +366,13 @@ namespace Lock
             });
         }
 
+        // ── Notification handling ─────────────────────────────────────────────
+
         private void OnNotificationActionTapped(NotificationActionEventArgs e)
         {
             try
             {
-                Debug.WriteLine($"🔔 Notification tapped: {e?.Request?.NotificationId}");
-
+                Debug.WriteLine($"Notification tapped: {e?.Request?.NotificationId}");
                 if (e.IsDismissed) return;
 
                 if (e.IsTapped)
@@ -469,42 +408,36 @@ namespace Lock
             }
         }
 
-        public async Task TestSystemNotification()
+        // ── Permissions ───────────────────────────────────────────────────────
+
+        public static async Task RequestLocationPermissionAsync()
         {
             try
             {
-                var testMessage = new ChatMessage
+                var status = await Permissions.CheckStatusAsync<Permissions.LocationWhenInUse>();
+                if (status != PermissionStatus.Granted)
+                    status = await Permissions.RequestAsync<Permissions.LocationWhenInUse>();
+
+                if (DeviceInfo.Platform == DevicePlatform.Android && OperatingSystem.IsAndroidVersionAtLeast(33))
                 {
-                    Id = Guid.NewGuid().ToString(),  // Changed from 9999 to a string GUID
-                    ConversationId = "test-conversation-123",
-                    SenderPhone = "+1234567890",
-                    Content = "This is a test notification message! 🎉",
-                    SentAt = DateTime.UtcNow,
-                    IsRead = false,
-                    MessageType = "text"
-                };
-
-                var testNotificationService = new SystemNotificationService();
-                testNotificationService.Initialize();
-                testNotificationService.ShowNewMessageNotification(testMessage, "Test User", 1);
-
-                Debug.WriteLine("✅ Test notification sent!");
-
-                await Application.Current.MainPage.DisplayAlert("Test", "Test notification sent! Check your notification center.", "OK");
+                    var notifStatus = await Permissions.CheckStatusAsync<Permissions.PostNotifications>();
+                    if (notifStatus != PermissionStatus.Granted)
+                        await Permissions.RequestAsync<Permissions.PostNotifications>();
+                }
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"❌ Test notification failed: {ex}");
-                await Application.Current.MainPage.DisplayAlert("Error", $"Failed to send test notification: {ex.Message}", "OK");
+                Debug.WriteLine($"Permission request error: {ex}");
             }
         }
+
+        // ── Lifecycle ─────────────────────────────────────────────────────────
 
         protected override async void OnSleep()
         {
             Debug.WriteLine("App OnSleep");
 
             LocalNotificationCenter.Current.NotificationActionTapped -= OnNotificationActionTapped;
-
             IsInForeground = false;
 
             try
@@ -515,12 +448,11 @@ namespace Lock
                     var users = await SupabaseService.GetAsync<Lock.Models.User>("Users",
                         $"PhoneNumber=eq.{Uri.EscapeDataString(phone)}&limit=1");
                     var user = users.FirstOrDefault();
-
                     if (user != null)
                     {
                         await SupabaseService.UpdateAsync("Users", $"Id=eq.{user.Id}",
                             new { LastActive = DateTime.UtcNow });
-                        Debug.WriteLine($"Updated last active for {phone} on sleep");
+                        Debug.WriteLine($"Updated last active on sleep for {phone}");
                     }
                 }
             }
@@ -537,19 +469,10 @@ namespace Lock
             Debug.WriteLine("App OnResume");
 
             LocalNotificationCenter.Current.NotificationActionTapped += OnNotificationActionTapped;
-
             IsInForeground = true;
 
-            bool migrationComplete = Preferences.Get("DatabaseMigrationComplete", false);
-            if (!migrationComplete)
-            {
-                Task.Run(async () => await InitializeSupabaseAsync());
-            }
-
-            if (!_moodMappingInitialized)
-            {
-                InitializeMoodMappingWithTimeout(TimeSpan.FromSeconds(1));
-            }
+            if (_pollingService == null || _notificationService == null)
+                InitializeNotificationServices();
 
             try
             {
@@ -564,13 +487,12 @@ namespace Lock
                     {
                         await SupabaseService.UpdateAsync("Users", $"Id=eq.{user.Id}",
                             new { LastActive = DateTime.UtcNow });
-                        Debug.WriteLine($"Updated last active for {phone} on resume");
-                    }
 
-                    if (_pollingService != null)
-                    {
-                        _pollingService.StopPolling();
-                        _pollingService.StartPolling(phone);
+                        if (_pollingService != null)
+                        {
+                            _pollingService.StopPolling();
+                            _pollingService.StartPolling(phone);
+                        }
                     }
                 }
             }
@@ -582,14 +504,49 @@ namespace Lock
             base.OnResume();
         }
 
+        // ── Test helper ───────────────────────────────────────────────────────
+
+        public async Task TestSystemNotification()
+        {
+            try
+            {
+                var testMessage = new ChatMessage
+                {
+                    Id             = Guid.NewGuid().ToString(),
+                    ConversationId = "test-conversation-123",
+                    SenderPhone    = "+1234567890",
+                    Content        = "This is a test notification! 🎉",
+                    SentAt         = DateTime.UtcNow,
+                    IsRead         = false,
+                    MessageType    = "text"
+                };
+
+                var svc = new SystemNotificationService();
+                svc.Initialize();
+                svc.ShowNewMessageNotification(testMessage, "Test User", 1);
+
+                Debug.WriteLine("Test notification sent!");
+                await Application.Current!.MainPage!.DisplayAlert("Test", "Test notification sent!", "OK");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Test notification failed: {ex}");
+                await Application.Current!.MainPage!.DisplayAlert("Error", ex.Message, "OK");
+            }
+        }
+
+        // ── Static helpers ────────────────────────────────────────────────────
+
         public static bool IsMoodMappingInitialized() => _moodMappingInitialized;
-        public static bool IsDatabaseInitialized() => _databaseInitialized;
+        public static bool IsDatabaseInitialized()    => _databaseInitialized;
+
+        // ── Private types ─────────────────────────────────────────────────────
 
         private class NotificationData
         {
             public string ConversationId { get; set; } = string.Empty;
-            public string SenderPhone { get; set; } = string.Empty;
-            public int Id { get; set; }
+            public string SenderPhone    { get; set; } = string.Empty;
+            public int    Id             { get; set; }
         }
     }
 }

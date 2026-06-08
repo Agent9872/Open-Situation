@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:shapes="clr-namespace:Microsoft.Maui.Controls.Shapes;assembly=Microsoft.Maui.Controls"
              x:Class="Lock.Pages.LoginPage"
+             xmlns:ff="clr-namespace:FFImageLoading.Maui;assembly=FFImageLoading.Maui"
              Title=""
              BackgroundColor="#0A0A0C"
              NavigationPage.HasNavigationBar="False"
@@ -42,16 +43,16 @@
 
         <!-- Background Carousel Images -->
         <AbsoluteLayout HorizontalOptions="Fill" VerticalOptions="Fill">
-            <Image x:Name="BgImage1" Source="login.png"  Aspect="AspectFill" Opacity="0.85"
-                   AbsoluteLayout.LayoutBounds="0,0,1,1" AbsoluteLayout.LayoutFlags="All" />
-            <Image x:Name="BgImage2" Source="login1.png" Aspect="AspectFill" Opacity="0"
-                   AbsoluteLayout.LayoutBounds="0,0,1,1" AbsoluteLayout.LayoutFlags="All" />
-            <Image x:Name="BgImage3" Source="login2.png" Aspect="AspectFill" Opacity="0"
-                   AbsoluteLayout.LayoutBounds="0,0,1,1" AbsoluteLayout.LayoutFlags="All" />
-            <Image x:Name="BgImage4" Source="login3.png" Aspect="AspectFill" Opacity="0"
-                   AbsoluteLayout.LayoutBounds="0,0,1,1" AbsoluteLayout.LayoutFlags="All" />
-            <Image x:Name="BgImage5" Source="login4.png" Aspect="AspectFill" Opacity="0"
-                   AbsoluteLayout.LayoutBounds="0,0,1,1" AbsoluteLayout.LayoutFlags="All" />
+            <ff:CachedImage x:Name="BgImage1" Source="login.png" Aspect="AspectFill" Opacity="1"
+                AbsoluteLayout.LayoutBounds="0,0,1,1" AbsoluteLayout.LayoutFlags="All" />
+            <ff:CachedImage x:Name="BgImage2" Source="login1.png" Aspect="AspectFill" Opacity="0"
+                AbsoluteLayout.LayoutBounds="0,0,1,1" AbsoluteLayout.LayoutFlags="All" />
+            <ff:CachedImage x:Name="BgImage3" Source="login2.png" Aspect="AspectFill" Opacity="0"
+                AbsoluteLayout.LayoutBounds="0,0,1,1" AbsoluteLayout.LayoutFlags="All" />
+            <ff:CachedImage x:Name="BgImage4" Source="login3.png" Aspect="AspectFill" Opacity="0"
+                AbsoluteLayout.LayoutBounds="0,0,1,1" AbsoluteLayout.LayoutFlags="All" />
+            <ff:CachedImage x:Name="BgImage5" Source="login4.png" Aspect="AspectFill" Opacity="0"
+                AbsoluteLayout.LayoutBounds="0,0,1,1" AbsoluteLayout.LayoutFlags="All" />
         </AbsoluteLayout>
 
         <!-- Dark Overlay -->

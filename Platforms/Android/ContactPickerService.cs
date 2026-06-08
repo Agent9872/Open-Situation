@@ -1,7 +1,6 @@
-﻿// Platforms/Android/ContactPickerService.cs
+﻿#if ANDROID
 using Android.App;
 using Android.Content;
-using Microsoft.Maui.ApplicationModel;
 
 namespace Lock.Platforms.Android
 {
@@ -9,6 +8,12 @@ namespace Lock.Platforms.Android
     {
         public const int RequestCode = 9001;
         private static TaskCompletionSource<string?>? _tcs;
+        private static MainActivity? _mainActivity;
+
+        public static void Initialize(MainActivity activity)
+        {
+            _mainActivity = activity;
+        }
 
         public static Task<string?> PickContactPhoneAsync()
         {
@@ -16,12 +21,16 @@ namespace Lock.Platforms.Android
 
             try
             {
-                // Use Phone.ContentType directly so the returned URI is already
-                // a phone row — no secondary lookup needed, no cast issues.
+                if (_mainActivity == null)
+                {
+                    _tcs.TrySetResult(null);
+                    return _tcs.Task;
+                }
+
                 var intent = new Intent(Intent.ActionPick,
                     global::Android.Provider.ContactsContract.CommonDataKinds.Phone.ContentUri);
 
-                Platform.CurrentActivity!.StartActivityForResult(intent, RequestCode);
+                _mainActivity.StartActivityForResult(intent, RequestCode);
             }
             catch (Exception ex)
             {
@@ -43,7 +52,7 @@ namespace Lock.Platforms.Android
 
             try
             {
-                var resolver = Platform.CurrentActivity?.ContentResolver;
+                var resolver = _mainActivity?.ContentResolver;
                 if (resolver == null)
                 {
                     _tcs?.TrySetResult(null);
@@ -51,10 +60,10 @@ namespace Lock.Platforms.Android
                 }
 
                 // The URI already points to a specific phone row
-                var projection = new[]
+                string[] projection = new string[]
                 {
                     global::Android.Provider.ContactsContract.CommonDataKinds.Phone.Number,
-                    global::Android.Provider.ContactsContract.CommonDataKinds.Phone.DisplayNamePrimary
+                    global::Android.Provider.ContactsContract.ContactsColumns.DisplayName
                 };
 
                 using var cursor = resolver.Query(data.Data, projection, null, null, null);
@@ -80,3 +89,4 @@ namespace Lock.Platforms.Android
         }
     }
 }
+#endif

@@ -3,6 +3,7 @@ using Lock.Services;
 using Microsoft.Maui.Controls;
 using System;
 using System.Diagnostics;
+using System.Linq;
 using Path = Microsoft.Maui.Controls.Shapes.Path;
 
 namespace Lock.Pages
@@ -10,15 +11,48 @@ namespace Lock.Pages
     public partial class RegisterPage : ContentPage
     {
         private bool _isPasswordVisible = false;
-        private CancellationTokenSource _carouselCts;
+        private CancellationTokenSource? _carouselCts;
         private int _currentBgIndex = 0;
-        private Image[] _bgImages;
+
+        // ? FIX: Nullable — assigned in OnAppearing() where XAML tree is ready,
+        //         NOT in the constructor where FindByName returns null on Android.
+        private Image[]? _bgImages;
 
         public RegisterPage()
         {
             InitializeComponent();
             NavigationPage.SetHasNavigationBar(this, false);
 
+            // ?? Pickers: safe to configure in constructor via x:Name ??????????
+            // (Picker/DatePicker data-binding doesn't need the visual tree attached)
+
+            // GenderPicker — x:Name="GenderPicker" in XAML
+            GenderPicker.ItemsSource = new[] { "Male", "Female", "Other" };
+
+            // InterestPicker — x:Name="InterestPicker" in XAML
+            InterestPicker.ItemsSource = new[] { "Women", "Men", "Everyone" };
+
+            // DobPicker — x:Name="DobPicker" in XAML
+            // DateSelected is already wired in XAML (DateSelected="DobPicker_DateSelected"),
+            // so we only set the bounds and initial value here.
+            DobPicker.MaximumDate = DateTime.Today;
+            DobPicker.Date = DateTime.Today.AddYears(-18);
+            UpdateAge(DobPicker.Date);
+
+            // ?? EyeToggleIcon ????????????????????????????????????????????????
+            // The password eye-toggle Grid in RegisterPage.xaml does NOT have an
+            // x:Name, so we cannot use FindByName for it. The TapGestureRecognizer
+            // is wired directly in XAML:
+            //   <TapGestureRecognizer Tapped="TogglePasswordVisibility" />
+            // Nothing extra needed here.
+        }
+
+        protected override void OnAppearing()
+        {
+            base.OnAppearing();
+
+            // ? FIX: Initialise _bgImages HERE — XAML elements are fully ready.
+            // RegisterPage.xaml has BgImage1, BgImage2, BgImage3 (3 images).
             _bgImages = new[]
             {
                 this.FindByName<Image>("BgImage1"),
@@ -26,35 +60,12 @@ namespace Lock.Pages
                 this.FindByName<Image>("BgImage3")
             };
 
-            var dobPicker = this.FindByName<DatePicker>("DobPicker");
-            if (dobPicker != null)
+            for (int i = 0; i < _bgImages.Length; i++)
             {
-                dobPicker.MaximumDate = DateTime.Today;
-                dobPicker.Date = DateTime.Today.AddYears(-18);
-                dobPicker.DateSelected += DobPicker_DateSelected;
-                UpdateAge(dobPicker.Date);
+                if (_bgImages[i] == null)
+                    Debug.WriteLine($"[REGISTER] WARNING: BgImage{i + 1} is null — check x:Name in RegisterPage.xaml");
             }
 
-            var genderPicker = this.FindByName<Picker>("GenderPicker");
-            if (genderPicker != null)
-                genderPicker.ItemsSource = new[] { "Male", "Female", "Other" };
-
-            var interestPicker = this.FindByName<Picker>("InterestPicker");
-            if (interestPicker != null)
-                interestPicker.ItemsSource = new[] { "Women", "Men", "Everyone" };
-
-            var eyeToggleIcon = this.FindByName<Grid>("EyeToggleIcon");
-            if (eyeToggleIcon != null)
-            {
-                var tapGesture = new TapGestureRecognizer();
-                tapGesture.Tapped += TogglePasswordVisibility;
-                eyeToggleIcon.GestureRecognizers.Add(tapGesture);
-            }
-        }
-
-        protected override void OnAppearing()
-        {
-            base.OnAppearing();
             StartBackgroundCarousel();
         }
 
@@ -62,7 +73,10 @@ namespace Lock.Pages
         {
             base.OnDisappearing();
             _carouselCts?.Cancel();
+            _carouselCts = null;
         }
+
+        // ?? Carousel ??????????????????????????????????????????????????????????
 
         private void StartBackgroundCarousel()
         {
@@ -70,19 +84,18 @@ namespace Lock.Pages
             _carouselCts = new CancellationTokenSource();
             var token = _carouselCts.Token;
 
+            // Set initial opacities safely
             MainThread.BeginInvokeOnMainThread(() =>
             {
+                if (_bgImages == null) return;
                 for (int i = 0; i < _bgImages.Length; i++)
                 {
-                    if (_bgImages[i] != null)
-                    {
-                        _bgImages[i].Opacity = i == 0 ? 0.85 : 0;
-                        var imageName = i == 0 ? "login.png" : $"login{i}.png";
-                        _bgImages[i].Source = ImageSource.FromFile(imageName);
-                        Debug.WriteLine($"Forced reload of {imageName}");
-                    }
+                    if (_bgImages[i] == null) continue;
+                    _bgImages[i].Opacity = i == 0 ? 0.85 : 0;
                 }
             });
+
+            _currentBgIndex = 0;
 
             Task.Run(async () =>
             {
@@ -93,20 +106,27 @@ namespace Lock.Pages
                         await Task.Delay(4000, token);
                         if (token.IsCancellationRequested) break;
 
+                        if (_bgImages == null || _bgImages.Length == 0) break;
+
                         var nextIndex = (_currentBgIndex + 1) % _bgImages.Length;
+                        var current = _bgImages[_currentBgIndex];
+                        var next = _bgImages[nextIndex];
+
+                        // ? FIX: Skip frame instead of crashing when image is null
+                        if (current == null || next == null)
+                        {
+                            Debug.WriteLine($"[REGISTER] Skipping carousel frame — null at index {_currentBgIndex} or {nextIndex}");
+                            _currentBgIndex = nextIndex;
+                            continue;
+                        }
 
                         await MainThread.InvokeOnMainThreadAsync(async () =>
                         {
-                            var current = _bgImages[_currentBgIndex];
-                            var next = _bgImages[nextIndex];
-
-                            if (current != null && next != null)
-                            {
+                            if (!token.IsCancellationRequested)
                                 await Task.WhenAll(
-                                    next.FadeTo(0.85, 1000),
-                                    current.FadeTo(0, 1000)
+                                    next.FadeTo(0.85, 1000, Easing.CubicInOut),
+                                    current.FadeTo(0, 1000, Easing.CubicInOut)
                                 );
-                            }
                         });
 
                         _currentBgIndex = nextIndex;
@@ -117,29 +137,34 @@ namespace Lock.Pages
                     }
                     catch (Exception ex)
                     {
-                        Debug.WriteLine($"Carousel error: {ex.Message}");
+                        Debug.WriteLine($"[REGISTER] Carousel error: {ex.Message}");
+                        if (!token.IsCancellationRequested)
+                            await Task.Delay(1000, token).ContinueWith(_ => { });
                     }
                 }
+
+                Debug.WriteLine("[REGISTER] Carousel stopped.");
             }, token);
         }
 
-        private void TogglePasswordVisibility(object sender, EventArgs e)
+        // ?? Password Toggle ???????????????????????????????????????????????????
+        // Wired via XAML: <TapGestureRecognizer Tapped="TogglePasswordVisibility" />
+        // EyeOpenIcon / EyeClosedIcon are x:Name'd in RegisterPage.xaml.
+
+        private void TogglePasswordVisibility(object? sender, EventArgs e)
         {
             _isPasswordVisible = !_isPasswordVisible;
 
-            var passwordEntry = this.FindByName<Entry>("PasswordEntry");
-            var eyeOpenIcon = this.FindByName<Path>("EyeOpenIcon");
-            var eyeClosedIcon = this.FindByName<Path>("EyeClosedIcon");
+            // x:Name="PasswordEntry" — direct field access, no FindByName needed
+            PasswordEntry.IsPassword = !_isPasswordVisible;
 
-            if (passwordEntry != null)
-                passwordEntry.IsPassword = !_isPasswordVisible;
-
-            if (eyeOpenIcon != null && eyeClosedIcon != null)
-            {
-                eyeOpenIcon.IsVisible = !_isPasswordVisible;
-                eyeClosedIcon.IsVisible = _isPasswordVisible;
-            }
+            // x:Name="EyeOpenIcon" / x:Name="EyeClosedIcon"
+            EyeOpenIcon.IsVisible = !_isPasswordVisible;
+            EyeClosedIcon.IsVisible = _isPasswordVisible;
         }
+
+        // ?? Date of Birth ?????????????????????????????????????????????????????
+        // Wired via XAML: DateSelected="DobPicker_DateSelected"
 
         private void DobPicker_DateSelected(object? sender, DateChangedEventArgs e)
         {
@@ -152,56 +177,49 @@ namespace Lock.Pages
             var age = today.Year - dob.Year;
             if (dob > today.AddYears(-age)) age--;
 
-            var ageLabel = this.FindByName<Label>("AgeLabel");
-            if (ageLabel != null)
-                ageLabel.Text = $"Age: {age}";
+            // x:Name="AgeLabel"
+            AgeLabel.Text = $"Age: {age}";
         }
+
+        // ?? Loading State ?????????????????????????????????????????????????????
+        // NOTE: RegisterPage.xaml does NOT have a "RegisterLoadingOverlay" Grid with
+        // an x:Name. If you want a loading overlay add one to the XAML and give it
+        // x:Name="RegisterLoadingOverlay". Until then we just toggle the button.
 
         private void SetLoadingState(bool isLoading)
         {
-            var registerButton = this.FindByName<Button>("RegisterButton");
-            var loadingOverlay = this.FindByName<Grid>("RegisterLoadingOverlay");
-            var nameEntry = this.FindByName<Entry>("NameEntry");
-            var phoneEntry = this.FindByName<Entry>("PhoneEntry");
-            var passwordEntry = this.FindByName<Entry>("PasswordEntry");
-            var genderPicker = this.FindByName<Picker>("GenderPicker");
-            var interestPicker = this.FindByName<Picker>("InterestPicker");
-            var dobPicker = this.FindByName<DatePicker>("DobPicker");
-            var termsCheckBox = this.FindByName<CheckBox>("TermsCheckBox");
+            // x:Name="RegisterButton"
+            RegisterButton.IsEnabled = !isLoading;
+            RegisterButton.Text = isLoading ? "Please wait…" : "CREATE ACCOUNT";
 
-            if (registerButton != null) registerButton.IsVisible = !isLoading;
-            if (loadingOverlay != null) loadingOverlay.IsVisible = isLoading;
-            if (nameEntry != null) nameEntry.IsEnabled = !isLoading;
-            if (phoneEntry != null) phoneEntry.IsEnabled = !isLoading;
-            if (passwordEntry != null) passwordEntry.IsEnabled = !isLoading;
-            if (genderPicker != null) genderPicker.IsEnabled = !isLoading;
-            if (interestPicker != null) interestPicker.IsEnabled = !isLoading;
-            if (dobPicker != null) dobPicker.IsEnabled = !isLoading;
-            if (termsCheckBox != null) termsCheckBox.IsEnabled = !isLoading;
+            // Individual field disable
+            NameEntry.IsEnabled = !isLoading;
+            PhoneEntry.IsEnabled = !isLoading;
+            PasswordEntry.IsEnabled = !isLoading;
+            GenderPicker.IsEnabled = !isLoading;
+            InterestPicker.IsEnabled = !isLoading;
+            DobPicker.IsEnabled = !isLoading;
+            TermsCheckBox.IsEnabled = !isLoading;
         }
+
+        // ?? Register Button ???????????????????????????????????????????????????
+        // Wired via XAML: Clicked="RegisterButton_Clicked"
 
         private async void RegisterButton_Clicked(object sender, EventArgs e)
         {
-            var messageLabel = this.FindByName<Label>("MessageLabel");
-            if (messageLabel != null) messageLabel.IsVisible = false;
+            // x:Name="MessageLabel"
+            MessageLabel.IsVisible = false;
 
-            var nameEntry = this.FindByName<Entry>("NameEntry");
-            var phoneEntry = this.FindByName<Entry>("PhoneEntry");
-            var passwordEntry = this.FindByName<Entry>("PasswordEntry");
-            var genderPicker = this.FindByName<Picker>("GenderPicker");
-            var interestPicker = this.FindByName<Picker>("InterestPicker");
-            var dobPicker = this.FindByName<DatePicker>("DobPicker");
-            var termsCheckBox = this.FindByName<CheckBox>("TermsCheckBox");
-
-            var name = nameEntry?.Text?.Trim() ?? string.Empty;
-            var phone = phoneEntry?.Text?.Trim() ?? string.Empty;
-            var password = passwordEntry?.Text ?? string.Empty;
-            var gender = genderPicker?.SelectedItem as string ?? string.Empty;
-            var interest = interestPicker?.SelectedItem as string ?? string.Empty;
-            var dob = dobPicker?.Date ?? DateTime.MinValue;
+            var name = NameEntry.Text?.Trim() ?? string.Empty;
+            var phone = PhoneEntry.Text?.Trim() ?? string.Empty;
+            var password = PasswordEntry.Text ?? string.Empty;
+            var gender = GenderPicker.SelectedItem as string ?? string.Empty;
+            var interest = InterestPicker.SelectedItem as string ?? string.Empty;
+            var dob = DobPicker.Date;
 
             // ?? Validation ????????????????????????????????????????????????????
-            if (termsCheckBox == null || !termsCheckBox.IsChecked)
+
+            if (!TermsCheckBox.IsChecked)
             {
                 ShowMessage("You must accept the Terms and Conditions to register.");
                 return;
@@ -237,7 +255,7 @@ namespace Lock.Pages
                 return;
             }
 
-            if (dob == DateTime.MinValue || dob > DateTime.Today)
+            if (dob > DateTime.Today)
             {
                 ShowMessage("Date of birth cannot be in the future.");
                 return;
@@ -252,12 +270,12 @@ namespace Lock.Pages
                 return;
             }
 
-            // ?? Show loading ??????????????????????????????????????????????????
+            // ?? Submit ????????????????????????????????????????????????????????
+
             SetLoadingState(true);
 
             try
             {
-                // Capture IP + location from ipinfo.io (non-fatal)
                 var ipInfo = await IpService.GetIpInfoAsync();
                 var ipAddress = ipInfo.Ip;
                 var ipCountry = ipInfo.Country;
@@ -280,23 +298,17 @@ namespace Lock.Pages
                 if (!result.Success)
                 {
                     ShowMessage(result.Error);
-                    phoneEntry?.Focus();
+                    PhoneEntry.Focus();
                     return;
                 }
 
-                // Fetch the newly created user and store role in Preferences
-                // Critical for the first user (Admin) to see the Admin Panel
+                // Fetch newly created user and store role
                 try
                 {
-                    // Remove this SQLite code:
-                    // await DatabaseService.InitializeAsync();
-                    // var db = DatabaseService.GetConnection();
-
                     bool hasPlus = phone.StartsWith("+");
                     var digits = new string(phone.Where(c => char.IsDigit(c)).ToArray());
                     var normalizedPhone = hasPlus ? "+" + digits : digits;
 
-                    // Replace with Supabase code:
                     var users = await SupabaseService.GetAsync<Lock.Models.User>("Users",
                         $"PhoneNumber=eq.{Uri.EscapeDataString(normalizedPhone)}&limit=1");
                     var newUser = users.FirstOrDefault();
@@ -322,12 +334,16 @@ namespace Lock.Pages
             catch (Exception ex)
             {
                 ShowMessage("Registration failed. " + ex.Message);
+                Debug.WriteLine($"[REGISTER] Exception: {ex}");
             }
             finally
             {
                 SetLoadingState(false);
             }
         }
+
+        // ?? Navigation ????????????????????????????????????????????????????????
+        // Wired via XAML: Tapped="ViewTerms_Clicked" / Tapped="SignInButton_Clicked"
 
         private async void ViewTerms_Clicked(object sender, EventArgs e)
         {
@@ -342,14 +358,12 @@ namespace Lock.Pages
                 await Shell.Current.GoToAsync("//LoginPage");
         }
 
+        // ?? Helpers ???????????????????????????????????????????????????????????
+
         private void ShowMessage(string text)
         {
-            var messageLabel = this.FindByName<Label>("MessageLabel");
-            if (messageLabel != null)
-            {
-                messageLabel.Text = text;
-                messageLabel.IsVisible = true;
-            }
+            MessageLabel.Text = text;
+            MessageLabel.IsVisible = true;
         }
     }
 }

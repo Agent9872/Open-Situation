@@ -130,6 +130,7 @@ namespace Lock
             LoadTheme();
         }
 
+
         // ─────────────────────────────────────────────
         // SignalR
         // ─────────────────────────────────────────────
@@ -527,12 +528,18 @@ namespace Lock
                 if (saved == "light")
                 {
                     Application.Current!.UserAppTheme = AppTheme.Light;
-                    ThemeSegmentedControl.SelectedIndex = 0;
+                    LightThemeBtn.BackgroundColor = Color.FromArgb("#00C9C9");
+                    LightThemeBtn.TextColor = Colors.White;
+                    DarkThemeBtn.BackgroundColor = Colors.Transparent;
+                    DarkThemeBtn.TextColor = Color.FromArgb("#888888");
                 }
                 else
                 {
                     Application.Current!.UserAppTheme = AppTheme.Dark;
-                    ThemeSegmentedControl.SelectedIndex = 1;
+                    DarkThemeBtn.BackgroundColor = Color.FromArgb("#00C9C9");
+                    DarkThemeBtn.TextColor = Colors.White;
+                    LightThemeBtn.BackgroundColor = Colors.Transparent;
+                    LightThemeBtn.TextColor = Color.FromArgb("#888888");
                 }
             }
             catch (Exception ex)
@@ -541,23 +548,30 @@ namespace Lock
             }
         }
 
-        private void SfSegmentedControl_SelectionChanged(object sender, Syncfusion.Maui.Toolkit.SegmentedControl.SelectionChangedEventArgs e)
+        // ADD these two methods in its place:
+        private void OnLightThemeClicked(object sender, EventArgs e)
         {
-            try
-            {
-                var selectedTheme = e.NewIndex == 0 ? AppTheme.Light : AppTheme.Dark;
-                Application.Current!.UserAppTheme = selectedTheme;
-
-                var phone = Preferences.Get(CurrentUserPhoneKey, string.Empty)?.Trim();
-                var prefKey = string.IsNullOrEmpty(phone) ? "app_theme" : $"user_theme_{phone}";
-                Preferences.Set(prefKey, selectedTheme == AppTheme.Light ? "light" : "dark");
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error changing theme: {ex}");
-            }
+            Application.Current!.UserAppTheme = AppTheme.Light;
+            var phone = Preferences.Get(CurrentUserPhoneKey, string.Empty)?.Trim();
+            var prefKey = string.IsNullOrEmpty(phone) ? "app_theme" : $"user_theme_{phone}";
+            Preferences.Set(prefKey, "light");
+            LightThemeBtn.BackgroundColor = Color.FromArgb("#00C9C9");
+            LightThemeBtn.TextColor = Colors.White;
+            DarkThemeBtn.BackgroundColor = Colors.Transparent;
+            DarkThemeBtn.TextColor = Color.FromArgb("#888888");
         }
 
+        private void OnDarkThemeClicked(object sender, EventArgs e)
+        {
+            Application.Current!.UserAppTheme = AppTheme.Dark;
+            var phone = Preferences.Get(CurrentUserPhoneKey, string.Empty)?.Trim();
+            var prefKey = string.IsNullOrEmpty(phone) ? "app_theme" : $"user_theme_{phone}";
+            Preferences.Set(prefKey, "dark");
+            DarkThemeBtn.BackgroundColor = Color.FromArgb("#00C9C9");
+            DarkThemeBtn.TextColor = Colors.White;
+            LightThemeBtn.BackgroundColor = Colors.Transparent;
+            LightThemeBtn.TextColor = Color.FromArgb("#888888");
+        }
         // ─────────────────────────────────────────────
         // OnAppearing
         // ─────────────────────────────────────────────
