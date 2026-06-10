@@ -794,7 +794,7 @@ namespace Lock.Pages.Discover
             var liveBadge = this.FindByName<Label>("LiveBadgeText");
             if (liveBadge != null) liveBadge.Opacity = 1.0;
         }
-
+         
         private void StartHeaderPulse()
         {
             // DISABLED - causes carousel blink interference
@@ -805,8 +805,6 @@ namespace Lock.Pages.Discover
             {
                 ShowSkeleton(true);
 
-                await DatabaseService.InitializeAsync();
-                var db = DatabaseService.GetConnection();
 
                 var currentPhone = Preferences.Get("current_user_phone", string.Empty);
 
@@ -814,11 +812,19 @@ namespace Lock.Pages.Discover
       $"IsLive=eq.true&EndedAt=is.null");
 
                 var sessions = allSessions
-                    .Where(s => !string.Equals(s.UserPhoneNumber, currentPhone,
-                                              StringComparison.OrdinalIgnoreCase))
-                    .GroupBy(s => s.UserPhoneNumber)
-                    .Select(g => g.First())
-                    .ToList();
+         .Where(s => !string.IsNullOrEmpty(s.UserPhoneNumber) || !string.IsNullOrEmpty(s.HostPhone))
+         .Where(s => !string.Equals(s.UserPhoneNumber ?? s.HostPhone, currentPhone,
+                                   StringComparison.OrdinalIgnoreCase))
+         .GroupBy(s => s.UserPhoneNumber ?? s.HostPhone)
+         .Select(g => g.First())
+         .ToList();
+
+                // Normalize: if UserPhoneNumber is empty, copy HostPhone into it
+                foreach (var s in sessions)
+                {
+                    if (string.IsNullOrEmpty(s.UserPhoneNumber) && !string.IsNullOrEmpty(s.HostPhone))
+                        s.UserPhoneNumber = s.HostPhone;
+                }
 
                 Debug.WriteLine($"Found {sessions.Count} live sessions");
 
@@ -835,7 +841,7 @@ namespace Lock.Pages.Discover
                             session.IsLive = false;
                             session.EndedAt = DateTime.UtcNow;
                             // Replace: await db.UpdateAsync(session);
-                            await SupabaseService.UpdateAsync("LiveSessions", $"Id=eq.{session.Id}", session);
+                            await SupabaseService.UpdateLiveSessionAsync(session.Id, new { IsLive = false, EndedAt = DateTime.UtcNow });
                             continue;
                         }
 
@@ -849,7 +855,11 @@ namespace Lock.Pages.Discover
                             $"PhoneNumber=eq.{Uri.EscapeDataString(session.UserPhoneNumber)}&limit=1");
                         var user = users.FirstOrDefault();
 
-                        if (user == null) continue;
+                        if (user == null)
+                        {
+                            Debug.WriteLine($"LiveFeedPage: no user found for phone '{session.UserPhoneNumber}'");
+                            continue;
+                        }
 
                         string heightText = string.Empty;
                         if (user.HeightCm.HasValue && user.HeightCm.Value > 0)

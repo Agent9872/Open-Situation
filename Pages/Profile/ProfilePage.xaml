@@ -369,24 +369,24 @@
                             <!-- Interested In -->
                             <HorizontalStackLayout Spacing="8">
                                 <Border WidthRequest="32" HeightRequest="32"
-                        BackgroundColor="{AppThemeBinding Light=#F0EDE8, Dark=#1E1C1A}"
-                        StrokeThickness="0" StrokeShape="RoundRectangle 8" Padding="0">
+            BackgroundColor="{AppThemeBinding Light=#F0EDE8, Dark=#1E1C1A}"
+            StrokeThickness="0" StrokeShape="RoundRectangle 8" Padding="0">
                                     <Path Data="M480-420q41-37 65.25-60.75t37.5-40.5q13.25-16.75 17.75-30t4.5-27.6q0-28.65-20-49.15t-48.05-20.5q-16.98 0-32.2 7.1-15.22 7.1-24.85 18.4-9.7-11.3-24.74-18.4-15.04-7.1-31.71-7.1Q395-648.5 375-628q-20 20.5-20 49.15 0 14.35 4 27.1 4 12.75 17.22 29.56 13.22 16.8 37.92 40.92Q438.85-457.16 480-420ZM256-204v-522.08q0-24.36 16.53-40.89t40.75-16.53h333.44q24.22 0 40.75 16.53T704-726.08V-204l-224-96-224 96Zm25.5-40L480-329.66 678.5-244v-482q0-12-10-22t-22-10h-333q-12 0-22 10t-10 22v482Zm0-514h397-397Z"
-                          Fill="{AppThemeBinding Light=#888880, Dark=#008080}"
-                          StrokeThickness="0"
-                          HeightRequest="14"
-                          WidthRequest="14"
-                          HorizontalOptions="Center"
-                          VerticalOptions="Center"
-                          Aspect="Uniform" />
+              Fill="{AppThemeBinding Light=#B04040, Dark=#FF3B6F}"
+              StrokeThickness="0"
+              HeightRequest="14"
+              WidthRequest="14"
+              HorizontalOptions="Center"
+              VerticalOptions="Center"
+              Aspect="Uniform" />
                                 </Border>
                                 <VerticalStackLayout Spacing="1" VerticalOptions="Center">
                                     <Label Text="INTERESTED IN" FontSize="8" CharacterSpacing="1.5"
-                           HorizontalOptions="Center"
-                           TextColor="{AppThemeBinding Light=#888880, Dark=#008080}" />
+               HorizontalOptions="Center"
+               TextColor="{AppThemeBinding Light=#B04040, Dark=#FF3B6F}" />
                                     <Label x:Name="InterestLabel" Text="—" FontSize="13" FontAttributes="Bold"
-                           HorizontalOptions="Center"
-                           TextColor="{AppThemeBinding Light=#1A1A1A, Dark=#F0EDE8}" />
+               HorizontalOptions="Center"
+               TextColor="{AppThemeBinding Light=#1A1A1A, Dark=#F0EDE8}" />
                                 </VerticalStackLayout>
                             </HorizontalStackLayout>
                         </HorizontalStackLayout>

@@ -288,7 +288,7 @@ namespace Lock.Pages.Post
         {
             try
             {
-                _allUsers = await SupabaseService.GetAsync<User>("Users", "");
+                _allUsers = await SupabaseService.GetAsync<User>("Users", "limit=200");
                 var me = Preferences.Get("current_user_phone", string.Empty);
 
                 // LOAD ALL POSTS FOR TEXT SEARCH
@@ -384,7 +384,7 @@ namespace Lock.Pages.Post
         {
             try
             {
-                _allUsers = await SupabaseService.GetAsync<User>("Users", "");
+                _allUsers = await SupabaseService.GetAsync<User>("Users", "limit=200");
                 var me = Preferences.Get("current_user_phone", string.Empty);
 
                 _filteredUsers = _allUsers

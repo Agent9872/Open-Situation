@@ -150,7 +150,7 @@
             ═══════════════════════════════════════════════════════════ -->
             <DataTemplate x:Key="FullPostTemplate">
                 <VerticalStackLayout Spacing="0" Padding="16,0,16,0">
-                    <Border BackgroundColor="#16161C"
+                    <Border BackgroundColor="#0E0E12"
         StrokeThickness="1" Stroke="#1C1C25"
         StrokeShape="RoundRectangle 16"
         Padding="14,12"
@@ -406,25 +406,25 @@
                             </Border>
                             <!-- Images horizontal scroll -->
                             <ScrollView Orientation="Horizontal"
-                            HeightRequest="260"
-                            HorizontalScrollBarVisibility="Never"
-                            IsVisible="{Binding ImagePathsList, Converter={StaticResource ListNotEmptyConverter}}">
+            HeightRequest="380"
+            HorizontalScrollBarVisibility="Never"
+            IsVisible="{Binding ImagePathsList, Converter={StaticResource ListNotEmptyConverter}}">
                                 <HorizontalStackLayout Spacing="6" Padding="0,0,4,0">
                                     <BindableLayout.ItemsSource>
                                         <Binding Path="ImagePathsList" />
                                     </BindableLayout.ItemsSource>
                                     <BindableLayout.ItemTemplate>
                                         <DataTemplate>
-                                            <Frame WidthRequest="175" HeightRequest="250"
-                                       CornerRadius="14" Padding="0"
-                                       IsClippedToBounds="True" HasShadow="False"
-                                       BackgroundColor="#1C1C25" BorderColor="#2A2A38">
+                                            <Frame WidthRequest="260" HeightRequest="370"
+                       CornerRadius="14" Padding="0"
+                       IsClippedToBounds="True" HasShadow="False"
+                       BackgroundColor="#1C1C25" BorderColor="#2A2A38">
                                                 <Frame.GestureRecognizers>
                                                     <TapGestureRecognizer Tapped="PostImage_Tapped"
-                                                              CommandParameter="{Binding .}" />
+                                              CommandParameter="{Binding .}" />
                                                 </Frame.GestureRecognizers>
                                                 <Image Source="{Binding .}" Aspect="AspectFill"
-                                           HeightRequest="250" WidthRequest="175" />
+                           HeightRequest="370" WidthRequest="260" />
                                             </Frame>
                                         </DataTemplate>
                                     </BindableLayout.ItemTemplate>
@@ -432,95 +432,132 @@
                             </ScrollView>
 
                             <!-- Interaction bar -->
-                            <ScrollView Orientation="Horizontal"
-                            HorizontalScrollBarVisibility="Never"
-                            Margin="0,4,0,0">
-                                <HorizontalStackLayout Spacing="6">
+                            <Grid ColumnDefinitions="*,*,*,*,*"
+      Margin="0,4,0,0"
+      ColumnSpacing="4">
 
-                                    <!-- Comment — count ALWAYS visible -->
-                                    <Border BackgroundColor="#0E0E12" StrokeThickness="1" Stroke="#2A2A38"
-                                StrokeShape="RoundRectangle 20" Padding="12,7">
-                                        <Border.GestureRecognizers>
-                                            <TapGestureRecognizer Tapped="CommentButton_Tapped"
-                                                      CommandParameter="{Binding .}" />
-                                        </Border.GestureRecognizers>
-                                        <HorizontalStackLayout Spacing="5">
-                                            <Path Data="M269-428.5h422V-454H269v25.5Zm0-119h422V-573H269v25.5Zm0-119h422V-692H269v25.5Zm554 479-109-109H194.28q-24.22 0-40.75-16.53T137-353.8v-412.4q0-24.24 16.53-40.77 16.53-16.53 40.75-16.53h571.44q24.22 0 40.75 16.53T823-766.06v578.56ZM194.5-322H725l72.5 73v-517q0-12-10-22t-22-10h-571q-12 0-22 10t-10 22v412q0 12 10 22t22 10Zm-32 0v-476 476Z"
-                                      Fill="#7A7A8C" Stroke="#7A7A8C" StrokeThickness="1"
-                                      HeightRequest="14" WidthRequest="14" Aspect="Uniform" />
-                                            <!-- FIX: Always show comment count, no GreaterThanZeroConverter -->
-                                            <Label TextColor="#7A7A8C" FontSize="12" FontAttributes="Bold"
-                                       VerticalOptions="Center">
-                                                <Label.Text>
-                                                    <Binding Path="CommentCount" StringFormat="{}{0}" FallbackValue="0" />
-                                                </Label.Text>
-                                            </Label>
-                                        </HorizontalStackLayout>
-                                    </Border>
+                                <!-- Comment -->
+                                <Border Grid.Column="0"
+            BackgroundColor="#0E0E12"
+            StrokeThickness="1"
+            Stroke="#2A2A38"
+            StrokeShape="RoundRectangle 20"
+            Padding="0,7"
+            HorizontalOptions="Fill">
+                                    <Border.GestureRecognizers>
+                                        <TapGestureRecognizer Tapped="CommentButton_Tapped"
+                                  CommandParameter="{Binding .}" />
+                                    </Border.GestureRecognizers>
+                                    <HorizontalStackLayout Spacing="5"
+                               HorizontalOptions="Center"
+                               VerticalOptions="Center">
+                                        <Path Data="M269-428.5h422V-454H269v25.5Zm0-119h422V-573H269v25.5Zm0-119h422V-692H269v25.5Zm554 479-109-109H194.28q-24.22 0-40.75-16.53T137-353.8v-412.4q0-24.24 16.53-40.77 16.53-16.53 40.75-16.53h571.44q24.22 0 40.75 16.53T823-766.06v578.56ZM194.5-322H725l72.5 73v-517q0-12-10-22t-22-10h-571q-12 0-22 10t-10 22v412q0 12 10 22t22 10Zm-32 0v-476 476Z"
+                  Fill="#7A7A8C" Stroke="#7A7A8C" StrokeThickness="1"
+                  HeightRequest="14" WidthRequest="14" Aspect="Uniform"
+                  VerticalOptions="Center" />
+                                        <Label TextColor="#7A7A8C" FontSize="12" FontAttributes="Bold"
+                   VerticalOptions="Center">
+                                            <Label.Text>
+                                                <Binding Path="CommentCount" StringFormat="{}{0}" FallbackValue="0" />
+                                            </Label.Text>
+                                        </Label>
+                                    </HorizontalStackLayout>
+                                </Border>
 
-                                    <!-- Love -->
-                                    <Border BackgroundColor="#0E0E12" StrokeThickness="1" Stroke="#2A2A38"
-                                StrokeShape="RoundRectangle 20" Padding="12,7">
-                                        <Border.GestureRecognizers>
-                                            <TapGestureRecognizer Tapped="LoveButton_Tapped"
-                                                      CommandParameter="{Binding .}" />
-                                        </Border.GestureRecognizers>
-                                        <HorizontalStackLayout Spacing="5">
-                                            <Path Data="M480-195.5 460-214q-96.13-88.18-159.07-150.59Q238-427 201.72-473.9q-36.29-46.9-50.5-84.48Q137-595.95 137-633.5q0-69.5 47.5-117t117-47.5q52.47 0 97.98 28.5Q445-741 480-685.5q35.5-55.5 80.75-84T658.5-798q69.5 0 117 47.44Q823-703.11 823-633.69q0 37.73-14.22 75.31-14.21 37.58-50.46 84.42-36.25 46.85-98.9 109.37Q596.77-302.07 500-214l-20 18.5Z"
-                                      Fill="{Binding LoveIconColor}" Stroke="{Binding LoveIconColor}"
-                                      StrokeThickness="1" HeightRequest="14" WidthRequest="14" Aspect="Uniform" />
-                                            <Label Text="{Binding LoveCountDisplay}"
-                                       TextColor="{Binding LoveIconColor}"
-                                       FontSize="12" FontAttributes="Bold" VerticalOptions="Center"
-                                       IsVisible="{Binding LoveCount, Converter={StaticResource GreaterThanZeroConverter}}" />
-                                        </HorizontalStackLayout>
-                                    </Border>
+                                <!-- Love -->
+                                <Border Grid.Column="1"
+            BackgroundColor="#0E0E12"
+            StrokeThickness="1"
+            Stroke="#2A2A38"
+            StrokeShape="RoundRectangle 20"
+            Padding="0,7"
+            HorizontalOptions="Fill">
+                                    <Border.GestureRecognizers>
+                                        <TapGestureRecognizer Tapped="LoveButton_Tapped"
+                                  CommandParameter="{Binding .}" />
+                                    </Border.GestureRecognizers>
+                                    <HorizontalStackLayout Spacing="5"
+                               HorizontalOptions="Center"
+                               VerticalOptions="Center">
+                                        <Path Data="M480-195.5 460-214q-96.13-88.18-159.07-150.59Q238-427 201.72-473.9q-36.29-46.9-50.5-84.48Q137-595.95 137-633.5q0-69.5 47.5-117t117-47.5q52.47 0 97.98 28.5Q445-741 480-685.5q35.5-55.5 80.75-84T658.5-798q69.5 0 117 47.44Q823-703.11 823-633.69q0 37.73-14.22 75.31-14.21 37.58-50.46 84.42-36.25 46.85-98.9 109.37Q596.77-302.07 500-214l-20 18.5Z"
+                  Fill="{Binding LoveIconColor}"
+                  Stroke="{Binding LoveIconColor}"
+                  StrokeThickness="1"
+                  HeightRequest="14" WidthRequest="14" Aspect="Uniform"
+                  VerticalOptions="Center" />
+                                        <Label Text="{Binding LoveCountDisplay}"
+                   TextColor="{Binding LoveIconColor}"
+                   FontSize="12" FontAttributes="Bold"
+                   VerticalOptions="Center"
+                   IsVisible="{Binding LoveCount,
+                       Converter={StaticResource GreaterThanZeroConverter}}" />
+                                    </HorizontalStackLayout>
+                                </Border>
 
-                                    <!-- Spark -->
-                                    <Border BackgroundColor="#0E0E12" StrokeThickness="1" Stroke="#2A2A38"
-                                StrokeShape="RoundRectangle 20" Padding="12,7">
-                                        <Border.GestureRecognizers>
-                                            <TapGestureRecognizer Tapped="SparkButton_Tapped"
-                                                      CommandParameter="{Binding .}" />
-                                        </Border.GestureRecognizers>
-                                        <HorizontalStackLayout Spacing="5">
-                                            <Label Text="⚡" FontSize="14"
-                                       TextColor="{Binding SparkIconColor, FallbackValue=#7A7A8C}"
-                                       VerticalOptions="Center" />
-                                            <Label Text="{Binding SparkCountDisplay}"
-                                       TextColor="{Binding SparkIconColor, FallbackValue=#7A7A8C}"
-                                       FontSize="12" FontAttributes="Bold"
-                                       VerticalOptions="Center"
-                                       IsVisible="{Binding SparkCount, Converter={StaticResource GreaterThanZeroConverter}}" />
-                                        </HorizontalStackLayout>
-                                    </Border>
+                                <!-- Spark -->
+                                <Border Grid.Column="2"
+            BackgroundColor="#0E0E12"
+            StrokeThickness="1"
+            Stroke="#2A2A38"
+            StrokeShape="RoundRectangle 20"
+            Padding="0,7"
+            HorizontalOptions="Fill">
+                                    <Border.GestureRecognizers>
+                                        <TapGestureRecognizer Tapped="SparkButton_Tapped"
+                                  CommandParameter="{Binding .}" />
+                                    </Border.GestureRecognizers>
+                                    <HorizontalStackLayout Spacing="5"
+                               HorizontalOptions="Center"
+                               VerticalOptions="Center">
+                                        <Label Text="⚡" FontSize="14"
+                   TextColor="{Binding SparkIconColor, FallbackValue=#7A7A8C}"
+                   VerticalOptions="Center" />
+                                        <Label Text="{Binding SparkCountDisplay}"
+                   TextColor="{Binding SparkIconColor, FallbackValue=#7A7A8C}"
+                   FontSize="12" FontAttributes="Bold"
+                   VerticalOptions="Center"
+                   IsVisible="{Binding SparkCount,
+                       Converter={StaticResource GreaterThanZeroConverter}}" />
+                                    </HorizontalStackLayout>
+                                </Border>
 
-                                    <!-- Share -->
-                                    <Border BackgroundColor="#0E0E12" StrokeThickness="1" Stroke="#2A2A38"
-                                StrokeShape="RoundRectangle 20" Padding="12,7">
-                                        <Border.GestureRecognizers>
-                                            <TapGestureRecognizer Tapped="ShareButton_Tapped"
-                                                      CommandParameter="{Binding .}" />
-                                        </Border.GestureRecognizers>
-                                        <Path Data="M657.35-153q-36.35 0-61.1-24.85Q571.5-202.71 571.5-239q0-10 7.5-32L302.5-424q-12 14-28.94 22t-36.3 8q-35.11 0-59.68-25.27Q153-444.54 153-479.77q0-35.23 24.65-60.73Q202.29-566 237.5-566q19.23 0 36 7.87 16.78 7.86 28.5 21.63l245-152.08q-3.5-7.42-5.5-15.73t-2-17.19q0-35.63 24.9-60.56 24.89-24.94 61-24.94 36.1 0 60.85 25.04T711-721.15q0 35.98-24.96 60.82-24.96 24.83-60.62 24.83-19.69 0-35.8-8.25-16.11-8.25-28.12-22.75L317-513.5q3 8 5.25 16.63 2.25 8.62 2.25 16.95 0 8.32-2 16.58-2 8.27-5 16.28L561.5-294q11.79-14 28.06-22.5t35.86-8.5q35.66 0 60.62 25.25T711-239q0 36.5-24.98 61.25T657.35-153Z"
-                                  Fill="#7A7A8C" Stroke="#7A7A8C" StrokeThickness="1"
-                                  HeightRequest="14" WidthRequest="14" Aspect="Uniform" />
-                                    </Border>
+                                <!-- Share -->
+                                <Border Grid.Column="3"
+            BackgroundColor="#0E0E12"
+            StrokeThickness="1"
+            Stroke="#2A2A38"
+            StrokeShape="RoundRectangle 20"
+            Padding="0,7"
+            HorizontalOptions="Fill">
+                                    <Border.GestureRecognizers>
+                                        <TapGestureRecognizer Tapped="ShareButton_Tapped"
+                                  CommandParameter="{Binding .}" />
+                                    </Border.GestureRecognizers>
+                                    <Path Data="M657.35-153q-36.35 0-61.1-24.85Q571.5-202.71 571.5-239q0-10 7.5-32L302.5-424q-12 14-28.94 22t-36.3 8q-35.11 0-59.68-25.27Q153-444.54 153-479.77q0-35.23 24.65-60.73Q202.29-566 237.5-566q19.23 0 36 7.87 16.78 7.86 28.5 21.63l245-152.08q-3.5-7.42-5.5-15.73t-2-17.19q0-35.63 24.9-60.56 24.89-24.94 61-24.94 36.1 0 60.85 25.04T711-721.15q0 35.98-24.96 60.82-24.96 24.83-60.62 24.83-19.69 0-35.8-8.25-16.11-8.25-28.12-22.75L317-513.5q3 8 5.25 16.63 2.25 8.62 2.25 16.95 0 8.32-2 16.58-2 8.27-5 16.28L561.5-294q11.79-14 28.06-22.5t35.86-8.5q35.66 0 60.62 25.25T711-239q0 36.5-24.98 61.25T657.35-153Z"
+              Fill="#7A7A8C" Stroke="#7A7A8C" StrokeThickness="1"
+              HeightRequest="14" WidthRequest="14" Aspect="Uniform"
+              HorizontalOptions="Center" VerticalOptions="Center" />
+                                </Border>
 
-                                    <!-- Save/Add to list -->
-                                    <Border BackgroundColor="#0E0E12" StrokeThickness="1" Stroke="#2A2A38"
-                                StrokeShape="RoundRectangle 20" Padding="12,7">
-                                        <Border.GestureRecognizers>
-                                            <TapGestureRecognizer Tapped="OnAddToListTapped"
-                                                      CommandParameter="{Binding .}" />
-                                        </Border.GestureRecognizers>
-                                        <Path Data="M480-296.33 252-198v-590h268v28H280v518l200-86 200 86v-278h28v322l-228-98.33ZM280-760h240-240Zm400 160v-80h-80v-28h80v-80h28v80h80v28h-80v80h-28Z"
-                                  Fill="#7A7A8C" Stroke="#7A7A8C" StrokeThickness="1"
-                                  HeightRequest="14" WidthRequest="14" Aspect="Uniform" />
-                                    </Border>
+                                <!-- Bookmark -->
+                                <Border Grid.Column="4"
+            BackgroundColor="#0E0E12"
+            StrokeThickness="1"
+            Stroke="#2A2A38"
+            StrokeShape="RoundRectangle 20"
+            Padding="0,7"
+            HorizontalOptions="Fill">
+                                    <Border.GestureRecognizers>
+                                        <TapGestureRecognizer Tapped="OnAddToListTapped"
+                                  CommandParameter="{Binding .}" />
+                                    </Border.GestureRecognizers>
+                                    <Path Data="M480-296.33 252-198v-590h268v28H280v518l200-86 200 86v-278h28v322l-228-98.33ZM280-760h240-240Zm400 160v-80h-80v-28h80v-80h28v80h80v28h-80v80h-28Z"
+              Fill="#7A7A8C" Stroke="#7A7A8C" StrokeThickness="1"
+              HeightRequest="14" WidthRequest="14" Aspect="Uniform"
+              HorizontalOptions="Center" VerticalOptions="Center" />
+                                </Border>
 
-                                </HorizontalStackLayout>
-                            </ScrollView>
+                            </Grid>
 
                         </VerticalStackLayout>
                     </Border>
@@ -714,7 +751,7 @@
                     <VerticalStackLayout Grid.Column="0" Spacing="0">
 
                         <!-- Composer card -->
-                        <Border BackgroundColor="#16161C"
+                        <Border BackgroundColor="#0E0E12"
                                 StrokeThickness="1"
                                 Stroke="#2A2A38"
                                 StrokeShape="RoundRectangle 16"
@@ -1180,7 +1217,7 @@
                         <DataTemplate>
                             <VerticalStackLayout Spacing="0" Padding="14,12,14,0">
                                 <!-- Shimmer card -->
-                                <Border BackgroundColor="#16161C"
+                                <Border BackgroundColor="#0E0E12"
                                         StrokeThickness="1"
                                         Stroke="#1C1C25"
                                         StrokeShape="RoundRectangle 14"

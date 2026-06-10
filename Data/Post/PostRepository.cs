@@ -57,7 +57,24 @@ namespace Lock.Services
         {
             try
             {
-                return await SupabaseService.InsertAndReturnAsync<Post>("Posts", post);
+                var payload = new
+                {
+                    AuthorPhone = post.AuthorPhone,
+                    Content = post.Content,
+                    Category = post.Category,
+                    Visibility = post.Visibility,
+                    ImagePathsJson = post.ImagePathsJson,
+                    Mood = post.Mood,
+                    StatusImagePath = post.StatusImagePath,
+                    LoveCount = post.LoveCount,
+                    LovedByJson = post.LovedByJson,
+                    SparkCount = post.SparkCount,
+                    SparkedByJson = post.SparkedByJson,
+                    HiddenByJson = post.HiddenByJson,
+                    CreatedAt = post.CreatedAt
+                };
+
+                return await SupabaseService.InsertPayloadAndReturnAsync<Post>("Posts", payload);
             }
             catch (Exception ex)
             {
@@ -263,11 +280,8 @@ namespace Lock.Services
 
                 post.LovedBy = lovedBy;
 
-                var success = await SupabaseService.UpdateAsync("Posts", $"Id=eq.{postId}",
-                    new { LovedByJson = post.LovedByJson, LoveCount = post.LoveCount });
-
-                Debug.WriteLine($"Toggled love for post {postId}: {lovedBy.Count} loves");
-                return success;
+                return await SupabaseService.UpdateAsync("Posts", $"Id=eq.{postId}",
+                    new { LovedByJson = post.LovedByJson, LoveCount = lovedBy.Count });
             }
             catch (Exception ex)
             {
@@ -275,7 +289,6 @@ namespace Lock.Services
                 return false;
             }
         }
-
         public static async Task<bool> HasUserLovedPostAsync(int postId, string userPhone)
         {
             try

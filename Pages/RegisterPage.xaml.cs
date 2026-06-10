@@ -307,8 +307,7 @@ namespace Lock.Pages
                 {
                     bool hasPlus = phone.StartsWith("+");
                     var digits = new string(phone.Where(c => char.IsDigit(c)).ToArray());
-                    var normalizedPhone = hasPlus ? "+" + digits : digits;
-
+                    var normalizedPhone = new string(phone.Where(char.IsDigit).ToArray());
                     var users = await SupabaseService.GetAsync<Lock.Models.User>("Users",
                         $"PhoneNumber=eq.{Uri.EscapeDataString(normalizedPhone)}&limit=1");
                     var newUser = users.FirstOrDefault();

@@ -21,7 +21,7 @@
         <!-- ===== COMMENT WITH ACTIONS TEMPLATE ===== -->
         <DataTemplate x:Key="CommentWithActionsTemplate">
             <VerticalStackLayout Spacing="0">
-                <Border BackgroundColor="#16161C"
+                <Border BackgroundColor="#0E0E12"
                         StrokeThickness="1" Stroke="#1C1C25"
                         StrokeShape="RoundRectangle 16"
                         Padding="14,12"
@@ -152,7 +152,7 @@
         <!-- ===== SIMPLE COMMENT TEMPLATE ===== -->
         <DataTemplate x:Key="CommentTemplate">
             <VerticalStackLayout Spacing="0">
-                <Border BackgroundColor="#16161C"
+                <Border BackgroundColor="#0E0E12"
                         StrokeThickness="1" Stroke="#1C1C25"
                         StrokeShape="RoundRectangle 16"
                         Padding="14,12"
@@ -418,7 +418,7 @@
                         <HorizontalStackLayout Spacing="6">
 
                             <!-- Comment Button -->
-                            <Border BackgroundColor="#16161C" StrokeThickness="1" Stroke="#2A2A38"
+                            <Border BackgroundColor="#0E0E12" StrokeThickness="1" Stroke="#2A2A38"
                         StrokeShape="RoundRectangle 20" Padding="12,7">
                                 <Border.GestureRecognizers>
                                     <TapGestureRecognizer Tapped="OnCommentButtonTapped" CommandParameter="{Binding .}" />
@@ -436,7 +436,7 @@
                             </Border>
 
                             <!-- Love Button for Post -->
-                            <Border BackgroundColor="#16161C" StrokeThickness="1" Stroke="#2A2A38"
+                            <Border BackgroundColor="#0E0E12" StrokeThickness="1" Stroke="#2A2A38"
 StrokeShape="RoundRectangle 20" Padding="12,7">
                                 <Border.GestureRecognizers>
                                     <TapGestureRecognizer Tapped="OnLovePostTapped" CommandParameter="{Binding .}" />
@@ -452,7 +452,7 @@ StrokeShape="RoundRectangle 20" Padding="12,7">
                                 </HorizontalStackLayout>
                             </Border>
                             <!-- Spark Button -->
-                            <Border BackgroundColor="#16161C" StrokeThickness="1" Stroke="#2A2A38"
+                            <Border BackgroundColor="#0E0E12" StrokeThickness="1" Stroke="#2A2A38"
                         StrokeShape="RoundRectangle 20" Padding="12,7">
                                 <Border.GestureRecognizers>
                                     <TapGestureRecognizer Tapped="OnSparkPostTapped" CommandParameter="{Binding .}" />
@@ -468,7 +468,7 @@ StrokeShape="RoundRectangle 20" Padding="12,7">
                             </Border>
 
                             <!-- Share Button -->
-                            <Border BackgroundColor="#16161C" StrokeThickness="1" Stroke="#2A2A38"
+                            <Border BackgroundColor="#0E0E12" StrokeThickness="1" Stroke="#2A2A38"
                         StrokeShape="RoundRectangle 20" Padding="12,7">
                                 <Border.GestureRecognizers>
                                     <TapGestureRecognizer Tapped="OnSharePostTapped" CommandParameter="{Binding .}" />
@@ -479,7 +479,7 @@ StrokeShape="RoundRectangle 20" Padding="12,7">
                             </Border>
 
                             <!-- Add to List Button -->
-                            <Border BackgroundColor="#16161C" StrokeThickness="1" Stroke="#2A2A38"
+                            <Border BackgroundColor="#0E0E12" StrokeThickness="1" Stroke="#2A2A38"
                         StrokeShape="RoundRectangle 20" Padding="12,7">
                                 <Border.GestureRecognizers>
                                     <TapGestureRecognizer Tapped="OnAddToListTapped" CommandParameter="{Binding .}" />
@@ -731,7 +731,7 @@ StrokeShape="RoundRectangle 20" Padding="12,7">
             <Border StrokeThickness="1"
             Stroke="#2A2A38"
             StrokeShape="RoundRectangle 24"
-            BackgroundColor="#16161C"
+            BackgroundColor="#0E0E12"
             Padding="14,0"
             Margin="0,6,0,0">
 

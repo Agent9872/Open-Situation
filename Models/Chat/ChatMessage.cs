@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
+using Newtonsoft.Json;
 
 namespace Lock.Models.Chat
 {
@@ -19,7 +20,7 @@ namespace Lock.Models.Chat
 
         // Encryption properties
         public bool IsEncrypted { get; set; } = false;
-        public string? EncryptionIV { get; set; } // Initialization Vector for AES
+        public string? EncryptionIV { get; set; }
 
         // Message Request Properties
         public bool IsMessageRequest { get; set; } = false;
@@ -47,7 +48,7 @@ namespace Lock.Models.Chat
             }
         }
 
-        public string? MessageType { get; set; } // "text", "image", "contact", "gift", etc.
+        public string? MessageType { get; set; }
         public string? ContactName { get; set; }
         public string? ContactPhone { get; set; }
         public string? ContactProfileImage { get; set; }
@@ -58,7 +59,7 @@ namespace Lock.Models.Chat
         public string? EndorsementRequestorName { get; set; }
         public string? EndorsementTestimonial { get; set; }
         public string? EndorsementRating { get; set; }
-        public string? EndorsementStatus { get; set; } // pending, accepted, declined
+        public string? EndorsementStatus { get; set; }
 
         // Post sharing properties
         private int? _postId;
@@ -143,7 +144,7 @@ namespace Lock.Models.Chat
                 {
                     try
                     {
-                        _mediaItems = JsonSerializer.Deserialize<List<ChatMediaItem>>(value);
+                        _mediaItems = System.Text.Json.JsonSerializer.Deserialize<List<ChatMediaItem>>(value);
                     }
                     catch
                     {
@@ -321,8 +322,12 @@ namespace Lock.Models.Chat
             }
         }
 
-        // Runtime UI state properties (not persisted to Supabase)
+        // ?? RUNTIME ONLY — never sent to Supabase ??????????????????????????
+
+        [JsonIgnore]
         private List<ChatMediaItem>? _mediaItems;
+
+        [JsonIgnore]
         public List<ChatMediaItem> MediaItems
         {
             get
@@ -342,8 +347,7 @@ namespace Lock.Models.Chat
                             WaveformData = VoiceWaveformData
                         }
                     };
-
-                    _mediaItemsJson = JsonSerializer.Serialize(legacyList);
+                    _mediaItemsJson = System.Text.Json.JsonSerializer.Serialize(legacyList);
                     return legacyList;
                 }
 
@@ -366,7 +370,7 @@ namespace Lock.Models.Chat
                         VoiceWaveformData = value[0].WaveformData;
                     }
 
-                    _mediaItemsJson = JsonSerializer.Serialize(value);
+                    _mediaItemsJson = System.Text.Json.JsonSerializer.Serialize(value);
                 }
                 else
                 {
@@ -380,31 +384,63 @@ namespace Lock.Models.Chat
             }
         }
 
-        // Gift properties
-        public string GiftEmoji
+        [JsonIgnore]
+        public bool IsLocalOutgoing
         {
-            get
+            get => _isLocalOutgoing;
+            set
             {
-                if (MessageType != "gift" || string.IsNullOrEmpty(Content))
-                    return string.Empty;
-                var def = Lock.Models.GiftDefinition.FindById(Content);
-                return def?.Name ?? "Gift";
+                if (_isLocalOutgoing != value)
+                {
+                    _isLocalOutgoing = value;
+                    OnPropertyChanged();
+                }
             }
         }
+        private bool _isLocalOutgoing;
 
-        public string GiftName
+        [JsonIgnore]
+        public bool IsFirstInGroup { get; set; } = true;
+
+        [JsonIgnore]
+        public bool IsLastInGroup { get; set; } = true;
+
+        [JsonIgnore]
+        public bool IsMiddleInGroup => !IsFirstInGroup && !IsLastInGroup;
+
+        [JsonIgnore]
+        public bool IsVoicePlaying
         {
-            get
+            get => _isVoicePlaying;
+            set
             {
-                if (MessageType != "gift" || string.IsNullOrEmpty(Content))
-                    return string.Empty;
-                var def = Lock.Models.GiftDefinition.FindById(Content);
-                return def?.Name ?? "Gift";
+                if (_isVoicePlaying != value)
+                {
+                    _isVoicePlaying = value;
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(DisplayDuration));
+                }
             }
         }
+        private bool _isVoicePlaying;
 
-        // Post author profile image (runtime only)
-        private string _postAuthorProfileImage = string.Empty;
+        [JsonIgnore]
+        public double VoicePlaybackProgress
+        {
+            get => _voicePlaybackProgress;
+            set
+            {
+                if (Math.Abs(_voicePlaybackProgress - value) > 0.001)
+                {
+                    _voicePlaybackProgress = value;
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(DisplayDuration));
+                }
+            }
+        }
+        private double _voicePlaybackProgress;
+
+        [JsonIgnore]
         public string PostAuthorProfileImage
         {
             get => _postAuthorProfileImage;
@@ -419,9 +455,14 @@ namespace Lock.Models.Chat
                 }
             }
         }
+        private string _postAuthorProfileImage = string.Empty;
 
+        // ?? COMPUTED / UI PROPERTIES (not persisted) ???????????????????????
+
+        [JsonIgnore]
         public bool HasPostAuthorImage => !string.IsNullOrEmpty(PostAuthorProfileImage) && File.Exists(PostAuthorProfileImage);
 
+        [JsonIgnore]
         public string PostAuthorInitial
         {
             get
@@ -432,84 +473,41 @@ namespace Lock.Models.Chat
             }
         }
 
-        // Message grouping properties (runtime only)
-        public bool IsFirstInGroup { get; set; } = true;
-        public bool IsLastInGroup { get; set; } = true;
-        public bool IsMiddleInGroup => !IsFirstInGroup && !IsLastInGroup;
-
-        private bool _isLocalOutgoing;
-        public bool IsLocalOutgoing
-        {
-            get => _isLocalOutgoing;
-            set
-            {
-                if (_isLocalOutgoing != value)
-                {
-                    _isLocalOutgoing = value;
-                    OnPropertyChanged();
-                }
-            }
-        }
-
-        // Voice playback state (runtime only)
-        private bool _isVoicePlaying;
-        public bool IsVoicePlaying
-        {
-            get => _isVoicePlaying;
-            set
-            {
-                if (_isVoicePlaying != value)
-                {
-                    _isVoicePlaying = value;
-                    OnPropertyChanged();
-                    OnPropertyChanged(nameof(DisplayDuration));
-                }
-            }
-        }
-
-        private double _voicePlaybackProgress;
-        public double VoicePlaybackProgress
-        {
-            get => _voicePlaybackProgress;
-            set
-            {
-                if (Math.Abs(_voicePlaybackProgress - value) > 0.001)
-                {
-                    _voicePlaybackProgress = value;
-                    OnPropertyChanged();
-                    OnPropertyChanged(nameof(DisplayDuration));
-                }
-            }
-        }
-
-        // Computed properties for UI
+        [JsonIgnore]
         public bool HasMedia => !string.IsNullOrEmpty(MediaPath) || (MediaItems?.Count > 0) || IsVoiceMessage;
+
+        [JsonIgnore]
         public bool HasText => !string.IsNullOrWhiteSpace(Content);
 
+        [JsonIgnore]
         public bool IsImageMessage => (HasSingleImage || HasMultipleImages) &&
             (string.Equals(MediaType, "image", StringComparison.OrdinalIgnoreCase) ||
              string.IsNullOrEmpty(MediaType) ||
              (MediaItems != null && MediaItems.All(m => string.Equals(m.Type, "image", StringComparison.OrdinalIgnoreCase))));
 
+        [JsonIgnore]
         public bool HasSingleImage => !string.IsNullOrEmpty(MediaPath) &&
             (string.Equals(MediaType, "image", StringComparison.OrdinalIgnoreCase) ||
              string.IsNullOrEmpty(MediaType)) && !IsVoiceMessage;
 
+        [JsonIgnore]
         public bool HasMultipleImages => MediaItems != null && MediaItems.Count > 1 && !IsVoiceMessage;
 
+        [JsonIgnore]
         public bool IsImage => (MediaItems != null && MediaItems.All(m => string.Equals(m.Type, "image", StringComparison.OrdinalIgnoreCase))) || HasSingleImage;
 
+        [JsonIgnore]
         public bool IsVoice => IsVoiceMessage ||
             (!string.IsNullOrEmpty(MediaType) && string.Equals(MediaType, "audio", StringComparison.OrdinalIgnoreCase)) ||
             (MediaItems?.Count == 1 && MediaItems[0] != null && string.Equals(MediaItems[0].Type, "audio", StringComparison.OrdinalIgnoreCase));
 
+        [JsonIgnore]
         public string FormattedDuration
         {
             get
             {
                 if (!VoiceDurationSeconds.HasValue || VoiceDurationSeconds.Value <= 0)
                     return "0:00";
-
                 var ts = TimeSpan.FromSeconds(VoiceDurationSeconds.Value);
                 return ts.TotalMinutes >= 1
                     ? $"{(int)ts.TotalMinutes}:{ts.Seconds:D2}"
@@ -517,29 +515,25 @@ namespace Lock.Models.Chat
             }
         }
 
+        [JsonIgnore]
         public bool IsExpired => ExpiresAt.HasValue && ExpiresAt.Value <= DateTime.UtcNow;
 
+        [JsonIgnore]
         public string TimeUntilDisappear
         {
             get
             {
-                if (!WillDisappear || !ExpiresAt.HasValue)
-                    return string.Empty;
-
+                if (!WillDisappear || !ExpiresAt.HasValue) return string.Empty;
                 var timeLeft = ExpiresAt.Value - DateTime.UtcNow;
-                if (timeLeft.TotalSeconds <= 0)
-                    return "Expired";
-
-                if (timeLeft.TotalHours >= 24)
-                    return $"{timeLeft.Days}d";
-                if (timeLeft.TotalHours >= 1)
-                    return $"{timeLeft.Hours}h";
-                if (timeLeft.TotalMinutes >= 1)
-                    return $"{timeLeft.Minutes}m";
+                if (timeLeft.TotalSeconds <= 0) return "Expired";
+                if (timeLeft.TotalHours >= 24) return $"{timeLeft.Days}d";
+                if (timeLeft.TotalHours >= 1) return $"{timeLeft.Hours}h";
+                if (timeLeft.TotalMinutes >= 1) return $"{timeLeft.Minutes}m";
                 return $"{timeLeft.Seconds}s";
             }
         }
 
+        [JsonIgnore]
         public string TickSymbol
         {
             get
@@ -551,6 +545,7 @@ namespace Lock.Models.Chat
             }
         }
 
+        [JsonIgnore]
         public string DisplayDuration
         {
             get
@@ -575,20 +570,45 @@ namespace Lock.Models.Chat
             }
         }
 
-        public Color TickColor
+        [JsonIgnore]
+        public Microsoft.Maui.Graphics.Color TickColor
         {
             get
             {
-                if (IsBlocked) return Colors.Transparent;
-                if (IsRead) return Color.FromArgb("#34B7F1");
-                if (IsDelivered) return Color.FromArgb("#8E8E93");
-                return Color.FromArgb("#8E8E93");
+                if (IsBlocked) return Microsoft.Maui.Graphics.Colors.Transparent;
+                if (IsRead) return Microsoft.Maui.Graphics.Color.FromArgb("#34B7F1");
+                if (IsDelivered) return Microsoft.Maui.Graphics.Color.FromArgb("#8E8E93");
+                return Microsoft.Maui.Graphics.Color.FromArgb("#8E8E93");
             }
         }
 
+        [JsonIgnore]
         public int MediaCount => MediaItems?.Count ?? (IsVoiceMessage ? 1 : 0);
 
-        // Methods
+        [JsonIgnore]
+        public string GiftEmoji
+        {
+            get
+            {
+                if (MessageType != "gift" || string.IsNullOrEmpty(Content)) return string.Empty;
+                var def = Lock.Models.GiftDefinition.FindById(Content);
+                return def?.Name ?? "Gift";
+            }
+        }
+
+        [JsonIgnore]
+        public string GiftName
+        {
+            get
+            {
+                if (MessageType != "gift" || string.IsNullOrEmpty(Content)) return string.Empty;
+                var def = Lock.Models.GiftDefinition.FindById(Content);
+                return def?.Name ?? "Gift";
+            }
+        }
+
+        // ?? METHODS ???????????????????????????????????????????????????????
+
         public bool IsValid()
         {
             return !string.IsNullOrEmpty(ConversationId) &&
@@ -606,24 +626,11 @@ namespace Lock.Models.Chat
         public string GetEditPreview()
         {
             if (HasText && !string.IsNullOrEmpty(Content))
-            {
                 return Content.Length > 50 ? Content.Substring(0, 50) + "..." : Content;
-            }
             else if (IsImage)
-            {
-                if (HasMultipleImages)
-                {
-                    return $"?? {MediaCount} images" + (HasText ? " with caption" : "");
-                }
-                else
-                {
-                    return "?? Image" + (HasText ? " with caption" : "");
-                }
-            }
+                return HasMultipleImages ? $"?? {MediaCount} images" : "?? Image";
             else if (IsVoice)
-            {
-                return $"?? Voice message ({FormattedDuration})" + (HasText ? " with caption" : "");
-            }
+                return $"?? Voice message ({FormattedDuration})";
             return "Message";
         }
 
@@ -659,7 +666,7 @@ namespace Lock.Models.Chat
 
                 if (_mediaItems?.Count > 0)
                 {
-                    _mediaItemsJson = JsonSerializer.Serialize(_mediaItems);
+                    _mediaItemsJson = System.Text.Json.JsonSerializer.Serialize(_mediaItems);
                     OnPropertyChanged(nameof(MediaItems));
                 }
             }
@@ -705,11 +712,10 @@ namespace Lock.Models.Chat
                 MediaItems = new List<ChatMediaItem> { mediaItem }
             };
 
-            message.MediaItemsJson = JsonSerializer.Serialize(message.MediaItems);
+            message.MediaItemsJson = System.Text.Json.JsonSerializer.Serialize(message.MediaItems);
             return message;
         }
 
-        // INotifyPropertyChanged implementation
         public event PropertyChangedEventHandler? PropertyChanged;
 
         public void OnPropertyChanged([CallerMemberName] string? propertyName = null)

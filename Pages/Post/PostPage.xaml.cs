@@ -231,7 +231,7 @@ namespace Lock.Pages.Post
                         {
                             session.IsLive = false;
                             session.EndedAt = DateTime.UtcNow;
-                            await SupabaseService.UpdateAsync("LiveSessions", $"Id=eq.{session.Id}", session);
+                            await SupabaseService.UpdateLiveSessionAsync(session.Id, new { IsLive = false, EndedAt = DateTime.UtcNow });
                             continue;
                         }
 
@@ -1432,18 +1432,29 @@ namespace Lock.Pages.Post
 
         private System.Threading.Timer? _statusCleanupTimer;
 
+        private static bool _hasLoadedOnce = false;
+
         // In OnAppearing method, start the cleanup timer
         protected override async void OnAppearing()
         {
             base.OnAppearing();
 
-            // Show overlay immediately
-            if (LoadingOverlay != null)
+            // Show overlay ONLY on first launch
+            if (!_hasLoadedOnce)
             {
-                LoadingOverlay.IsVisible = true;
-                LoadingOverlay.Opacity = 0;
-                await LoadingOverlay.FadeTo(1, 300, Easing.CubicOut);
-                StartPostPageLoadingAnimations();
+                if (LoadingOverlay != null)
+                {
+                    LoadingOverlay.IsVisible = true;
+                    LoadingOverlay.Opacity = 0;
+                    await LoadingOverlay.FadeTo(1, 300, Easing.CubicOut);
+                    StartPostPageLoadingAnimations();
+                }
+            }
+            else
+            {
+                // Subsequent visits: ensure overlay stays hidden
+                if (LoadingOverlay != null)
+                    LoadingOverlay.IsVisible = false;
             }
 
             // Configure skeleton count
@@ -1622,14 +1633,18 @@ namespace Lock.Pages.Post
             }
             finally
             {
-                // Hide overlay when all loading is done
-                if (LoadingOverlay != null)
+                if (!_hasLoadedOnce)
                 {
-                    StopPostPageLoadingAnimations();
-                    await LoadingOverlay.FadeTo(0, 400, Easing.CubicIn);
-                    LoadingOverlay.IsVisible = false;
+                    if (LoadingOverlay != null)
+                    {
+                        StopPostPageLoadingAnimations();
+                        await LoadingOverlay.FadeTo(0, 400, Easing.CubicIn);
+                        LoadingOverlay.IsVisible = false;
+                    }
+                    _hasLoadedOnce = true; // ← mark first load done
                 }
             }
+        
         }
 
 
@@ -3780,19 +3795,25 @@ namespace Lock.Pages.Post
         {
             try
             {
-                var phones = posts.Select(p =>
+                // ── Step 1: Extract clean phone numbers BEFORE any mutation ──
+                var cleanPhoneMap = new Dictionary<Lock.Models.Post, string>();
+                foreach (var post in posts)
                 {
-                    var phone = p.AuthorPhone ?? string.Empty;
-                    if (phone.Contains("·"))
+                    var raw = post.AuthorPhone ?? string.Empty;
+                    var clean = raw;
+                    if (clean.Contains("·"))
                     {
-                        var parts = phone.Split(new[] { '·' }, StringSplitOptions.RemoveEmptyEntries);
-                        phone = parts.Length > 1 ? parts[1].Trim() : phone;
+                        var parts = clean.Split(new[] { '·' }, StringSplitOptions.RemoveEmptyEntries);
+                        clean = parts.Length > 1 ? parts[1].Trim() : parts[0].Trim();
                     }
-                    return phone.Trim();
-                })
-                .Where(p => !string.IsNullOrEmpty(p))
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToList();
+                    cleanPhoneMap[post] = clean.Trim();
+                }
+
+                // ── Step 2: Get unique phones and fetch user data ──
+                var uniquePhones = cleanPhoneMap.Values
+                    .Where(p => !string.IsNullOrEmpty(p))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
 
                 var nameMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
                 var profileImageMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -3800,11 +3821,10 @@ namespace Lock.Pages.Post
                 var verifiedMap = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
                 var hidePhoneMap = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
 
-                foreach (var phone in phones)
+                foreach (var phone in uniquePhones)
                 {
                     try
                     {
-                        // FIXED: Get user from Supabase
                         var users = await SupabaseService.GetAsync<Lock.Models.User>("Users",
                             $"PhoneNumber=eq.{Uri.EscapeDataString(phone)}&limit=1");
                         var user = users.FirstOrDefault();
@@ -3817,44 +3837,71 @@ namespace Lock.Pages.Post
                             verifiedMap[phone] = user.IsVerified;
                             hidePhoneMap[phone] = user.HidePhoneNumber;
                         }
+                        else
+                        {
+                            // Ensure we always have a fallback so the post still renders
+                            nameMap[phone] = phone;
+                            profileImageMap[phone] = string.Empty;
+                            moodMap[phone] = string.Empty;
+                            verifiedMap[phone] = false;
+                            hidePhoneMap[phone] = false;
+                        }
                     }
                     catch (Exception ex)
                     {
                         Debug.WriteLine($"Error loading user {phone}: {ex.Message}");
+                        nameMap[phone] = phone;
+                        profileImageMap[phone] = string.Empty;
+                        moodMap[phone] = string.Empty;
+                        verifiedMap[phone] = false;
+                        hidePhoneMap[phone] = false;
                     }
                 }
 
-                foreach (var p in posts)
+                // ── Step 3: Apply resolved data using the pre-extracted clean phones ──
+                foreach (var post in posts)
                 {
-                    var rawPhone = p.AuthorPhone ?? string.Empty;
-                    var cleanPhone = rawPhone;
+                    if (!cleanPhoneMap.TryGetValue(post, out var cleanPhone)
+                        || string.IsNullOrEmpty(cleanPhone))
+                        continue;
 
-                    if (cleanPhone.Contains("·"))
+                    // Always set DisplayName — never leave it empty
+                    post.AuthorDisplayName = nameMap.TryGetValue(cleanPhone, out var name)
+                        ? name : cleanPhone;
+
+                    // Profile image — fall back to initials avatar so avatar is never blank
+                    if (profileImageMap.TryGetValue(cleanPhone, out var profileImage)
+                        && !string.IsNullOrEmpty(profileImage)
+                        && File.Exists(profileImage))
                     {
-                        var parts = cleanPhone.Split(new[] { '·' }, StringSplitOptions.RemoveEmptyEntries);
-                        cleanPhone = parts.Length > 1 ? parts[1].Trim() : parts[0].Trim();
+                        post.AuthorProfileImagePath = profileImage;
                     }
-                    cleanPhone = cleanPhone.Trim();
-
-                    if (!string.IsNullOrEmpty(cleanPhone))
+                    else
                     {
-                        if (nameMap.TryGetValue(cleanPhone, out var resolvedName))
-                            p.AuthorDisplayName = resolvedName;
-                        if (profileImageMap.TryGetValue(cleanPhone, out var profileImage))
-                            p.AuthorProfileImagePath = profileImage;
-                        if (moodMap.TryGetValue(cleanPhone, out var authorMood))
-                            p.AuthorMood = authorMood;
-                        if (verifiedMap.TryGetValue(cleanPhone, out var isVerified))
-                            p.IsAuthorVerified = isVerified;
-
-                        if (hidePhoneMap.TryGetValue(cleanPhone, out var hidePhone) && hidePhone)
-                        {
-                            p.AuthorPhone = resolvedName ?? cleanPhone;
-                        }
+                        var initials = Uri.EscapeDataString(post.AuthorDisplayName ?? cleanPhone);
+                        post.AuthorProfileImagePath =
+                            $"https://ui-avatars.com/api/?name={initials}" +
+                            $"&background=1A1A2E&color=00C9C9&size=128&bold=true&font-size=0.4";
                     }
+
+                    post.AuthorMood = moodMap.TryGetValue(cleanPhone, out var mood) ? mood : string.Empty;
+                    post.IsAuthorVerified = verifiedMap.TryGetValue(cleanPhone, out var verified) && verified;
+
+                    var hidePhone = hidePhoneMap.TryGetValue(cleanPhone, out var hp) && hp;
+
+                    // Set AuthorPhone LAST — after all lookups are done
+                    post.AuthorPhone = hidePhone
+                        ? post.AuthorDisplayName
+                        : (!string.IsNullOrEmpty(post.AuthorDisplayName)
+                           && post.AuthorDisplayName != cleanPhone
+                            ? $"{post.AuthorDisplayName} · {cleanPhone}"
+                            : cleanPhone);
 
                     if (!string.IsNullOrEmpty(currentUserPhone))
-                        p.IsLovedByCurrentUser = p.LovedBy.Contains(currentUserPhone);
+                    {
+                        post.IsLovedByCurrentUser = post.LovedBy?.Contains(currentUserPhone) ?? false;
+                        post.IsSparkedByCurrentUser = post.SparkedBy?.Contains(currentUserPhone) ?? false;
+                    }
                 }
             }
             catch (Exception ex)
@@ -3862,7 +3909,6 @@ namespace Lock.Pages.Post
                 Debug.WriteLine($"Error resolving user data: {ex}");
             }
         }
-
 
         public static void ClearPostCache()
         {
@@ -5788,7 +5834,7 @@ namespace Lock.Pages.Post
 
                 if (_editingPostId.HasValue)
                 {
-                    // EDIT EXISTING POST
+                    // ── EDIT EXISTING POST ────────────────────────────────────────
                     var existing = await PostRepository.GetByIdAsync(_editingPostId.Value);
                     if (existing != null)
                     {
@@ -5802,28 +5848,19 @@ namespace Lock.Pages.Post
                         InvokeUpdateDisplayContent(existing, 200);
                         await PostRepository.UpdateAsync(existing);
 
-                        // ========== TRACK POST EDIT ==========
                         await TrackPostEditAsync(existing, oldContent);
 
-                        // Clear editing state
                         _editingPostId = null;
 
-                        // SHOW Post button, HIDE Update and Cancel buttons
-                        if (PostButton != null)
-                            PostButton.IsVisible = true;
-                        if (_updateGrid != null)
-                            _updateGrid.IsVisible = false;
-                        if (_cancelGrid != null)
-                            _cancelGrid.IsVisible = false;
+                        if (PostButton != null) PostButton.IsVisible = true;
+                        if (_updateGrid != null) _updateGrid.IsVisible = false;
+                        if (_cancelGrid != null) _cancelGrid.IsVisible = false;
 
-                        // Clear the form
-                        if (ContentEditor != null)
-                            ContentEditor.Text = string.Empty;
+                        if (ContentEditor != null) ContentEditor.Text = string.Empty;
                         _pickedImagePaths.Clear();
                         UpdatePreviewLayout();
 
-                        if (CategoryPicker != null)
-                            CategoryPicker.SelectedIndex = 0;
+                        if (CategoryPicker != null) CategoryPicker.SelectedIndex = 0;
                         if (CategoryOtherEntry != null)
                         {
                             CategoryOtherEntry.Text = string.Empty;
@@ -5832,16 +5869,45 @@ namespace Lock.Pages.Post
 
                         ResetVisibilityToDefault();
 
+                        // ── Update in-place in the live list ─────────────────────
+                        if (_allFeedPosts != null)
+                        {
+                            var idx = _allFeedPosts.FindIndex(p => p.Id == existing.Id);
+                            if (idx >= 0)
+                            {
+                                _allFeedPosts[idx] = existing;
+                                _cachedFeedPosts = _allFeedPosts;
+                                _lastCacheTime = DateTime.UtcNow;
+
+                                await MainThread.InvokeOnMainThreadAsync(() =>
+                                {
+                                    if (SkeletonCollectionView != null)
+                                        SkeletonCollectionView.IsVisible = false;
+                                    if (PostsCollectionView != null)
+                                    {
+                                        PostsCollectionView.IsVisible = true;
+                                        PostsCollectionView.ItemsSource = null;
+                                        PostsCollectionView.ItemsSource = _allFeedPosts;
+                                    }
+                                });
+                            }
+                        }
+
                         await DisplayAlert("Success", "Post updated successfully", "OK");
 
-                        // FORCE a full refresh to show the updated post immediately
-                        ClearPostCache();
-                        await LoadPostsAsync(forceRefresh: true);
+                        // Background sync
+                        _ = Task.Run(async () =>
+                        {
+                            await Task.Delay(1500);
+                            ClearPostCache();
+                            await MainThread.InvokeOnMainThreadAsync(async () =>
+                                await LoadPostsAsync(forceRefresh: true));
+                        });
                     }
                 }
                 else
                 {
-                    // CREATE NEW POST
+                    // ── CREATE NEW POST ───────────────────────────────────────────
                     var post = new Lock.Models.Post
                     {
                         AuthorPhone = authorPhone,
@@ -5857,12 +5923,40 @@ namespace Lock.Pages.Post
                     };
 
                     InvokeUpdateDisplayContent(post, 200);
-                    await PostRepository.InsertAsync(post);
 
-                    // ========== TRACK POST CREATION ==========
+                    // Capture the returned post so we get the server-generated Id
+                    var insertedPost = await PostRepository.InsertAsync(post);
+                    if (insertedPost != null)
+                    {
+                        post.Id = insertedPost.Id;
+                    }
+
                     await TrackPostCreationAsync(post);
 
-                    // Clear form
+                    // ── INSTANT UI UPDATE — prepend before clearing form ──────────
+                    post.IsCurrentUserPost = true;
+                    post.IsAuthorVerified = false;
+                    post.AuthorProfileImagePath = string.Empty;
+
+                    if (_allFeedPosts == null) _allFeedPosts = new List<Lock.Models.Post>();
+                    _allFeedPosts.Insert(0, post);
+
+                    _cachedFeedPosts = _allFeedPosts;
+                    _lastCacheTime = DateTime.UtcNow;
+
+                    await MainThread.InvokeOnMainThreadAsync(() =>
+                    {
+                        if (SkeletonCollectionView != null)
+                            SkeletonCollectionView.IsVisible = false;
+                        if (PostsCollectionView != null)
+                        {
+                            PostsCollectionView.IsVisible = true;
+                            PostsCollectionView.ItemsSource = null;
+                            PostsCollectionView.ItemsSource = _allFeedPosts;
+                        }
+                    });
+
+                    // ── Clear form ────────────────────────────────────────────────
                     if (ContentEditor != null) ContentEditor.Text = string.Empty;
                     _pickedImagePaths.Clear();
                     UpdatePreviewLayout();
@@ -5878,12 +5972,17 @@ namespace Lock.Pages.Post
 
                     await DisplayAlert("Success", "Post created successfully", "OK");
 
-                    // Clear cache and force fresh load
-                    ClearPostCache();
-                    await LoadPostsAsync(forceRefresh: true);
-
-                    // Scroll to top to show the new post
+                    // Scroll to top so user sees the new post immediately
                     await MainScrollView?.ScrollToAsync(0, 0, true);
+
+                    // Background full refresh to sync author data, match %, etc.
+                    _ = Task.Run(async () =>
+                    {
+                        await Task.Delay(1500);
+                        ClearPostCache();
+                        await MainThread.InvokeOnMainThreadAsync(async () =>
+                            await LoadPostsAsync(forceRefresh: true));
+                    });
                 }
             }
             catch (Exception ex)
@@ -5892,7 +5991,6 @@ namespace Lock.Pages.Post
                 Debug.WriteLine($"Error in SavePostButton_Clicked: {ex}");
             }
         }
-
 
         private async Task RefreshPostInFeed(int postId)
         {
@@ -6099,7 +6197,6 @@ namespace Lock.Pages.Post
             return null;
         }
 
-
         private async void LoveButton_Tapped(object sender, TappedEventArgs e)
         {
             try
@@ -6107,52 +6204,34 @@ namespace Lock.Pages.Post
                 if (e.Parameter is not PostModel post) return;
 
                 var currentUserPhone = Preferences.Get("current_user_phone", string.Empty);
-                if (string.IsNullOrEmpty(currentUserPhone))
-                {
-                    await DisplayAlert("Not Logged In", "Please log in to love posts", "OK");
-                    return;
-                }
+                if (string.IsNullOrEmpty(currentUserPhone)) return;
 
                 bool wasLoved = post.IsLovedByCurrentUser;
 
-                // Toggle in database
-                await PostRepository.ToggleLoveAsync(post.Id, currentUserPhone);
-
-                // Update model only — no rebind, no reload
                 post.ToggleLove(currentUserPhone);
+                post.RefreshLoveState();
 
-                // Animation ONLY when loving — run without await so scroll isn't disturbed
-                if (!wasLoved && post.IsLovedByCurrentUser)
+                if (!wasLoved)
                 {
-                    VisualElement loveElement = null;
-                    if (sender is Border border) loveElement = border;
-                    else if (sender is VisualElement ve) loveElement = ve;
-
-                    // Fire and forget — do NOT await here; that's what causes the layout jump
-                    _ = Task.Run(async () =>
+                    VisualElement loveElement = sender as Border ?? sender as VisualElement;
+                    if (loveElement != null)
                     {
-                        await MainThread.InvokeOnMainThreadAsync(async () =>
-                        {
-                            if (loveElement != null)
-                            {
-                                var animTask = AnimateLoveButton(loveElement);
-                                ShowMultipleHeartsAnimation(loveElement);
-                                await animTask;
-                            }
-                            else
-                            {
-                                ShowMultipleHeartsAnimation(PostsCollectionView);
-                            }
-                        });
-                    });
+                        _ = AnimateLoveButton(loveElement);
+                        ShowMultipleHeartsAnimation(loveElement);   // still pass it for future use
+                    }
                 }
+
+                _ = Task.Run(async () =>
+                {
+                    try { await PostRepository.ToggleLoveAsync(post.Id, currentUserPhone); }
+                    catch (Exception ex) { Debug.WriteLine($"LoveButton DB sync error: {ex}"); }
+                });
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"Error toggling love: {ex}");
             }
         }
-
         private void ShowMultipleHeartsAnimation(VisualElement targetElement)
         {
             try
@@ -6160,6 +6239,7 @@ namespace Lock.Pages.Post
                 var parentGrid = this.FindByName<Grid>("MainGrid");
                 if (parentGrid == null) return;
 
+                // ── Use screen center, same as spark animation ──────────────────
                 double cx = parentGrid.Width / 2;
                 double cy = parentGrid.Height / 2;
 
@@ -6167,15 +6247,15 @@ namespace Lock.Pages.Post
 
                 var particles = new (string text, string color, double angle)[]
                 {
-            ("•", "#E0245E", 0),
-            ("•", "#F5A623", 45),
-            ("•", "#E0245E", 90),
+            ("•", "#E0245E",   0),
+            ("•", "#F5A623",  45),
+            ("•", "#E0245E",  90),
             ("•", "#9B59B6", 135),
             ("•", "#F5A623", 180),
             ("•", "#E0245E", 225),
             ("•", "#9B59B6", 270),
             ("•", "#F5A623", 315),
-            ("❤", "#E0245E", 22),
+            ("❤", "#E0245E",  22),
             ("❤", "#E0245E", 202),
                 };
 
@@ -6197,7 +6277,6 @@ namespace Lock.Pages.Post
                         Scale = 0,
                         BackgroundColor = Colors.Transparent,
                         ZIndex = 999,
-                        // Position at top-left, then translate to center
                         HorizontalOptions = LayoutOptions.Start,
                         VerticalOptions = LayoutOptions.Start,
                         Margin = new Thickness(0),
@@ -6205,17 +6284,15 @@ namespace Lock.Pages.Post
                         HeightRequest = particleSize,
                         HorizontalTextAlignment = TextAlignment.Center,
                         VerticalTextAlignment = TextAlignment.Center,
-                        // Pre-translate to center so Margin never changes
+                        // Pre-translate to screen center
                         TranslationX = cx - particleSize / 2,
                         TranslationY = cy - particleSize / 2,
                         InputTransparent = true
                     };
 
-                    // Span all rows so it floats over everything
                     Grid.SetRow(particle, 0);
-                    Grid.SetRowSpan(particle, parentGrid.RowDefinitions.Count > 0
-                        ? parentGrid.RowDefinitions.Count : 3);
-
+                    Grid.SetRowSpan(particle, Math.Max(1, parentGrid.RowDefinitions.Count));
+                    Grid.SetColumnSpan(particle, Math.Max(1, parentGrid.ColumnDefinitions.Count));
                     parentGrid.Children.Add(particle);
 
                     uint duration = (uint)random.Next(500, 750);
@@ -6223,7 +6300,6 @@ namespace Lock.Pages.Post
 
                     combined.Add(0, 1, new Animation(t =>
                     {
-                        // Animate FROM center outward using TranslationX/Y only
                         particle.TranslationX = (cx - particleSize / 2) + targetX * t;
                         particle.TranslationY = (cy - particleSize / 2) + targetY * t;
                         particle.Scale = t < 0.3
@@ -6251,7 +6327,6 @@ namespace Lock.Pages.Post
                 Debug.WriteLine($"ShowMultipleHeartsAnimation error: {ex}");
             }
         }
-
         private void ShowRippleRing(Grid parentGrid, double cx, double cy)
         {
             try
@@ -6278,9 +6353,8 @@ namespace Lock.Pages.Post
                 };
 
                 Grid.SetRow(ripple, 0);
-                Grid.SetRowSpan(ripple, parentGrid.RowDefinitions.Count > 0
-                    ? parentGrid.RowDefinitions.Count : 3);
-
+                Grid.SetRowSpan(ripple, Math.Max(1, parentGrid.RowDefinitions.Count));
+                Grid.SetColumnSpan(ripple, Math.Max(1, parentGrid.ColumnDefinitions.Count));  // ← was missing
                 parentGrid.Children.Add(ripple);
 
                 new Animation(t =>
@@ -6300,6 +6374,7 @@ namespace Lock.Pages.Post
                 Debug.WriteLine($"ShowRippleRing error: {ex}");
             }
         }
+        
         // Add these animation methods to your PostPage class
 
         private async Task AnimateLoveButton(VisualElement button)

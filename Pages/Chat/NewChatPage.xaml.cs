@@ -472,27 +472,34 @@ namespace Lock.Pages.Chat
                 var allUsers = await SupabaseService.GetAsync<User>("Users", "");
                 var currentUserPhone = Preferences.Get(CurrentUserPhoneKey, string.Empty);
 
-                // Load ghosted phones
+                // IMPORTANT: Only filter out ghosted users in SEARCH RESULTS, not during search
+                // Ghost mode should only hide users from search results, not prevent finding them
                 var ghostedPhones = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 try
                 {
-                    ghostedPhones = allUsers
-                        .Where(u => u.GhostModeMoodShield)
-                        .Select(u => (u.PhoneNumber ?? "").Trim())
-                        .Where(p => !string.IsNullOrEmpty(p) &&
-                                    !string.Equals(p, currentUserPhone, StringComparison.OrdinalIgnoreCase))
-                        .ToHashSet(StringComparer.OrdinalIgnoreCase);
+                    // Only apply ghost mode if current user has it enabled AND we're searching
+                    var currentUser = allUsers.FirstOrDefault(u => u.PhoneNumber == currentUserPhone);
+                    bool currentUserHasGhostMode = currentUser?.GhostModeMoodShield ?? false;
+
+                    if (currentUserHasGhostMode)
+                    {
+                        // When current user has ghost mode, don't show other ghost mode users
+                        ghostedPhones = allUsers
+                            .Where(u => u.GhostModeMoodShield && u.PhoneNumber != currentUserPhone)
+                            .Select(u => (u.PhoneNumber ?? "").Trim())
+                            .Where(p => !string.IsNullOrEmpty(p))
+                            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+                    }
                 }
                 catch (Exception ex)
                 {
                     System.Diagnostics.Debug.WriteLine($"Search ghost filter error: {ex.Message}");
                 }
 
-                // Get all registered users (excluding current user AND ghosted users)
+                // Get all registered users (excluding current user)
                 var registeredUsers = allUsers
                     .Where(u => u.PhoneNumber != currentUserPhone &&
-                                !string.IsNullOrWhiteSpace(u.PhoneNumber) &&
-                                !ghostedPhones.Contains(u.PhoneNumber.Trim()))
+                                !string.IsNullOrWhiteSpace(u.PhoneNumber))
                     .ToList();
 
                 var matches = new List<SearchResult>();
@@ -524,31 +531,25 @@ namespace Lock.Pages.Chat
                         .ToList();
                 }
 
-                // Always search by partial matching
                 if (!string.IsNullOrWhiteSpace(searchText))
                 {
                     var normalizedSearch = new string(searchText.Where(c => char.IsDigit(c)).ToArray());
                     var searchLower = searchText.ToLowerInvariant().Trim();
 
-                    // 1. Exact phone number match - ONLY if user doesn't have HidePhoneNumber enabled
-                    var exactPhoneMatches = registeredUsers
-                        .Where(u => !string.IsNullOrWhiteSpace(u.PhoneNumber))
-                        .Where(u => !u.HidePhoneNumber)
-                        .Where(u =>
-                        {
-                            var normalizedUserPhone = new string(u.PhoneNumber.Where(c => char.IsDigit(c)).ToArray());
-                            return normalizedUserPhone == normalizedSearch && !string.IsNullOrEmpty(normalizedSearch);
-                        })
+                    // Search by name (always allowed)
+                    var nameMatches = registeredUsers
+                        .Where(u => !string.IsNullOrWhiteSpace(u.Name) &&
+                                   u.Name.ToLowerInvariant().Contains(searchLower))
                         .Select(u => new SearchResult { User = u, IsRegistered = true });
 
-                    matches.AddRange(exactPhoneMatches);
+                    matches.AddRange(nameMatches);
 
-                    // 2. Partial phone number match
-                    if (!exactPhoneMatches.Any() && !string.IsNullOrEmpty(normalizedSearch))
+                    // Search by phone number (only if not hidden)
+                    if (!string.IsNullOrEmpty(normalizedSearch))
                     {
-                        var registeredByPhone = registeredUsers
-                            .Where(u => !string.IsNullOrWhiteSpace(u.PhoneNumber))
-                            .Where(u => !u.HidePhoneNumber)
+                        var phoneMatches = registeredUsers
+                            .Where(u => !string.IsNullOrWhiteSpace(u.PhoneNumber) &&
+                                       !u.HidePhoneNumber) // Only exclude if user explicitly hides phone
                             .Where(u =>
                             {
                                 var normalizedUserPhone = new string(u.PhoneNumber.Where(c => char.IsDigit(c)).ToArray());
@@ -556,32 +557,24 @@ namespace Lock.Pages.Chat
                             })
                             .Select(u => new SearchResult { User = u, IsRegistered = true });
 
-                        matches.AddRange(registeredByPhone);
+                        matches.AddRange(phoneMatches);
                     }
 
-                    // 3. Partial name match
-                    var registeredByName = registeredUsers
-                        .Where(u => !string.IsNullOrWhiteSpace(u.Name) &&
-                                   u.Name.ToLowerInvariant().Contains(searchLower))
-                        .Select(u => new SearchResult { User = u, IsRegistered = true });
-
-                    matches.AddRange(registeredByName);
-
-                    // 4. Mood match
+                    // Search by mood (if no mood filter selected)
                     if (string.IsNullOrEmpty(_selectedMoodFilter))
                     {
-                        var registeredByMood = registeredUsers
+                        var moodMatches = registeredUsers
                             .Where(u => !string.IsNullOrWhiteSpace(u.Mood) &&
                                        u.Mood.ToLowerInvariant().Contains(searchLower))
                             .Select(u => new SearchResult { User = u, IsRegistered = true });
 
-                        matches.AddRange(registeredByMood);
+                        matches.AddRange(moodMatches);
                     }
 
-                    // 5. Location match
+                    // Search by location (if no location filter selected)
                     if (string.IsNullOrEmpty(_selectedLocationFilter))
                     {
-                        var registeredByLocation = registeredUsers
+                        var locationMatches = registeredUsers
                             .Where(u =>
                             {
                                 var location = $"{u.Country ?? ""} {u.State ?? ""}".ToLowerInvariant();
@@ -589,35 +582,7 @@ namespace Lock.Pages.Chat
                             })
                             .Select(u => new SearchResult { User = u, IsRegistered = true });
 
-                        matches.AddRange(registeredByLocation);
-                    }
-
-                    // 6. Unregistered contacts
-                    if (IsPhoneNumber(searchText))
-                    {
-                        var unregisteredContacts = GetImportedUnregisteredContacts();
-                        if (unregisteredContacts.Any())
-                        {
-                            var unregisteredMatches = unregisteredContacts
-                                .Where(phone => !string.IsNullOrWhiteSpace(phone))
-                                .Where(phone =>
-                                {
-                                    var normalizedPhone = new string(phone.Where(c => char.IsDigit(c)).ToArray());
-                                    return normalizedPhone.Contains(normalizedSearch) && !string.IsNullOrEmpty(normalizedSearch);
-                                })
-                                .Select(phone => new SearchResult
-                                {
-                                    User = new User
-                                    {
-                                        PhoneNumber = phone,
-                                        Name = FormatContactName(phone),
-                                        ProfileImagePath = "unregistered_icon.png"
-                                    },
-                                    IsRegistered = false
-                                });
-
-                            matches.AddRange(unregisteredMatches);
-                        }
+                        matches.AddRange(locationMatches);
                     }
                 }
                 else
@@ -628,13 +593,21 @@ namespace Lock.Pages.Chat
                         .ToList();
                 }
 
-                // Remove duplicates by phone number (prefer registered over unregistered)
+                // Remove duplicates by phone number
                 matches = matches
                     .GroupBy(r => NormalizePhoneNumber(r.PhoneNumber))
-                    .Select(g => g.OrderByDescending(r => r.IsRegistered).First())
+                    .Select(g => g.First())
                     .ToList();
 
-                // Enrich with match data and interested-in
+                // Apply ghost mode filtering ONLY to final results (after search)
+                if (ghostedPhones.Any())
+                {
+                    matches = matches
+                        .Where(r => !ghostedPhones.Contains(NormalizePhoneNumber(r.PhoneNumber)))
+                        .ToList();
+                }
+
+                // Enrich with match data
                 try
                 {
                     var meUsers = await SupabaseService.GetAsync<User>("Users", $"PhoneNumber=eq.{Uri.EscapeDataString(currentUserPhone)}&limit=1");
@@ -655,11 +628,11 @@ namespace Lock.Pages.Chat
                     Debug.WriteLine($"PerformSearchAsync enrich error: {ex}");
                 }
 
-                // Deduplicate against recent chats
+                // Deduplicate against recent chats only if you want to hide already chatted users
                 matches = DeduplicateSearchResults(matches);
 
-                // Take top 20
-                matches = matches.Take(20).ToList();
+                // Take top results
+                matches = matches.Take(50).ToList();
 
                 token.ThrowIfCancellationRequested();
 
@@ -675,72 +648,18 @@ namespace Lock.Pages.Chat
                     if (matches.Count > 0)
                     {
                         var registeredCount = matches.Count(r => r.IsRegistered);
-                        var unregisteredCount = matches.Count(r => !r.IsRegistered);
 
-                        var descParts = new List<string>();
-                        if (!string.IsNullOrEmpty(_selectedMoodFilter) && _selectedMoodFilter != "All moods")
-                            descParts.Add($"mood «{_selectedMoodFilter}»");
-                        if (!string.IsNullOrEmpty(_selectedLocationFilter) && _selectedLocationFilter != "All locations")
-                            descParts.Add($"location «{_selectedLocationFilter}»");
-                        if (!string.IsNullOrWhiteSpace(searchText))
-                            descParts.Add($"\"{searchText}\"");
+                        ResultCountLabelControl.Text = $"{registeredCount} user{(registeredCount == 1 ? "" : "s")} found";
+                        ResultCountLabelControl.TextColor = Color.FromArgb("#4CAF50");
 
-                        var desc = descParts.Any() ? $" for {string.Join(" + ", descParts)}" : "";
-
-                        var ghostedCount = allUsers.Count(u => u.GhostModeMoodShield && u.PhoneNumber != currentUserPhone);
-                        var ghostInfo = ghostedCount > 0 ? $" (🔒 {ghostedCount} hidden by ghost mode)" : "";
-
-                        var recentChatsCount = FilteredRecentChats?.Count ?? 0;
-                        var dedupInfo = recentChatsCount > 0 && registeredCount > 0 ? $" • {registeredCount} in search" : "";
-
-                        // Count users hidden by HidePhoneNumber privacy
-                        var hiddenPhoneCount = 0;
-                        var privacyInfo = "";
-                        if (!string.IsNullOrWhiteSpace(searchText))
-                        {
-                            var normSearch = new string(searchText.Where(c => char.IsDigit(c)).ToArray());
-                            hiddenPhoneCount = registeredUsers.Count(u => u.HidePhoneNumber &&
-                                !string.IsNullOrWhiteSpace(u.PhoneNumber) &&
-                                new string(u.PhoneNumber.Where(c => char.IsDigit(c)).ToArray()).Contains(normSearch));
-                            privacyInfo = hiddenPhoneCount > 0 ? $" • 🔒 {hiddenPhoneCount} hidden (privacy)" : "";
-                        }
-
-                        if (registeredCount > 0)
-                        {
-                            ResultCountLabelControl.Text = $"{registeredCount} registered user{(registeredCount == 1 ? "" : "s")} found{desc}{ghostInfo}{dedupInfo}{privacyInfo}";
-                            ResultCountLabelControl.TextColor = Color.FromArgb("#4CAF50");
-                        }
-                        else if (unregisteredCount > 0)
-                        {
-                            ResultCountLabelControl.Text = $"📱 {unregisteredCount} unregistered number{(unregisteredCount == 1 ? "" : "s")} found{desc}";
-                            ResultCountLabelControl.TextColor = Color.FromArgb("#FFA500");
-                        }
-                        else
-                        {
-                            ResultCountLabelControl.Text = $"No matching users found{desc}{ghostInfo}";
-                            ResultCountLabelControl.TextColor = Color.FromArgb("#FF6B6B");
-                        }
+                        // Add debug info
+                        System.Diagnostics.Debug.WriteLine($"Search found {matches.Count} results for '{searchText}'");
                     }
                     else
                     {
-                        var normalizedSearchForGhost = new string(searchText.Where(c => char.IsDigit(c)).ToArray());
-                        var ghostedMatchesCount = allUsers.Count(u =>
-                            u.GhostModeMoodShield &&
-                            u.PhoneNumber != currentUserPhone &&
-                            (!string.IsNullOrWhiteSpace(searchText) &&
-                             (u.Name?.ToLowerInvariant().Contains(searchText.ToLowerInvariant()) == true ||
-                              u.PhoneNumber?.Contains(searchText) == true)));
-
-                        if (ghostedMatchesCount > 0)
-                        {
-                            ResultCountLabelControl.Text = $"🔒 {ghostedMatchesCount} user{(ghostedMatchesCount == 1 ? "" : "s")} hidden by ghost mode";
-                            ResultCountLabelControl.TextColor = Color.FromArgb("#FFA500");
-                        }
-                        else
-                        {
-                            ResultCountLabelControl.Text = "No matching users found";
-                            ResultCountLabelControl.TextColor = Color.FromArgb("#FF6B6B");
-                        }
+                        ResultCountLabelControl.Text = "No matching users found";
+                        ResultCountLabelControl.TextColor = Color.FromArgb("#FF6B6B");
+                        System.Diagnostics.Debug.WriteLine($"No results found for '{searchText}'");
                     }
                 });
             }
@@ -759,6 +678,27 @@ namespace Lock.Pages.Chat
                     ResultCountLabelControl.TextColor = Color.FromArgb("#FF6B6B");
                     ResultCountLabelControl.IsVisible = true;
                 });
+            }
+        }
+
+        private async Task TestSearch()
+        {
+            try
+            {
+                var allUsers = await SupabaseService.GetAsync<User>("Users", "");
+                var currentUser = Preferences.Get(CurrentUserPhoneKey, string.Empty);
+
+                System.Diagnostics.Debug.WriteLine($"Current user: {currentUser}");
+                System.Diagnostics.Debug.WriteLine($"Total users: {allUsers.Count}");
+
+                foreach (var user in allUsers.Take(5))
+                {
+                    System.Diagnostics.Debug.WriteLine($"User: {user.Name}, Phone: {user.PhoneNumber}");
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Test search error: {ex}");
             }
         }
 
@@ -1612,40 +1552,40 @@ namespace Lock.Pages.Chat
         }
 
 #if ANDROID
-private async Task PickContactAndroid()
-{
-    try
-    {
-        var status = await Permissions.RequestAsync<Permissions.ContactsRead>();
-        if (status != PermissionStatus.Granted)
+        private async Task PickContactAndroid()
         {
-            await DisplayAlert("Permission Denied", "Enable contacts permission in settings.", "OK");
-            return;
-        }
+            try
+            {
+                var status = await Permissions.RequestAsync<Permissions.ContactsRead>();
+                if (status != PermissionStatus.Granted)
+                {
+                    await DisplayAlert("Permission Denied", "Enable contacts permission in settings.", "OK");
+                    return;
+                }
 
-        // Use the cross-platform contact picker instead of Android-specific
-        var selectedContact = await Communication.Contacts.Default.PickContactAsync();
-        if (selectedContact == null) return;
+                // Use the cross-platform contact picker instead of Android-specific
+                var selectedContact = await Communication.Contacts.Default.PickContactAsync();
+                if (selectedContact == null) return;
 
-        var phone = selectedContact.Phones?.FirstOrDefault();
-        if (phone == null || string.IsNullOrWhiteSpace(phone.PhoneNumber))
-        {
-            await DisplayAlert("No Phone Number", "This contact has no phone number.", "OK");
-            return;
-        }
+                var phone = selectedContact.Phones?.FirstOrDefault();
+                if (phone == null || string.IsNullOrWhiteSpace(phone.PhoneNumber))
+                {
+                    await DisplayAlert("No Phone Number", "This contact has no phone number.", "OK");
+                    return;
+                }
 
-        if (PhoneEntryControl != null)
-        {
-            PhoneEntryControl.Text = phone.PhoneNumber;
-            await PerformSearchAsync(phone.PhoneNumber);
+                if (PhoneEntryControl != null)
+                {
+                    PhoneEntryControl.Text = phone.PhoneNumber;
+                    await PerformSearchAsync(phone.PhoneNumber);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"PickContactAndroid error: {ex}");
+                await DisplayAlert("Error", $"Could not pick contact: {ex.Message}", "OK");
+            }
         }
-    }
-    catch (Exception ex)
-    {
-        System.Diagnostics.Debug.WriteLine($"PickContactAndroid error: {ex}");
-        await DisplayAlert("Error", $"Could not pick contact: {ex.Message}", "OK");
-    }
-}
 #endif
 
 #if IOS || MACCATALYST

@@ -410,7 +410,7 @@ namespace Lock.Pages.Chat
 
                 // Get conversations from Supabase
                 var convs = await SupabaseService.GetAsync<Conversation>("Conversations",
-                    $"or(ParticipantA.eq.{Uri.EscapeDataString(me)},ParticipantB.eq.{Uri.EscapeDataString(me)})");
+     $"or=(ParticipantA.eq.{Uri.EscapeDataString(me)},ParticipantB.eq.{Uri.EscapeDataString(me)})");
 
                 // Get all messages for unread counts
                 var allMessages = await SupabaseService.GetAsync<ChatMessage>("ChatMessages",

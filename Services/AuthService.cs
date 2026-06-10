@@ -41,9 +41,8 @@ namespace Lock.Services
             if (string.IsNullOrWhiteSpace(phone))
                 return string.Empty;
 
-            bool hasPlus = phone.Trim().StartsWith("+");
-            var digits = new string(phone.Where(c => char.IsDigit(c)).ToArray());
-            return hasPlus ? "+" + digits : digits;
+            // Keep only digits — no + prefix, no country code transformation
+            return new string(phone.Trim().Where(char.IsDigit).ToArray());
         }
 
         private static string HashPassword(string password)

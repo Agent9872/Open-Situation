@@ -507,7 +507,7 @@ namespace Lock.Pages.Discover
                         activeSession.IsLive = false;
                         activeSession.EndedAt = DateTime.UtcNow;
                         // Replace: await db.UpdateAsync(activeSession);
-                        await SupabaseService.UpdateAsync("LiveSessions", $"Id=eq.{activeSession.Id}", activeSession);
+                        await SupabaseService.UpdateLiveSessionAsync(activeSession.Id, new { IsLive = false, EndedAt = DateTime.UtcNow });
                         return;
                     }
 
@@ -803,7 +803,7 @@ namespace Lock.Pages.Discover
                 // _currentLiveSessionId = await db.InsertAsync(liveSession);
 
                 // With this:
-                var insertedSession = await SupabaseService.InsertAndReturnAsync<LiveSession>("LiveSessions", liveSession);
+                var insertedSession = await SupabaseService.InsertLiveSessionAsync(liveSession);
                 if (insertedSession != null)
                     _currentLiveSessionId = insertedSession.Id;
                 else
@@ -971,7 +971,7 @@ namespace Lock.Pages.Discover
                     liveSession.IsLive = false;
                     liveSession.EndedAt = DateTime.UtcNow;
                     // Replace: await db.UpdateAsync(liveSession);
-                    await SupabaseService.UpdateAsync("LiveSessions", $"Id=eq.{liveSession.Id}", liveSession);
+                    await SupabaseService.UpdateLiveSessionAsync(liveSession.Id, new { IsLive = false, EndedAt = DateTime.UtcNow });
                 }
 
                 _isLive = false;

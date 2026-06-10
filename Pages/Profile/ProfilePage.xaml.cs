@@ -179,24 +179,28 @@ namespace Lock.Pages.Profile
                 var users = await SupabaseService.GetAsync<User>("Users",
                     $"PhoneNumber=eq.{Uri.EscapeDataString(_phone)}&limit=1");
                 var user = users.FirstOrDefault();
-
                 if (user == null) return;
 
-                user.HidePhoneNumber = e.Value;
-                await SupabaseService.UpdateAsync("Users", $"Id=eq.{user.Id}", user);
+                var success = await SupabaseService.UpdateAsync("Users", $"Id=eq.{user.Id}",
+                    new Dictionary<string, object> { ["HidePhoneNumber"] = e.Value });
 
-                if (_currentUser != null)
-                    _currentUser.HidePhoneNumber = e.Value;
+                Debug.WriteLine($"[PHONE] HidePhoneNumber={e.Value} result={success}");
 
-                ApplyPhoneVisibility(user);
+                if (_currentUser != null) _currentUser.HidePhoneNumber = e.Value;
 
-                Debug.WriteLine($"[PHONE] HidePhoneNumber instantly saved: {e.Value} for {_phone}");
+                // Update phone row visibility immediately
+                MainThread.BeginInvokeOnMainThread(() =>
+                {
+                    var phoneRow = this.FindByName<HorizontalStackLayout>("PhoneRow");
+                    if (phoneRow != null) phoneRow.IsVisible = IsOwner || !e.Value;
+                });
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"HidePhoneSwitch_Toggled error: {ex.Message}");
             }
         }
+
 
         private void ApplyPhoneVisibility(User user)
         {
@@ -2799,6 +2803,66 @@ namespace Lock.Pages.Profile
 
             MainThread.BeginInvokeOnMainThread(() =>
             {
+                // ── Sexual Orientation Picker ─────────────────────────────────────
+                var sexualOrientationPicker = this.FindByName<Picker>("SexualOrientationPicker");
+                if (sexualOrientationPicker != null)
+                {
+                    // Populate if empty
+                    if (sexualOrientationPicker.Items.Count == 0)
+                    {
+                        sexualOrientationPicker.Items.Add("Straight");
+                        sexualOrientationPicker.Items.Add("Gay");
+                        sexualOrientationPicker.Items.Add("Lesbian");
+                        sexualOrientationPicker.Items.Add("Bisexual");
+                        sexualOrientationPicker.Items.Add("Pansexual");
+                        sexualOrientationPicker.Items.Add("Asexual");
+                        sexualOrientationPicker.Items.Add("Queer");
+                        sexualOrientationPicker.Items.Add("Demisexual");
+                        sexualOrientationPicker.Items.Add("Questioning");
+                        sexualOrientationPicker.Items.Add("Not to say");
+                        sexualOrientationPicker.Items.Add("Other");
+                    }
+
+                    // Set selected value - FIXED: Need to check if value exists
+                    if (!string.IsNullOrEmpty(user.SexualOrientation))
+                    {
+                        if (sexualOrientationPicker.Items.Contains(user.SexualOrientation))
+                        {
+                            sexualOrientationPicker.SelectedItem = user.SexualOrientation;
+                        }
+                        else
+                        {
+                            // If not in list (like "Other" custom value), add it
+                            sexualOrientationPicker.Items.Add(user.SexualOrientation);
+                            sexualOrientationPicker.SelectedItem = user.SexualOrientation;
+                        }
+                    }
+                }
+
+                // ── HeightPicker if empty ─────────────────────────────────────────
+                var heightPicker = this.FindByName<Picker>("HeightPicker");
+                if (heightPicker != null && heightPicker.Items.Count == 0)
+                {
+                    for (int cm = 140; cm <= 220; cm++)
+                    {
+                        int feet = (int)(cm / 30.48);
+                        int inches = (int)((cm % 30.48) / 2.54);
+                        heightPicker.Items.Add($"{feet}'{inches}\" ({cm} cm)");
+                    }
+                }
+
+                // ── Set HeightPicker selected value ───────────────────────────────
+                if (heightPicker != null && user.HeightCm.HasValue && user.HeightCm.Value > 0)
+                {
+                    int cm = (int)user.HeightCm.Value;
+                    int feet = (int)(cm / 30.48);
+                    int inches = (int)((cm % 30.48) / 2.54);
+                    string heightText = $"{feet}'{inches}\" ({cm} cm)";
+                    if (heightPicker.Items.Contains(heightText))
+                        heightPicker.SelectedItem = heightText;
+                }
+
+                // ── Other pickers ─────────────────────────────────────────────────
                 var moodPicker = this.FindByName<Picker>("MoodPicker");
                 if (moodPicker != null && !string.IsNullOrEmpty(user.Mood) && moodPicker.Items.Contains(user.Mood))
                     moodPicker.SelectedItem = user.Mood;
@@ -2839,50 +2903,64 @@ namespace Lock.Pages.Profile
                 if (hidePhoneSwitch != null) hidePhoneSwitch.IsToggled = user.HidePhoneNumber;
 
                 var kidsPreferencePicker = this.FindByName<Picker>("KidsPreferencePicker");
-                if (kidsPreferencePicker != null && !string.IsNullOrEmpty(user.KidsPreference) && kidsPreferencePicker.Items.Contains(user.KidsPreference))
+                if (kidsPreferencePicker != null && !string.IsNullOrEmpty(user.KidsPreference)
+                    && kidsPreferencePicker.Items.Contains(user.KidsPreference))
                     kidsPreferencePicker.SelectedItem = user.KidsPreference;
 
                 var hasChildrenPicker = this.FindByName<Picker>("HasChildrenPicker");
-                if (hasChildrenPicker != null && !string.IsNullOrEmpty(user.HasChildren) && hasChildrenPicker.Items.Contains(user.HasChildren))
+                if (hasChildrenPicker != null && !string.IsNullOrEmpty(user.HasChildren)
+                    && hasChildrenPicker.Items.Contains(user.HasChildren))
                     hasChildrenPicker.SelectedItem = user.HasChildren;
 
                 var dietaryPreferencePicker = this.FindByName<Picker>("DietaryPreferencePicker");
-                if (dietaryPreferencePicker != null && !string.IsNullOrEmpty(user.DietaryPreference) && dietaryPreferencePicker.Items.Contains(user.DietaryPreference))
+                if (dietaryPreferencePicker != null && !string.IsNullOrEmpty(user.DietaryPreference)
+                    && dietaryPreferencePicker.Items.Contains(user.DietaryPreference))
                     dietaryPreferencePicker.SelectedItem = user.DietaryPreference;
 
                 var exerciseFrequencyPicker = this.FindByName<Picker>("ExerciseFrequencyPicker");
-                if (exerciseFrequencyPicker != null && !string.IsNullOrEmpty(user.ExerciseFrequency) && exerciseFrequencyPicker.Items.Contains(user.ExerciseFrequency))
+                if (exerciseFrequencyPicker != null && !string.IsNullOrEmpty(user.ExerciseFrequency)
+                    && exerciseFrequencyPicker.Items.Contains(user.ExerciseFrequency))
                     exerciseFrequencyPicker.SelectedItem = user.ExerciseFrequency;
 
-                var heightPicker = this.FindByName<Picker>("HeightPicker");
-                if (heightPicker != null && user.HeightCm.HasValue && user.HeightCm.Value > 0)
-                {
-                    string heightText = $"{user.HeightCm.Value} cm";
-                    if (heightPicker.Items.Contains(heightText))
-                        heightPicker.SelectedItem = heightText;
-                }
-
                 var bodyTypePicker = this.FindByName<Picker>("BodyTypePicker");
-                if (bodyTypePicker != null && !string.IsNullOrEmpty(user.BodyType) && bodyTypePicker.Items.Contains(user.BodyType))
+                if (bodyTypePicker != null && !string.IsNullOrEmpty(user.BodyType)
+                    && bodyTypePicker.Items.Contains(user.BodyType))
                     bodyTypePicker.SelectedItem = user.BodyType;
 
                 var ethnicityPicker = this.FindByName<Picker>("EthnicityPicker");
-                if (ethnicityPicker != null && !string.IsNullOrEmpty(user.Ethnicity) && ethnicityPicker.Items.Contains(user.Ethnicity))
+                if (ethnicityPicker != null && !string.IsNullOrEmpty(user.Ethnicity)
+                    && ethnicityPicker.Items.Contains(user.Ethnicity))
                     ethnicityPicker.SelectedItem = user.Ethnicity;
 
                 var tribePicker = this.FindByName<Picker>("TribePicker");
-                if (tribePicker != null && !string.IsNullOrEmpty(user.Tribe) && tribePicker.Items.Contains(user.Tribe))
+                if (tribePicker != null && !string.IsNullOrEmpty(user.Tribe)
+                    && tribePicker.Items.Contains(user.Tribe))
                     tribePicker.SelectedItem = user.Tribe;
 
                 var personalityTypePicker = this.FindByName<Picker>("PersonalityTypePicker");
-                if (personalityTypePicker != null && !string.IsNullOrEmpty(user.PersonalityType) && personalityTypePicker.Items.Contains(user.PersonalityType))
+                if (personalityTypePicker != null && !string.IsNullOrEmpty(user.PersonalityType)
+                    && personalityTypePicker.Items.Contains(user.PersonalityType))
                     personalityTypePicker.SelectedItem = user.PersonalityType;
 
                 var loveLanguagePicker = this.FindByName<Picker>("LoveLanguagePicker");
-                if (loveLanguagePicker != null && !string.IsNullOrEmpty(user.LoveLanguage) && loveLanguagePicker.Items.Contains(user.LoveLanguage))
+                if (loveLanguagePicker != null && !string.IsNullOrEmpty(user.LoveLanguage)
+                    && loveLanguagePicker.Items.Contains(user.LoveLanguage))
                     loveLanguagePicker.SelectedItem = user.LoveLanguage;
+
+                // ── Top Interest Picker (Hobbies tab) ──────────────────────────────
+                var topInterestPicker = this.FindByName<Picker>("TopInterestPicker");
+                if (topInterestPicker != null && !string.IsNullOrEmpty(user.TopInterest)
+                    && topInterestPicker.Items.Contains(user.TopInterest))
+                    topInterestPicker.SelectedItem = user.TopInterest;
+
+                // ── Favorite Music Genre Picker ────────────────────────────────────
+                var favMusicGenrePicker = this.FindByName<Picker>("FavoriteMusicGenrePicker");
+                if (favMusicGenrePicker != null && !string.IsNullOrEmpty(user.FavoriteMusicGenre)
+                    && favMusicGenrePicker.Items.Contains(user.FavoriteMusicGenre))
+                    favMusicGenrePicker.SelectedItem = user.FavoriteMusicGenre;
             });
         }
+
 
         // Add this property to your Post model (or create a computed property)
         // In your Post model class, add:
@@ -5282,14 +5360,211 @@ namespace Lock.Pages.Profile
                 }
 
                 var bioEditorInfo = this.FindByName<Editor>("BioEditorInfo");
-                user.Bio = bioEditorInfo?.Text ?? string.Empty;
+                string newBio = bioEditorInfo?.Text?.Trim() ?? string.Empty;
 
-                await SupabaseService.UpdateAsync("Users", $"Id=eq.{user.Id}", user);
+                var success = await SupabaseService.UpdateAsync(
+                    "Users",
+                    $"Id=eq.{user.Id}",
+                    new Dictionary<string, object> { ["Bio"] = newBio }
+                );
+
+                if (!success)
+                {
+                    await DisplayAlert("Error", "Failed to save. Check debug output.", "OK");
+                    return;
+                }
+
+                // Update local cache only — do NOT call LoadUserAsync (it wipes UI)
+                if (_currentUser != null)
+                    _currentUser.Bio = newBio;
+
                 await DisplayAlert("Saved", "Profile updated.", "OK");
             }
             catch (Exception ex)
             {
+                Debug.WriteLine($"SaveInfoButton_Clicked error: {ex}");
                 await DisplayAlert("Error", "Could not save info: " + ex.Message, "OK");
+            }
+        }
+
+        private async void SaveProfileButton_Clicked(object sender, EventArgs e)
+        {
+            try
+            {
+                if (!EnsurePhoneFromPreferences())
+                {
+                    await DisplayAlert("Error", "User not found.", "OK");
+                    return;
+                }
+
+                var users = await SupabaseService.GetAsync<User>("Users",
+                    $"PhoneNumber=eq.{Uri.EscapeDataString(_phone)}&limit=1");
+                var user = users.FirstOrDefault();
+
+                if (user == null)
+                {
+                    await DisplayAlert("Error", "User not found.", "OK");
+                    return;
+                }
+
+                string oldMood = user.Mood ?? string.Empty;
+                string oldCountry = user.Country ?? string.Empty;
+                string oldState = user.State ?? string.Empty;
+
+                var moodPicker = this.FindByName<Picker>("MoodPicker");
+                var energyPicker = this.FindByName<Picker>("EnergyPicker");
+                var countryEntry = this.FindByName<Entry>("CountryEntry");
+                var stateEntry = this.FindByName<Entry>("StateEntry");
+                var bioEditor = this.FindByName<Editor>("BioEditorInfo");
+                var drinksPicker = this.FindByName<Picker>("DrinksPicker");
+                var smokesSwitch = this.FindByName<MauiSwitch>("SmokesSwitch");
+                var petsSwitch = this.FindByName<MauiSwitch>("PetsSwitch");
+                var religionEntry = this.FindByName<Entry>("ReligionEntry");
+                var politicalEntry = this.FindByName<Entry>("PoliticalEntry");
+                var heightPicker = this.FindByName<Picker>("HeightPicker");
+                var bodyTypePicker = this.FindByName<Picker>("BodyTypePicker");
+                var ethnicityPicker = this.FindByName<Picker>("EthnicityPicker");
+                var tribePicker = this.FindByName<Picker>("TribePicker");
+                var kidsPreferencePicker = this.FindByName<Picker>("KidsPreferencePicker");
+                var hasChildrenPicker = this.FindByName<Picker>("HasChildrenPicker");
+                var dietaryPreferencePicker = this.FindByName<Picker>("DietaryPreferencePicker");
+                var exerciseFrequencyPicker = this.FindByName<Picker>("ExerciseFrequencyPicker");
+                var personalityTypePicker = this.FindByName<Picker>("PersonalityTypePicker");
+                var loveLanguagePicker = this.FindByName<Picker>("LoveLanguagePicker");
+                var moodSearchSwitch = this.FindByName<MauiSwitch>("MoodSearchSwitch");
+                var ghostSwitch = this.FindByName<MauiSwitch>("GhostModeMoodShieldSwitch");
+                var hidePhoneSwitch = this.FindByName<MauiSwitch>("HidePhoneSwitch");
+
+                string newMood = moodPicker?.SelectedItem as string ?? user.Mood ?? string.Empty;
+                string newEnergyLevel = energyPicker?.SelectedItem as string ?? user.EnergyLevel ?? string.Empty;
+                string newCountry = countryEntry?.Text?.Trim() ?? string.Empty;
+                string newState = stateEntry?.Text?.Trim() ?? string.Empty;
+                string newBio = bioEditor?.Text ?? string.Empty;
+                string newDrinks = drinksPicker?.SelectedItem as string ?? user.Drinks ?? string.Empty;
+                bool newSmokes = smokesSwitch?.IsToggled ?? user.Smokes;
+                bool newHasPets = petsSwitch?.IsToggled ?? user.HasPets;
+                string newReligion = religionEntry?.Text ?? string.Empty;
+                string newPolitical = politicalEntry?.Text ?? string.Empty;
+                bool newMoodSearch = moodSearchSwitch?.IsToggled ?? user.AllowMoodSearch;
+                bool newGhost = ghostSwitch?.IsToggled ?? user.GhostModeMoodShield;
+                bool newHidePhone = hidePhoneSwitch?.IsToggled ?? user.HidePhoneNumber;
+
+                int? newHeightCm = user.HeightCm;
+                if (heightPicker?.SelectedItem != null)
+                {
+                    // Format is "5'9\" (175 cm)" — extract the number inside the last parentheses
+                    var selectedText = heightPicker.SelectedItem.ToString() ?? "";
+                    var match = System.Text.RegularExpressions.Regex.Match(selectedText, @"\((\d+)\s*cm\)");
+                    if (match.Success && int.TryParse(match.Groups[1].Value, out int hcm))
+                        newHeightCm = hcm;
+                }
+
+                string newBodyType = bodyTypePicker?.SelectedItem as string ?? user.BodyType ?? string.Empty;
+                string newEthnicity = ethnicityPicker?.SelectedItem as string ?? user.Ethnicity ?? string.Empty;
+                string newTribe = tribePicker?.SelectedItem as string ?? user.Tribe ?? string.Empty;
+                string newKidsPref = kidsPreferencePicker?.SelectedItem as string ?? user.KidsPreference ?? string.Empty;
+                string newHasChildren = hasChildrenPicker?.SelectedItem as string ?? user.HasChildren ?? string.Empty;
+                string newDiet = dietaryPreferencePicker?.SelectedItem as string ?? user.DietaryPreference ?? string.Empty;
+                string newExercise = exerciseFrequencyPicker?.SelectedItem as string ?? user.ExerciseFrequency ?? string.Empty;
+                string newPersonality = personalityTypePicker?.SelectedItem as string ?? user.PersonalityType ?? string.Empty;
+                string newLoveLanguage = loveLanguagePicker?.SelectedItem as string ?? user.LoveLanguage ?? string.Empty;
+
+                string newMoodLastUpdated = user.MoodLastUpdated.ToString("yyyy-MM-ddTHH:mm:ss.fffZ");
+                if (oldMood != newMood)
+                {
+                    newMoodLastUpdated = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ");
+                    await UserTrackingService.Instance.TrackMoodChangeAsync(_phone, oldMood, newMood, "profile");
+                    MessagingCenter.Send(this, "MoodUpdated");
+                }
+
+                var patch = new Dictionary<string, object>
+                {
+                    ["Mood"] = newMood,
+                    ["MoodLastUpdated"] = newMoodLastUpdated,
+                    ["EnergyLevel"] = newEnergyLevel,
+                    ["Country"] = newCountry,
+                    ["State"] = newState,
+                    ["Bio"] = newBio,
+                    ["Drinks"] = newDrinks,
+                    ["Smokes"] = newSmokes,
+                    ["HasPets"] = newHasPets,
+                    ["Religion"] = newReligion,
+                    ["PoliticalViews"] = newPolitical,
+                    ["BodyType"] = newBodyType,
+                    ["Ethnicity"] = newEthnicity,
+                    ["Tribe"] = newTribe,
+                    ["KidsPreference"] = newKidsPref,
+                    ["HasChildren"] = newHasChildren,
+                    ["DietaryPreference"] = newDiet,
+                    ["ExerciseFrequency"] = newExercise,
+                    ["PersonalityType"] = newPersonality,
+                    ["LoveLanguage"] = newLoveLanguage,
+                    ["AllowMoodSearch"] = newMoodSearch,
+                    ["GhostModeMoodShield"] = newGhost,
+                    ["HidePhoneNumber"] = newHidePhone,
+                };
+                if (newHeightCm.HasValue)
+                    patch["HeightCm"] = newHeightCm.Value;
+
+                Debug.WriteLine($"[SAVE PREFS] Patching user Id={user.Id}");
+
+                var success = await SupabaseService.UpdateAsync("Users", $"Id=eq.{user.Id}", patch);
+
+                if (!success)
+                {
+                    await DisplayAlert("Error", "Failed to save. Check debug output.", "OK");
+                    return;
+                }
+
+                // ── Update local cache ────────────────────────────────────────────
+                user.Mood = newMood;
+                user.EnergyLevel = newEnergyLevel;
+                user.Country = newCountry;
+                user.State = newState;
+                user.Bio = newBio;
+                user.Drinks = newDrinks;
+                user.Smokes = newSmokes;
+                user.HasPets = newHasPets;
+                user.Religion = newReligion;
+                user.PoliticalViews = newPolitical;
+                user.HeightCm = newHeightCm;
+                user.BodyType = newBodyType;
+                user.Ethnicity = newEthnicity;
+                user.Tribe = newTribe;
+                user.KidsPreference = newKidsPref;
+                user.HasChildren = newHasChildren;
+                user.DietaryPreference = newDiet;
+                user.ExerciseFrequency = newExercise;
+                user.PersonalityType = newPersonality;
+                user.LoveLanguage = newLoveLanguage;
+                user.AllowMoodSearch = newMoodSearch;
+                user.GhostModeMoodShield = newGhost;
+                user.HidePhoneNumber = newHidePhone;
+                _currentUser = user;
+
+                // ── Refresh ALL labels and pickers in one call ────────────────────
+                MainThread.BeginInvokeOnMainThread(() => UpdateAllProfileLabels(_currentUser));
+
+                // ── Location tracking ─────────────────────────────────────────────
+                string newLocation = string.IsNullOrEmpty(newCountry)
+                    ? newState
+                    : string.IsNullOrEmpty(newState) ? newCountry : $"{newCountry}, {newState}";
+
+                string oldLocation = string.IsNullOrEmpty(oldCountry)
+                    ? oldState
+                    : string.IsNullOrEmpty(oldState) ? oldCountry : $"{oldCountry}, {oldState}";
+
+                if (!string.IsNullOrEmpty(newLocation) && newLocation != oldLocation)
+                    NotifyLocationUpdated(newCountry, newState);
+
+                await DisplayAlert("Saved", "Preferences updated.", "OK");
+                MessagingCenter.Send(this, "MoodSaved");
+                MessagingCenter.Send(this, "ProfileUpdated");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"SaveProfileButton_Clicked error: {ex}");
+                await DisplayAlert("Error", "Could not save preferences: " + ex.Message, "OK");
             }
         }
 
@@ -5369,237 +5644,7 @@ namespace Lock.Pages.Profile
         }
 
 
-        // Save preferences back to DB
-        private async void SaveProfileButton_Clicked(object sender, EventArgs e)
-        {
-            try
-            {
-                if (!EnsurePhoneFromPreferences())
-                {
-                    await DisplayAlert("Error", "User not found.", "OK");
-                    return;
-                }
-
-                var oldUsers = await SupabaseService.GetAsync<User>("Users",
-                    $"PhoneNumber=eq.{Uri.EscapeDataString(_phone)}&limit=1");
-                var oldUser = oldUsers.FirstOrDefault();
-
-                var users = await SupabaseService.GetAsync<User>("Users",
-                    $"PhoneNumber=eq.{Uri.EscapeDataString(_phone)}&limit=1");
-                var user = users.FirstOrDefault();
-
-                if (user == null)
-                {
-                    await DisplayAlert("Error", "User not found.", "OK");
-                    return;
-                }
-
-                string oldMood = user.Mood;
-
-                var moodPicker = this.FindByName<Picker>("MoodPicker");
-                var energyPicker = this.FindByName<Picker>("EnergyPicker");
-                var countryEntry = this.FindByName<Entry>("CountryEntry");
-                var stateEntry = this.FindByName<Entry>("StateEntry");
-                var bioEditorInfo = this.FindByName<Editor>("BioEditorInfo");
-                var drinksPicker = this.FindByName<Picker>("DrinksPicker");
-                var smokesSwitch = this.FindByName<MauiSwitch>("SmokesSwitch");
-                var petsSwitch = this.FindByName<MauiSwitch>("PetsSwitch");
-                var religionEntry = this.FindByName<Entry>("ReligionEntry");
-                var politicalEntry = this.FindByName<Entry>("PoliticalEntry");
-                var heightPicker = this.FindByName<Picker>("HeightPicker");
-                var bodyTypePicker = this.FindByName<Picker>("BodyTypePicker");
-                var ethnicityPicker = this.FindByName<Picker>("EthnicityPicker");
-                var tribePicker = this.FindByName<Picker>("TribePicker");
-                var kidsPreferencePicker = this.FindByName<Picker>("KidsPreferencePicker");
-                var hasChildrenPicker = this.FindByName<Picker>("HasChildrenPicker");
-                var dietaryPreferencePicker = this.FindByName<Picker>("DietaryPreferencePicker");
-                var exerciseFrequencyPicker = this.FindByName<Picker>("ExerciseFrequencyPicker");
-                var personalityTypePicker = this.FindByName<Picker>("PersonalityTypePicker");
-                var loveLanguagePicker = this.FindByName<Picker>("LoveLanguagePicker");
-
-                string newMood = moodPicker?.SelectedItem as string ?? string.Empty;
-                string oldCountry = user.Country ?? string.Empty;
-                string oldState = user.State ?? string.Empty;
-
-                user.Mood = newMood;
-                user.EnergyLevel = energyPicker?.SelectedItem as string ?? string.Empty;
-                user.Country = countryEntry?.Text ?? string.Empty;
-                user.State = stateEntry?.Text ?? string.Empty;
-                user.Bio = bioEditorInfo?.Text ?? string.Empty;
-                user.Drinks = drinksPicker?.SelectedItem as string ?? string.Empty;
-                user.Smokes = smokesSwitch?.IsToggled ?? false;
-                user.HasPets = petsSwitch?.IsToggled ?? false;
-                user.Religion = religionEntry?.Text ?? string.Empty;
-                user.PoliticalViews = politicalEntry?.Text ?? string.Empty;
-
-                if (heightPicker != null && heightPicker.SelectedItem != null)
-                {
-                    string heightText = heightPicker.SelectedItem.ToString();
-                    string heightNumber = heightText.Replace(" cm", "").Trim();
-                    if (int.TryParse(heightNumber, out int heightCm))
-                        user.HeightCm = heightCm;
-                }
-
-                if (bodyTypePicker != null && bodyTypePicker.SelectedItem != null)
-                    user.BodyType = bodyTypePicker.SelectedItem.ToString();
-
-                if (ethnicityPicker != null && ethnicityPicker.SelectedItem != null)
-                    user.Ethnicity = ethnicityPicker.SelectedItem.ToString();
-
-                if (tribePicker != null && tribePicker.SelectedItem != null)
-                    user.Tribe = tribePicker.SelectedItem.ToString();
-
-                if (kidsPreferencePicker != null && kidsPreferencePicker.SelectedItem != null)
-                    user.KidsPreference = kidsPreferencePicker.SelectedItem.ToString();
-
-                if (hasChildrenPicker != null && hasChildrenPicker.SelectedItem != null)
-                    user.HasChildren = hasChildrenPicker.SelectedItem.ToString();
-
-                if (dietaryPreferencePicker != null && dietaryPreferencePicker.SelectedItem != null)
-                    user.DietaryPreference = dietaryPreferencePicker.SelectedItem.ToString();
-
-                if (exerciseFrequencyPicker != null && exerciseFrequencyPicker.SelectedItem != null)
-                    user.ExerciseFrequency = exerciseFrequencyPicker.SelectedItem.ToString();
-
-                if (personalityTypePicker != null && personalityTypePicker.SelectedItem != null)
-                {
-                    string selected = personalityTypePicker.SelectedItem.ToString();
-                    user.PersonalityType = selected != "Prefer not to say" ? selected : null;
-                }
-
-                if (loveLanguagePicker != null && loveLanguagePicker.SelectedItem != null)
-                {
-                    string selected = loveLanguagePicker.SelectedItem.ToString();
-                    user.LoveLanguage = selected != "Prefer not to say" ? selected : null;
-                }
-
-                if (oldMood != newMood)
-                {
-                    user.MoodLastUpdated = DateTime.UtcNow;
-                    await UserTrackingService.Instance.TrackMoodChangeAsync(_phone, oldMood, newMood, "profile");
-                    MessagingCenter.Send(this, "MoodUpdated");
-                }
-
-                var tagNames = new[] { "Travel", "Fitness", "Tech", "Music", "Coffee lover", "Gym", "Entrepreneur" };
-                var selectedTags = tagNames.Where(t =>
-                {
-                    var btnName = t.Replace(" ", string.Empty);
-                    var btn = this.FindByName<Button>($"Tag{btnName}");
-                    return (btn?.BindingContext as bool?) == true;
-                }).ToArray();
-                user.Interests = string.Join(",", selectedTags);
-
-                var moodSearchSwitch = this.FindByName<MauiSwitch>("MoodSearchSwitch");
-                if (moodSearchSwitch != null) user.AllowMoodSearch = moodSearchSwitch.IsToggled;
-
-                var ghostSwitch = this.FindByName<MauiSwitch>("GhostModeMoodShieldSwitch");
-                if (ghostSwitch != null) user.GhostModeMoodShield = ghostSwitch.IsToggled;
-
-                var hidePhoneSwitchSave = this.FindByName<MauiSwitch>("HidePhoneSwitch");
-                if (hidePhoneSwitchSave != null) user.HidePhoneNumber = hidePhoneSwitchSave.IsToggled;
-
-                await SupabaseService.UpdateAsync("Users", $"Id=eq.{user.Id}", user);
-
-                // Update UI labels
-                var heightLabel = this.FindByName<Label>("HeightLabel");
-                if (heightLabel != null && user.HeightCm.HasValue && user.HeightCm.Value > 0)
-                {
-                    int feet = (int)(user.HeightCm.Value / 30.48);
-                    int inches = (int)((user.HeightCm.Value % 30.48) / 2.54);
-                    heightLabel.Text = $"{feet}'{inches}\" ({user.HeightCm.Value}cm)";
-                }
-
-                var bodyTypeLabel = this.FindByName<Label>("BodyTypeLabel");
-                if (bodyTypeLabel != null)
-                    bodyTypeLabel.Text = string.IsNullOrEmpty(user.BodyType) ? "—" : user.BodyType;
-
-                var ethnicityLabel = this.FindByName<Label>("EthnicityLabel");
-                if (ethnicityLabel != null)
-                {
-                    if (!string.IsNullOrEmpty(user.Ethnicity) && !string.IsNullOrEmpty(user.Tribe))
-                        ethnicityLabel.Text = $"{user.Ethnicity} · {user.Tribe}";
-                    else if (!string.IsNullOrEmpty(user.Ethnicity))
-                        ethnicityLabel.Text = user.Ethnicity;
-                    else if (!string.IsNullOrEmpty(user.Tribe))
-                        ethnicityLabel.Text = user.Tribe;
-                    else
-                        ethnicityLabel.Text = "—";
-                }
-
-                var familyLabel = this.FindByName<Label>("FamilyLabel");
-                if (familyLabel != null)
-                {
-                    string familyText;
-                    if (!string.IsNullOrEmpty(user.KidsPreference) && !string.IsNullOrEmpty(user.HasChildren))
-                        familyText = $"{user.KidsPreference} · {user.HasChildren}";
-                    else if (!string.IsNullOrEmpty(user.KidsPreference))
-                        familyText = user.KidsPreference;
-                    else if (!string.IsNullOrEmpty(user.HasChildren))
-                        familyText = user.HasChildren;
-                    else
-                        familyText = "—";
-                    familyLabel.Text = familyText;
-                }
-
-                var dietLabel = this.FindByName<Label>("DietLabel");
-                if (dietLabel != null)
-                    dietLabel.Text = string.IsNullOrEmpty(user.DietaryPreference) ? "—" : user.DietaryPreference;
-
-                var exerciseLabel = this.FindByName<Label>("ExerciseLabel");
-                if (exerciseLabel != null)
-                    exerciseLabel.Text = string.IsNullOrEmpty(user.ExerciseFrequency) ? "—" : user.ExerciseFrequency;
-
-                var personalityTypeLabel = this.FindByName<Label>("PersonalityTypeLabel");
-                if (personalityTypeLabel != null)
-                    personalityTypeLabel.Text = string.IsNullOrEmpty(user.PersonalityType) ? "—" : user.PersonalityType;
-
-                var loveLanguageLabel = this.FindByName<Label>("LoveLanguageLabel");
-                if (loveLanguageLabel != null)
-                    loveLanguageLabel.Text = string.IsNullOrEmpty(user.LoveLanguage) ? "—" : user.LoveLanguage;
-
-                string newLocation = string.Empty, oldLocation = string.Empty;
-                if (!string.IsNullOrEmpty(user.Country) && !string.IsNullOrEmpty(user.State))
-                    newLocation = $"{user.Country}, {user.State}";
-                else if (!string.IsNullOrEmpty(user.Country))
-                    newLocation = user.Country;
-                else if (!string.IsNullOrEmpty(user.State))
-                    newLocation = user.State;
-
-                if (!string.IsNullOrEmpty(oldCountry) && !string.IsNullOrEmpty(oldState))
-                    oldLocation = $"{oldCountry}, {oldState}";
-                else if (!string.IsNullOrEmpty(oldCountry))
-                    oldLocation = oldCountry;
-                else if (!string.IsNullOrEmpty(oldState))
-                    oldLocation = oldState;
-
-                if (!string.IsNullOrEmpty(newLocation) && newLocation != oldLocation)
-                {
-                    var existingLocations = Preferences.Get("global_locations", string.Empty);
-                    var locations = string.IsNullOrEmpty(existingLocations)
-                        ? new List<string>()
-                        : existingLocations.Split('|').ToList();
-
-                    if (!locations.Contains(newLocation))
-                    {
-                        locations.Add(newLocation);
-                        locations = locations.OrderBy(l => l).ToList();
-                        Preferences.Set("global_locations", string.Join("|", locations));
-                        NotifyLocationUpdated(user.Country ?? "", user.State ?? "");
-                    }
-                }
-
-                await DisplayAlert("Saved", "Preferences updated.", "OK");
-                MessagingCenter.Send(this, "MoodSaved");
-                MessagingCenter.Send(this, "ProfileUpdated");
-                _currentUser = user;
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"SaveProfileButton_Clicked error: {ex}");
-                await DisplayAlert("Error", "Could not save preferences: " + ex.Message, "OK");
-            }
-        }
-
+       
         // Add this method to your ProfilePage class
         // Verify button - Navigate to VerificationPage
         private async void OnVerifyButtonTapped(object sender, EventArgs e)
@@ -5804,19 +5849,21 @@ namespace Lock.Pages.Profile
                 var users = await SupabaseService.GetAsync<User>("Users",
                     $"PhoneNumber=eq.{Uri.EscapeDataString(_phone)}&limit=1");
                 var user = users.FirstOrDefault();
-
                 if (user == null) return;
 
-                user.GhostModeMoodShield = e.Value;
-                await SupabaseService.UpdateAsync("Users", $"Id=eq.{user.Id}", user);
+                var success = await SupabaseService.UpdateAsync("Users", $"Id=eq.{user.Id}",
+                    new Dictionary<string, object> { ["GhostModeMoodShield"] = e.Value });
 
-                System.Diagnostics.Debug.WriteLine($"[GHOST] GhostModeMoodShield instantly saved: {e.Value} for {_phone}");
+                Debug.WriteLine($"[GHOST] GhostModeMoodShield={e.Value} result={success}");
+
+                if (_currentUser != null) _currentUser.GhostModeMoodShield = e.Value;
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"GhostModeMoodShieldSwitch_Toggled error: {ex.Message}");
+                Debug.WriteLine($"GhostModeMoodShieldSwitch_Toggled error: {ex.Message}");
             }
         }
+
 
         private async void MoodSearchSwitch_Toggled(object sender, ToggledEventArgs e)
         {
@@ -5828,21 +5875,20 @@ namespace Lock.Pages.Profile
                 var users = await SupabaseService.GetAsync<User>("Users",
                     $"PhoneNumber=eq.{Uri.EscapeDataString(_phone)}&limit=1");
                 var user = users.FirstOrDefault();
-
                 if (user == null) return;
 
-                user.AllowMoodSearch = e.Value;
-                await SupabaseService.UpdateAsync("Users", $"Id=eq.{user.Id}", user);
+                var success = await SupabaseService.UpdateAsync("Users", $"Id=eq.{user.Id}",
+                    new Dictionary<string, object> { ["AllowMoodSearch"] = e.Value });
 
-                System.Diagnostics.Debug.WriteLine($"[MOOD] AllowMoodSearch instantly saved: {e.Value} for {_phone}");
+                Debug.WriteLine($"[MOOD] AllowMoodSearch={e.Value} result={success}");
+
+                if (_currentUser != null) _currentUser.AllowMoodSearch = e.Value;
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"MoodSearchSwitch_Toggled error: {ex.Message}");
+                Debug.WriteLine($"MoodSearchSwitch_Toggled error: {ex.Message}");
             }
         }
-
-        
 
         private async void OnHomeTapped(object sender, EventArgs e)
         {
@@ -6691,10 +6737,17 @@ namespace Lock.Pages.Profile
         }
 
         // Add this to LoadUserAsync method (inside where you populate user fields)
-        private async Task LoadNewProfileFields(User user)
-    {
-        MainThread.BeginInvokeOnMainThread(() =>
+        private Task LoadNewProfileFields(User user)
         {
+            MainThread.BeginInvokeOnMainThread(() => UpdateAllProfileLabels(user));
+            return Task.CompletedTask;
+        }
+
+
+        private void UpdateAllProfileLabels(User user)
+        {
+            if (user == null) return;
+
             // Height
             var heightLabel = this.FindByName<Label>("HeightLabel");
             if (heightLabel != null)
@@ -6714,33 +6767,92 @@ namespace Lock.Pages.Profile
             // Body Type
             var bodyTypeLabel = this.FindByName<Label>("BodyTypeLabel");
             if (bodyTypeLabel != null)
-            {
                 bodyTypeLabel.Text = string.IsNullOrEmpty(user.BodyType) ? "—" : user.BodyType;
-            }
 
             // Ethnicity / Tribe
             var ethnicityLabel = this.FindByName<Label>("EthnicityLabel");
             if (ethnicityLabel != null)
             {
                 if (!string.IsNullOrEmpty(user.Ethnicity) && !string.IsNullOrEmpty(user.Tribe))
-                {
                     ethnicityLabel.Text = $"{user.Ethnicity} · {user.Tribe}";
-                }
                 else if (!string.IsNullOrEmpty(user.Ethnicity))
-                {
                     ethnicityLabel.Text = user.Ethnicity;
-                }
                 else if (!string.IsNullOrEmpty(user.Tribe))
-                {
                     ethnicityLabel.Text = user.Tribe;
-                }
                 else
-                {
                     ethnicityLabel.Text = "—";
-                }
             }
 
+            // Family / Kids
+            var familyLabel = this.FindByName<Label>("FamilyLabel");
+            if (familyLabel != null)
+            {
+                string familyText;
+                if (!string.IsNullOrEmpty(user.KidsPreference) && !string.IsNullOrEmpty(user.HasChildren))
+                    familyText = $"{user.KidsPreference} · {user.HasChildren}";
+                else if (!string.IsNullOrEmpty(user.KidsPreference))
+                    familyText = user.KidsPreference;
+                else if (!string.IsNullOrEmpty(user.HasChildren))
+                    familyText = user.HasChildren;
+                else
+                    familyText = "—";
+                familyLabel.Text = familyText;
+            }
 
+            // Diet
+            var dietLabel = this.FindByName<Label>("DietLabel");
+            if (dietLabel != null)
+                dietLabel.Text = string.IsNullOrEmpty(user.DietaryPreference) ? "—" : user.DietaryPreference;
+
+            // Exercise
+            var exerciseLabel = this.FindByName<Label>("ExerciseLabel");
+            if (exerciseLabel != null)
+                exerciseLabel.Text = string.IsNullOrEmpty(user.ExerciseFrequency) ? "—" : user.ExerciseFrequency;
+
+            // Personality Type
+            var personalityLabel = this.FindByName<Label>("PersonalityTypeLabel");
+            if (personalityLabel != null)
+                personalityLabel.Text = string.IsNullOrEmpty(user.PersonalityType) ? "—" : user.PersonalityType;
+
+            // Love Language
+            var loveLabel = this.FindByName<Label>("LoveLanguageLabel");
+            if (loveLabel != null)
+                loveLabel.Text = string.IsNullOrEmpty(user.LoveLanguage) ? "—" : user.LoveLanguage;
+
+            // Name
+            var nameLabel = this.FindByName<Label>("NameLabel");
+            if (nameLabel != null)
+                nameLabel.Text = user.Name ?? "—";
+
+            // Phone
+            var phoneLabel = this.FindByName<Label>("PhoneLabel");
+            if (phoneLabel != null)
+                phoneLabel.Text = user.PhoneNumber ?? "—";
+
+            // Gender
+            var genderLabel = this.FindByName<Label>("GenderLabel");
+            if (genderLabel != null)
+                genderLabel.Text = user.Gender ?? "—";
+
+            // Interest
+            var interestLabel = this.FindByName<Label>("InterestLabel");
+            if (interestLabel != null)
+                interestLabel.Text = string.IsNullOrEmpty(user.Interest) ? "—" : user.Interest;
+
+            // DOB
+            var dobLabel = this.FindByName<Label>("DobLabel");
+            if (dobLabel != null)
+                dobLabel.Text = user.DateOfBirth.ToString("yyyy-MM-dd");
+
+            // Age
+            var ageLabel = this.FindByName<Label>("AgeLabel");
+            if (ageLabel != null)
+            {
+                var today = DateTime.Today;
+                var age = today.Year - user.DateOfBirth.Year;
+                if (user.DateOfBirth > today.AddYears(-age)) age--;
+                ageLabel.Text = $"Age: {age}";
+            }
 
             // Voice Intro Status
             var voiceStatus = this.FindByName<Label>("VoiceIntroStatus");
@@ -6756,8 +6868,179 @@ namespace Lock.Pages.Profile
                     voiceStatus.IsVisible = false;
                 }
             }
-        });
-    }
+
+            // Looking For display label
+            var lookingForLabel = this.FindByName<Label>("LookingForDisplayLabel");
+            if (lookingForLabel != null)
+                lookingForLabel.Text = string.IsNullOrEmpty(user.Mood) ? "—" : user.Mood;
+
+            // Phone row visibility
+            var phoneRow = this.FindByName<HorizontalStackLayout>("PhoneRow");
+            if (phoneRow != null)
+                phoneRow.IsVisible = IsOwner || !user.HidePhoneNumber;
+
+            // Sync pickers to saved values
+            var heightPicker = this.FindByName<Picker>("HeightPicker");
+            if (heightPicker != null)
+            {
+                // Populate if empty
+                if (heightPicker.Items.Count == 0)
+                {
+                    for (int cm = 140; cm <= 220; cm++)
+                    {
+                        int feet = (int)(cm / 30.48);
+                        int inches = (int)((cm % 30.48) / 2.54);
+                        heightPicker.Items.Add($"{feet}'{inches}\" ({cm} cm)");
+                    }
+                }
+
+                // Set selected value
+                if (user.HeightCm.HasValue && user.HeightCm.Value > 0)
+                {
+                    int cm = (int)user.HeightCm.Value;
+                    int feetVal = (int)(cm / 30.48);
+                    int inchesVal = (int)((cm % 30.48) / 2.54);
+                    string heightText = $"{feetVal}'{inchesVal}\" ({cm} cm)";
+                    if (heightPicker.Items.Contains(heightText))
+                        heightPicker.SelectedItem = heightText;
+                }
+            }
+
+            // Add Sexual Orientation label update
+            var sexualOrientationLabel = this.FindByName<Label>("SexualOrientationLabel");
+            if (sexualOrientationLabel != null)
+            {
+                sexualOrientationLabel.Text = string.IsNullOrEmpty(user.SexualOrientation) ? "—" : user.SexualOrientation;
+            }
+
+            var bodyTypePicker = this.FindByName<Picker>("BodyTypePicker");
+            if (bodyTypePicker != null && !string.IsNullOrEmpty(user.BodyType) && bodyTypePicker.Items.Contains(user.BodyType))
+                bodyTypePicker.SelectedItem = user.BodyType;
+
+            var ethnicityPicker = this.FindByName<Picker>("EthnicityPicker");
+            if (ethnicityPicker != null && !string.IsNullOrEmpty(user.Ethnicity) && ethnicityPicker.Items.Contains(user.Ethnicity))
+                ethnicityPicker.SelectedItem = user.Ethnicity;
+
+            var tribePicker = this.FindByName<Picker>("TribePicker");
+            if (tribePicker != null && !string.IsNullOrEmpty(user.Tribe) && tribePicker.Items.Contains(user.Tribe))
+                tribePicker.SelectedItem = user.Tribe;
+
+            var kidsPreferencePicker = this.FindByName<Picker>("KidsPreferencePicker");
+            if (kidsPreferencePicker != null && !string.IsNullOrEmpty(user.KidsPreference) && kidsPreferencePicker.Items.Contains(user.KidsPreference))
+                kidsPreferencePicker.SelectedItem = user.KidsPreference;
+
+            var hasChildrenPicker = this.FindByName<Picker>("HasChildrenPicker");
+            if (hasChildrenPicker != null && !string.IsNullOrEmpty(user.HasChildren) && hasChildrenPicker.Items.Contains(user.HasChildren))
+                hasChildrenPicker.SelectedItem = user.HasChildren;
+
+            var dietaryPreferencePicker = this.FindByName<Picker>("DietaryPreferencePicker");
+            if (dietaryPreferencePicker != null && !string.IsNullOrEmpty(user.DietaryPreference) && dietaryPreferencePicker.Items.Contains(user.DietaryPreference))
+                dietaryPreferencePicker.SelectedItem = user.DietaryPreference;
+
+            var exerciseFrequencyPicker = this.FindByName<Picker>("ExerciseFrequencyPicker");
+            if (exerciseFrequencyPicker != null && !string.IsNullOrEmpty(user.ExerciseFrequency) && exerciseFrequencyPicker.Items.Contains(user.ExerciseFrequency))
+                exerciseFrequencyPicker.SelectedItem = user.ExerciseFrequency;
+
+            var personalityTypePicker = this.FindByName<Picker>("PersonalityTypePicker");
+            if (personalityTypePicker != null && !string.IsNullOrEmpty(user.PersonalityType) && personalityTypePicker.Items.Contains(user.PersonalityType))
+                personalityTypePicker.SelectedItem = user.PersonalityType;
+
+            var loveLanguagePicker = this.FindByName<Picker>("LoveLanguagePicker");
+            if (loveLanguagePicker != null && !string.IsNullOrEmpty(user.LoveLanguage) && loveLanguagePicker.Items.Contains(user.LoveLanguage))
+                loveLanguagePicker.SelectedItem = user.LoveLanguage;
+
+            var moodPicker = this.FindByName<Picker>("MoodPicker");
+            if (moodPicker != null && !string.IsNullOrEmpty(user.Mood) && moodPicker.Items.Contains(user.Mood))
+                moodPicker.SelectedItem = user.Mood;
+
+            var energyPicker = this.FindByName<Picker>("EnergyPicker");
+            if (energyPicker != null && !string.IsNullOrEmpty(user.EnergyLevel) && energyPicker.Items.Contains(user.EnergyLevel))
+                energyPicker.SelectedItem = user.EnergyLevel;
+
+            var drinksPicker = this.FindByName<Picker>("DrinksPicker");
+            if (drinksPicker != null && !string.IsNullOrEmpty(user.Drinks) && drinksPicker.Items.Contains(user.Drinks))
+                drinksPicker.SelectedItem = user.Drinks;
+
+            var smokesSwitch = this.FindByName<Microsoft.Maui.Controls.Switch>("SmokesSwitch");
+            if (smokesSwitch != null) smokesSwitch.IsToggled = user.Smokes;
+
+            var petsSwitch = this.FindByName<Microsoft.Maui.Controls.Switch>("PetsSwitch");
+            if (petsSwitch != null) petsSwitch.IsToggled = user.HasPets;
+
+            var moodSearchSwitch = this.FindByName<Microsoft.Maui.Controls.Switch>("MoodSearchSwitch");
+            if (moodSearchSwitch != null) moodSearchSwitch.IsToggled = user.AllowMoodSearch;
+
+            var ghostSwitch = this.FindByName<Microsoft.Maui.Controls.Switch>("GhostModeMoodShieldSwitch");
+            if (ghostSwitch != null) ghostSwitch.IsToggled = user.GhostModeMoodShield;
+
+            var hidePhoneSwitch = this.FindByName<Microsoft.Maui.Controls.Switch>("HidePhoneSwitch");
+            if (hidePhoneSwitch != null) hidePhoneSwitch.IsToggled = user.HidePhoneNumber;
+
+            var countryEntry = this.FindByName<Entry>("CountryEntry");
+            if (countryEntry != null) countryEntry.Text = user.Country ?? "";
+
+            var stateEntry = this.FindByName<Entry>("StateEntry");
+            if (stateEntry != null) stateEntry.Text = user.State ?? "";
+
+            var religionEntry = this.FindByName<Entry>("ReligionEntry");
+            if (religionEntry != null) religionEntry.Text = user.Religion ?? "";
+
+            var politicalEntry = this.FindByName<Entry>("PoliticalEntry");
+            if (politicalEntry != null) politicalEntry.Text = user.PoliticalViews ?? "";
+
+            var bioEditor = this.FindByName<Editor>("BioEditorInfo");
+            if (bioEditor != null) bioEditor.Text = user.Bio ?? "";
+
+            var sexualOrientationPicker = this.FindByName<Picker>("SexualOrientationPicker");
+            if (sexualOrientationPicker != null && !string.IsNullOrEmpty(user.SexualOrientation)
+                && sexualOrientationPicker.Items.Contains(user.SexualOrientation))
+                sexualOrientationPicker.SelectedItem = user.SexualOrientation;
+
+            var topInterestPicker = this.FindByName<Picker>("TopInterestPicker");
+            if (topInterestPicker != null && !string.IsNullOrEmpty(user.TopInterest)
+                && topInterestPicker.Items.Contains(user.TopInterest))
+                topInterestPicker.SelectedItem = user.TopInterest;
+
+            var topArtistEntry = this.FindByName<Entry>("TopArtistEntry");
+            if (topArtistEntry != null) topArtistEntry.Text = user.TopArtist ?? "";
+
+            var topMovieEntry = this.FindByName<Entry>("TopMovieEntry");
+            if (topMovieEntry != null) topMovieEntry.Text = user.TopMovie ?? "";
+
+            var musicGenresEntry = this.FindByName<Entry>("MusicGenresEntry");
+            if (musicGenresEntry != null) musicGenresEntry.Text = user.MusicGenres ?? "";
+
+            var favArtistsEntry = this.FindByName<Entry>("FavoriteArtistsEntry");
+            if (favArtistsEntry != null) favArtistsEntry.Text = user.FavoriteArtists ?? "";
+
+            var favMoviesEntry = this.FindByName<Entry>("FavoriteMoviesEntry");
+            if (favMoviesEntry != null) favMoviesEntry.Text = user.FavoriteMovies ?? "";
+
+            var favBooksEntry = this.FindByName<Entry>("FavoriteBooksEntry");
+            if (favBooksEntry != null) favBooksEntry.Text = user.FavoriteBooks ?? "";
+
+            var languagesEntry = this.FindByName<Entry>("LanguagesEntry");
+            if (languagesEntry != null) languagesEntry.Text = user.Languages ?? "";
+
+            var occupationEntry = this.FindByName<Entry>("OccupationEntry");
+            if (occupationEntry != null) occupationEntry.Text = user.Occupation ?? "";
+
+            var educationEntry = this.FindByName<Entry>("EducationEntry");
+            if (educationEntry != null) educationEntry.Text = user.Education ?? "";
+
+            var dealbreakersEntry = this.FindByName<Entry>("DealbreakersEntry");
+            if (dealbreakersEntry != null) dealbreakersEntry.Text = user.Dealbreakers ?? "";
+
+            var favMusicGenrePicker = this.FindByName<Picker>("FavoriteMusicGenrePicker");
+            if (favMusicGenrePicker != null && !string.IsNullOrEmpty(user.FavoriteMusicGenre)
+                && favMusicGenrePicker.Items.Contains(user.FavoriteMusicGenre))
+                favMusicGenrePicker.SelectedItem = user.FavoriteMusicGenre;
+
+            var bestMusicEntry = this.FindByName<Entry>("BestMusicEntry");
+            if (bestMusicEntry != null) bestMusicEntry.Text = user.BestMusic ?? "";
+
+            Debug.WriteLine($"[UpdateAllProfileLabels] All labels updated for user: {user.Name}");
+        }
 
         // Call this method from LoadUserAsync after setting _currentUser
 
@@ -7291,7 +7574,7 @@ namespace Lock.Pages.Profile
                     return;
                 }
 
-                string oldMood = user.Mood;
+                string oldMood = user.Mood ?? string.Empty;
 
                 var topInterestPicker = this.FindByName<Picker>("TopInterestPicker");
                 var topArtistEntry = this.FindByName<Entry>("TopArtistEntry");
@@ -7306,45 +7589,113 @@ namespace Lock.Pages.Profile
                 var educationEntry = this.FindByName<Entry>("EducationEntry");
                 var promptsEditor = this.FindByName<Editor>("PromptsEditor");
                 var dealbreakersEntry = this.FindByName<Entry>("DealbreakersEntry");
-                var favoriteMusicGenrePicker = this.FindByName<Picker>("FavoriteMusicGenrePicker");
+                var favMusicGenrePicker = this.FindByName<Picker>("FavoriteMusicGenrePicker");
                 var bestMusicEntry = this.FindByName<Entry>("BestMusicEntry");
-
                 var moodPicker = this.FindByName<Picker>("MoodPicker");
-                if (moodPicker != null)
+
+                string newMood = moodPicker?.SelectedItem as string ?? oldMood;
+                string newFavMusicGenre = favMusicGenrePicker?.SelectedItem as string ?? user.FavoriteMusicGenre ?? string.Empty;
+                string newBestMusic = bestMusicEntry?.Text ?? string.Empty;
+                string newTopInterest = topInterestPicker?.SelectedItem as string ?? user.TopInterest ?? string.Empty;
+                string newTopArtist = topArtistEntry?.Text ?? string.Empty;
+                string newTopMovie = topMovieEntry?.Text ?? string.Empty;
+
+                // FIXED: Get SexualOrientation from picker properly
+                string newSexualOrientation = sexualPicker?.SelectedItem as string ?? user.SexualOrientation ?? string.Empty;
+
+                string newMusicGenres = musicEntry?.Text ?? string.Empty;
+                string newFavArtists = favArtistsEntry?.Text ?? string.Empty;
+                string newFavMovies = favMoviesEntry?.Text ?? string.Empty;
+                string newFavBooks = favBooksEntry?.Text ?? string.Empty;
+                string newLanguages = languagesEntry?.Text ?? string.Empty;
+                string newOccupation = occupationEntry?.Text ?? string.Empty;
+                string newEducation = educationEntry?.Text ?? string.Empty;
+                string newPrompts = promptsEditor?.Text ?? string.Empty;
+                string newDealbreakers = dealbreakersEntry?.Text ?? string.Empty;
+
+                // Debug output
+                Debug.WriteLine($"[SAVE INTERESTS] SexualOrientation from picker: '{newSexualOrientation}'");
+                Debug.WriteLine($"[SAVE INTERESTS] TopInterest from picker: '{newTopInterest}'");
+                Debug.WriteLine($"[SAVE INTERESTS] FavoriteMusicGenre from picker: '{newFavMusicGenre}'");
+
+                string newMoodLastUpdated = user.MoodLastUpdated.ToString("yyyy-MM-ddTHH:mm:ss.fffZ");
+                if (oldMood != newMood)
                 {
-                    string newMood = moodPicker.SelectedItem as string ?? string.Empty;
-                    if (oldMood != newMood)
-                    {
-                        user.Mood = newMood;
-                        user.MoodLastUpdated = DateTime.UtcNow;
-                        MessagingCenter.Send(this, "MoodUpdated");
-                    }
+                    newMoodLastUpdated = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ");
+                    MessagingCenter.Send(this, "MoodUpdated");
                 }
 
-                user.FavoriteMusicGenre = favoriteMusicGenrePicker?.SelectedItem as string ?? string.Empty;
-                user.BestMusic = bestMusicEntry?.Text ?? string.Empty;
-                user.TopInterest = topInterestPicker?.SelectedItem as string ?? string.Empty;
-                user.TopArtist = topArtistEntry?.Text ?? string.Empty;
-                user.TopMovie = topMovieEntry?.Text ?? string.Empty;
-                user.SexualOrientation = sexualPicker?.SelectedItem as string ?? string.Empty;
-                user.MusicGenres = musicEntry?.Text ?? string.Empty;
-                user.FavoriteArtists = favArtistsEntry?.Text ?? string.Empty;
-                user.FavoriteMovies = favMoviesEntry?.Text ?? string.Empty;
-                user.FavoriteBooks = favBooksEntry?.Text ?? string.Empty;
-                user.Languages = languagesEntry?.Text ?? string.Empty;
-                user.Occupation = occupationEntry?.Text ?? string.Empty;
-                user.Education = educationEntry?.Text ?? string.Empty;
-                user.Prompts = promptsEditor?.Text ?? string.Empty;
-                user.Dealbreakers = dealbreakersEntry?.Text ?? string.Empty;
+                var patch = new Dictionary<string, object>
+                {
+                    ["Mood"] = newMood,
+                    ["MoodLastUpdated"] = newMoodLastUpdated,
+                    ["FavoriteMusicGenre"] = newFavMusicGenre,
+                    ["BestMusic"] = newBestMusic,
+                    ["TopInterest"] = newTopInterest,
+                    ["TopArtist"] = newTopArtist,
+                    ["TopMovie"] = newTopMovie,
+                    ["SexualOrientation"] = newSexualOrientation,  // FIXED: Now properly saved
+                    ["MusicGenres"] = newMusicGenres,
+                    ["FavoriteArtists"] = newFavArtists,
+                    ["FavoriteMovies"] = newFavMovies,
+                    ["FavoriteBooks"] = newFavBooks,
+                    ["Languages"] = newLanguages,
+                    ["Occupation"] = newOccupation,
+                    ["Education"] = newEducation,
+                    ["Prompts"] = newPrompts,
+                    ["Dealbreakers"] = newDealbreakers,
+                };
 
-                await SupabaseService.UpdateAsync("Users", $"Id=eq.{user.Id}", user);
+                Debug.WriteLine($"[SAVE INTERESTS] Patching user Id={user.Id}");
+                Debug.WriteLine($"[SAVE INTERESTS] SexualOrientation value being saved: '{newSexualOrientation}'");
+
+                var success = await SupabaseService.UpdateAsync("Users", $"Id=eq.{user.Id}", patch);
+
+                if (!success)
+                {
+                    await DisplayAlert("Error", "Failed to save. Check debug output.", "OK");
+                    return;
+                }
+
+                // ── Update local cache ────────────────────────────────────────────
+                user.Mood = newMood;
+                user.FavoriteMusicGenre = newFavMusicGenre;
+                user.BestMusic = newBestMusic;
+                user.TopInterest = newTopInterest;
+                user.TopArtist = newTopArtist;
+                user.TopMovie = newTopMovie;
+                user.SexualOrientation = newSexualOrientation;  // FIXED: Update local cache
+                user.MusicGenres = newMusicGenres;
+                user.FavoriteArtists = newFavArtists;
+                user.FavoriteMovies = newFavMovies;
+                user.FavoriteBooks = newFavBooks;
+                user.Languages = newLanguages;
+                user.Occupation = newOccupation;
+                user.Education = newEducation;
+                user.Prompts = newPrompts;
+                user.Dealbreakers = newDealbreakers;
+                _currentUser = user;
+
+                // ── Refresh display labels ────────────────────────────────────────
+                MainThread.BeginInvokeOnMainThread(() =>
+                {
+                    // Update the label in the Hobbies tab
+                    var sexualOrientationDisplayLabel = this.FindByName<Label>("SexualOrientationLabel");
+                    if (sexualOrientationDisplayLabel != null && !string.IsNullOrEmpty(newSexualOrientation))
+                    {
+                        sexualOrientationDisplayLabel.Text = newSexualOrientation;
+                    }
+
+                    UpdateAllProfileLabels(_currentUser);
+                });
 
                 await DisplayAlert("Saved", "Interests updated.", "OK");
-
                 MessagingCenter.Send(this, "MoodSaved");
+                MessagingCenter.Send(this, "ProfileUpdated");
             }
             catch (Exception ex)
             {
+                Debug.WriteLine($"SaveInterestsButton_Clicked error: {ex}");
                 await DisplayAlert("Error", "Could not save interests: " + ex.Message, "OK");
             }
         }

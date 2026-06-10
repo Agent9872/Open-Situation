@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using Newtonsoft.Json;
 
 namespace Lock.Models.Chat
 {
@@ -32,9 +33,10 @@ namespace Lock.Models.Chat
         public string? LastMessageType { get; set; }
 
         // Runtime/computed properties (not persisted to database)
+        [JsonIgnore]
         public string OtherParticipant { get; set; } = string.Empty;
+        [JsonIgnore]
         public int UnreadCount { get; set; }
-
         // Computed properties for UI
         public string FormattedDisappearingSetting
         {

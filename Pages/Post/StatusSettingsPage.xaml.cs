@@ -73,7 +73,6 @@ namespace Lock.Pages.Post
             }
         }
 
-        // In StatusSettingsPage.xaml.cs
         private void OnDurationChanged(object sender, EventArgs e)
         {
             try
@@ -88,7 +87,7 @@ namespace Lock.Pages.Post
                         Debug.WriteLine($"Status duration changed to: {selected}");
 
                         // Clean up expired statuses when duration changes
-                        CleanupExpiredStatuses();
+                        _ = CleanupExpiredStatusesAsync();
 
                         // Notify that status settings changed
                         MessagingCenter.Send(this, "StatusSettingsChanged");
@@ -101,7 +100,11 @@ namespace Lock.Pages.Post
             }
         }
 
-        private async void CleanupExpiredStatuses()
+        /// <summary>
+        /// Queries Supabase for the current user's status posts,
+        /// deletes expired ones from both the DB and Supabase Storage.
+        /// </summary>
+        private async Task CleanupExpiredStatusesAsync()
         {
             try
             {
@@ -111,49 +114,44 @@ namespace Lock.Pages.Post
                 var duration = Preferences.Get($"status_duration_{currentUserPhone}", "24 hours");
                 var expirationHours = GetExpirationHours(duration);
 
-                // Get all status posts from Supabase
-                var allStatuses = await SupabaseService.GetAsync<Lock.Models.Post>("Posts",
-                    $"AuthorPhone=eq.{Uri.EscapeDataString(currentUserPhone)}&not.StatusImagePath=is.null");
+                // Correct PostgREST filter: StatusImagePath=not.is.null
+                var allStatuses = await SupabaseService.GetAsync<Lock.Models.Post>(
+                    "Posts",
+                    $"AuthorPhone=eq.{Uri.EscapeDataString(currentUserPhone)}&StatusImagePath=not.is.null");
 
                 var now = DateTime.UtcNow;
-                var expiredStatuses = new List<Lock.Models.Post>();
+                var expired = allStatuses
+                    .Where(s => (now - s.CreatedAt).TotalHours >= expirationHours)
+                    .ToList();
 
-                foreach (var status in allStatuses)
+                foreach (var status in expired)
                 {
-                    var age = now - status.CreatedAt;
-                    if (age.TotalHours >= expirationHours)
+                    // Delete DB row + storage file via the new helper
+                    await SupabaseService.DeleteStatusPostAsync(status.Id, status.StatusImagePath);
+
+                    // Also remove local cached file if it exists
+                    if (!string.IsNullOrEmpty(status.StatusImagePath) &&
+                        System.IO.File.Exists(status.StatusImagePath))
                     {
-                        expiredStatuses.Add(status);
+                        try { System.IO.File.Delete(status.StatusImagePath); }
+                        catch { /* ignore local deletion failures */ }
                     }
                 }
 
-                foreach (var expired in expiredStatuses)
+                if (expired.Any())
                 {
-                    // Delete from Supabase
-                    await SupabaseService.DeleteAsync("Posts", $"Id=eq.{Uri.EscapeDataString(expired.Id.ToString())}");
-
-                    // Delete the actual image file
-                    if (!string.IsNullOrEmpty(expired.StatusImagePath) && System.IO.File.Exists(expired.StatusImagePath))
-                    {
-                        try
-                        {
-                            System.IO.File.Delete(expired.StatusImagePath);
-                        }
-                        catch { }
-                    }
-                }
-
-                if (expiredStatuses.Any())
-                {
-                    Debug.WriteLine($"Cleaned up {expiredStatuses.Count} expired statuses");
+                    Debug.WriteLine($"[STATUS] Cleaned up {expired.Count} expired status(es)");
                     MessagingCenter.Send(this, "StatusCleanedUp");
                 }
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Error cleaning up expired statuses: {ex}");
+                Debug.WriteLine($"CleanupExpiredStatusesAsync error: {ex}");
             }
         }
+
+        // Keep the old sync signature so any existing call sites still compile
+        private void CleanupExpiredStatuses() => _ = CleanupExpiredStatusesAsync();
 
         private int GetExpirationHours(string duration)
         {
@@ -161,9 +159,11 @@ namespace Lock.Pages.Post
             {
                 "24 hours" => 24,
                 "48 hours" => 48,
-                _ => 24  // Default to 24 hours
+                "7 days" => 168,
+                _ => 24   // Default to 24 hours
             };
         }
+
         private async void OnAllowedContactsClicked(object sender, EventArgs e)
         {
             try
@@ -205,7 +205,6 @@ namespace Lock.Pages.Post
             }
         }
 
-        // Add this method to StatusSettingsPage.xaml.cs
         private async void CloseButton_Clicked(object sender, EventArgs e)
         {
             await Navigation.PopModalAsync();
@@ -221,38 +220,34 @@ namespace Lock.Pages.Post
                     "Clear All",
                     "Cancel");
 
-                if (confirm)
+                if (!confirm) return;
+
+                var currentUserPhone = Preferences.Get("current_user_phone", string.Empty);
+                if (string.IsNullOrEmpty(currentUserPhone)) return;
+
+                // Correct PostgREST filter: StatusImagePath=not.is.null
+                var statusPosts = await SupabaseService.GetAsync<Lock.Models.Post>(
+                    "Posts",
+                    $"AuthorPhone=eq.{Uri.EscapeDataString(currentUserPhone)}&StatusImagePath=not.is.null");
+
+                foreach (var post in statusPosts)
                 {
-                    var currentUserPhone = Preferences.Get("current_user_phone", string.Empty);
+                    // Delete DB row + Supabase Storage file via the new helper
+                    await SupabaseService.DeleteStatusPostAsync(post.Id, post.StatusImagePath);
 
-                    if (!string.IsNullOrEmpty(currentUserPhone))
+                    // Also remove local cached file if it exists
+                    if (!string.IsNullOrEmpty(post.StatusImagePath) &&
+                        System.IO.File.Exists(post.StatusImagePath))
                     {
-                        // Get all status posts from Supabase
-                        var statusPosts = await SupabaseService.GetAsync<Lock.Models.Post>("Posts",
-                            $"AuthorPhone=eq.{Uri.EscapeDataString(currentUserPhone)}&not.StatusImagePath=is.null");
-
-                        foreach (var post in statusPosts)
-                        {
-                            // Delete from Supabase
-                            await SupabaseService.DeleteAsync("Posts", $"Id=eq.{Uri.EscapeDataString(post.Id.ToString())}");
-
-                            // Delete the actual image file if it exists
-                            if (!string.IsNullOrEmpty(post.StatusImagePath) && System.IO.File.Exists(post.StatusImagePath))
-                            {
-                                try
-                                {
-                                    System.IO.File.Delete(post.StatusImagePath);
-                                }
-                                catch { }
-                            }
-                        }
-
-                        await DisplayAlert("Success", "All your statuses have been cleared", "OK");
-
-                        // Notify that status was cleared
-                        MessagingCenter.Send(this, "StatusCleared");
+                        try { System.IO.File.Delete(post.StatusImagePath); }
+                        catch { /* ignore */ }
                     }
                 }
+
+                await DisplayAlert("Success", "All your statuses have been cleared", "OK");
+
+                // Notify that status was cleared
+                MessagingCenter.Send(this, "StatusCleared");
             }
             catch (Exception ex)
             {

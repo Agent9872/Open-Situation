@@ -1147,85 +1147,78 @@ private CancellationTokenSource _loaderCts = new();
         // Love / react with animation for COMMENTS - FIXED VERSION
         private async void OnLoveTapped(object sender, TappedEventArgs e)
         {
-            if (e.Parameter is Comment comment && !string.IsNullOrEmpty(_currentUserPhone))
+            if (e.Parameter is not Comment comment || string.IsNullOrEmpty(_currentUserPhone)) return;
+
+            try
             {
-                try
+                bool wasLoved = comment.IsLovedByCurrentUser;
+
+                // Optimistic update FIRST — before any await
+                comment.ToggleLove(_currentUserPhone);
+
+                var index = Comments.IndexOf(comment);
+                if (index >= 0)
                 {
-                    bool wasLoved = comment.IsLovedByCurrentUser;
-                    await CommentRepository.ToggleLoveAsync(comment.Id, _currentUserPhone);
-                    comment.ToggleLove(_currentUserPhone);
+                    var updatedComments = Comments.ToList();
+                    updatedComments[index] = comment;
+                    Comments = new ObservableCollection<Comment>(updatedComments);
+                }
 
-                    // Find and update the comment in the list
-                    var index = Comments.IndexOf(comment);
-                    if (index >= 0)
+                // Animate immediately if loving — no Task.Run, no await before this
+                if (!wasLoved)
+                {
+                    VisualElement loveElement = sender as Border ?? sender as VisualElement;
+                    if (loveElement != null)
                     {
-                        var updatedComments = Comments.ToList();
-                        updatedComments[index] = comment;
-                        Comments = new ObservableCollection<Comment>(updatedComments);
+                        _ = AnimateLoveButton(loveElement);
+                        ShowMultipleHeartsAnimation(loveElement);
                     }
-
-                    // Show enhanced animation ONLY when loving (not when unloving)
-                    if (!wasLoved && comment.IsLovedByCurrentUser)
+                    else
                     {
-                        // Find the visual element to animate
-                        VisualElement loveElement = null;
-
-                        // Try to get the Border that was tapped
-                        if (sender is VisualElement ve)
-                            loveElement = ve;
-                        else if (sender is TapGestureRecognizer tap && tap.Parent is VisualElement parentVe)
-                            loveElement = parentVe;
-
-                        if (loveElement != null)
-                        {
-                            await AnimateLoveButton(loveElement);
-                            ShowMultipleHeartsAnimation(loveElement);
-                        }
-                        else
-                        {
-                            // Fallback: use the CommentsCollectionView as reference
-                            ShowMultipleHeartsAnimation(CommentsCollectionView);
-                        }
-                    }
-
-                    // Send notification for love
-                    if (comment.IsLovedByCurrentUser && !wasLoved && _currentUserPhone != comment.AuthorPhone)
-                    {
-                        var currentUserName = await GetUserDisplayNameAsync(_currentUserPhone);
-                        var actorProfileImage = await GetUserProfileImagePathAsync(_currentUserPhone);
-
-                        var notif = new NotificationItem
-                        {
-                            Actor = currentUserName,
-                            ActorPhone = _currentUserPhone,
-                            ActorProfileImagePath = actorProfileImage ?? string.Empty,
-                            Action = "reacted",
-                            Target = comment.AuthorDisplayName ?? comment.AuthorPhone,
-                            TargetPhone = comment.AuthorPhone ?? string.Empty,
-                            Preview = string.Empty,
-                            PostId = comment.PostId,
-                            CommentId = comment.Id,
-                            Timestamp = DateTime.UtcNow
-                        };
-
-                        PersistNotification(notif);
-                        MessagingCenter.Send<object, NotificationItem>(this, "NewNotificationStructured", notif);
-                        MessagingCenter.Send<object, NotificationItem>(this, "NotificationStore_Add", notif);
-                    }
-                    else if (!comment.IsLovedByCurrentUser && wasLoved)
-                    {
-                        try
-                        {
-                            var payload = $"{comment.PostId}|{_currentUserPhone}";
-                            MessagingCenter.Send<object, string>(this, "NotificationStoreChanged_RemoveReaction", payload);
-                        }
-                        catch { }
+                        ShowMultipleHeartsAnimation(CommentsCollectionView);
                     }
                 }
-                catch (Exception ex)
+
+                // With this:
+                await CommentRepository.ToggleLoveAsync(comment.Id, _currentUserPhone);
+
+                // Notification only on confirmed love
+                if (!wasLoved && _currentUserPhone != comment.AuthorPhone)
                 {
-                    Debug.WriteLine($"Error toggling love: {ex}");
+                    var currentUserName = await GetUserDisplayNameAsync(_currentUserPhone);
+                    var actorProfileImage = await GetUserProfileImagePathAsync(_currentUserPhone);
+
+                    var notif = new NotificationItem
+                    {
+                        Actor = currentUserName,
+                        ActorPhone = _currentUserPhone,
+                        ActorProfileImagePath = actorProfileImage ?? string.Empty,
+                        Action = "reacted",
+                        Target = comment.AuthorDisplayName ?? comment.AuthorPhone,
+                        TargetPhone = comment.AuthorPhone ?? string.Empty,
+                        Preview = string.Empty,
+                        PostId = comment.PostId,
+                        CommentId = comment.Id,
+                        Timestamp = DateTime.UtcNow
+                    };
+
+                    PersistNotification(notif);
+                    MessagingCenter.Send<object, NotificationItem>(this, "NewNotificationStructured", notif);
+                    MessagingCenter.Send<object, NotificationItem>(this, "NotificationStore_Add", notif);
                 }
+                else if (wasLoved)
+                {
+                    try
+                    {
+                        var payload = $"{comment.PostId}|{_currentUserPhone}";
+                        MessagingCenter.Send<object, string>(this, "NotificationStoreChanged_RemoveReaction", payload);
+                    }
+                    catch { }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error toggling love: {ex}");
             }
         }
 
@@ -1396,40 +1389,37 @@ private CancellationTokenSource _loaderCts = new();
                     return;
                 }
 
-                VisualElement loveElement = null;
-                if (sender is Border border)
-                    loveElement = border;
-                else if (sender is VisualElement ve)
-                    loveElement = ve;
-                else if (sender is TapGestureRecognizer tap && tap.CommandParameter != null)
-                    loveElement = PostHeaderContainer;
-
                 bool wasLoved = post.IsLovedByCurrentUser;
 
-                await PostRepository.ToggleLoveAsync(post.Id, currentUserPhone);
+                // Optimistic update FIRST
                 post.ToggleLove(currentUserPhone);
+                post.RefreshLoveState();
 
-                bool isNowLoved = post.IsLovedByCurrentUser;
-
-                if (isNowLoved && !wasLoved)
+                // Animate immediately if loving
+                if (!wasLoved)
                 {
+                    VisualElement loveElement = sender as Border ?? sender as VisualElement ?? PostHeaderContainer;
                     if (loveElement != null)
                     {
-                        var animTask = AnimateLoveButton(loveElement);
+                        _ = AnimateLoveButton(loveElement);
                         ShowMultipleHeartsAnimation(loveElement);
-                        await animTask;
                     }
                 }
 
-                if (PostHeaderContainer.Content is View postView && postView.BindingContext == post)
+                // Sync to DB
+                bool success = await PostRepository.ToggleLoveAsync(post.Id, currentUserPhone);
+
+                if (!success)
                 {
-                    postView.BindingContext = null;
-                    postView.BindingContext = post;
+                    // Revert on failure
+                    post.ToggleLove(currentUserPhone);
+                    post.RefreshLoveState();
+                    Debug.WriteLine($"OnLovePostTapped: DB update failed for post {post.Id}, reverted");
+                    return;
                 }
 
-                post.RefreshLoveState();
-
-                if (post.IsLovedByCurrentUser && !wasLoved && currentUserPhone != post.AuthorPhone)
+                // Notification only on successful love
+                if (!wasLoved && currentUserPhone != post.AuthorPhone)
                 {
                     var currentUserName = await GetUserDisplayNameAsync(currentUserPhone);
                     var actorProfileImage = await GetUserProfileImagePathAsync(currentUserPhone);
@@ -1456,7 +1446,6 @@ private CancellationTokenSource _loaderCts = new();
             catch (Exception ex)
             {
                 Debug.WriteLine($"Error toggling love on post: {ex}");
-                await DisplayAlert("Error", "Could not update love status", "OK");
             }
         }
 
