@@ -19,11 +19,11 @@ namespace Lock.Services
         private static readonly HttpClient _http = new();
         private static bool _headersSet = false;
 
-        // Serializer settings for PascalCase (default) and snake_case (fallback)
+        // Serializer settings
         private static readonly JsonSerializerSettings PascalSerializerSettings = new JsonSerializerSettings
         {
             NullValueHandling = NullValueHandling.Ignore,
-            ContractResolver = new DefaultContractResolver() // preserves PascalCase property names
+            ContractResolver = new DefaultContractResolver() // preserve PascalCase
         };
 
         private static readonly JsonSerializerSettings SnakeSerializerSettings = new JsonSerializerSettings
@@ -51,7 +51,7 @@ namespace Lock.Services
 
         private static string Url => $"{SupabaseConfig.Url}/rest/v1";
 
-        // Read raw response while preserving status code for better diagnostics
+        // Read raw response & return status + body
         private static async Task<(bool Ok, string Body, int StatusCode)> GetRawAsync(string url)
         {
             try
@@ -72,7 +72,7 @@ namespace Lock.Services
             }
         }
 
-        // Inspect JSON and pick serializer settings automatically (snake_case vs PascalCase)
+        // Heuristic to pick serializer settings based on JSON keys (snake_case vs PascalCase)
         private static JsonSerializerSettings ChooseSettingsForResponse(string json)
         {
             if (string.IsNullOrWhiteSpace(json)) return PascalSerializerSettings;
@@ -80,8 +80,6 @@ namespace Lock.Services
             try
             {
                 var token = JToken.Parse(json);
-
-                // If array, find first object
                 JObject firstObj = null;
                 if (token is JArray arr && arr.Count > 0 && arr[0] is JObject obj0)
                     firstObj = obj0;
@@ -93,16 +91,14 @@ namespace Lock.Services
                     foreach (var prop in firstObj.Properties())
                     {
                         var name = prop.Name;
-                        // if any property contains an underscore, assume snake_case
                         if (name.Contains('_')) return SnakeSerializerSettings;
-                        // if all-lowercase and contains letters, consider snake as well
                         if (name.Any(char.IsLetter) && name.All(c => char.IsLower(c) || c == '_')) return SnakeSerializerSettings;
                     }
                 }
             }
             catch
             {
-                // fall back quietly
+                // fall back to Pascal
             }
 
             return PascalSerializerSettings;
@@ -136,7 +132,7 @@ namespace Lock.Services
 
         public static async Task<T?> GetOneAsync<T>(string table, string query)
         {
-            // Ensure limit=1 is appended safely
+            // Ensure limit is present
             string finalQuery = query;
             if (!finalQuery.Contains("limit=", StringComparison.OrdinalIgnoreCase))
                 finalQuery = string.IsNullOrEmpty(finalQuery) ? "limit=1" : finalQuery + "&limit=1";
@@ -151,16 +147,24 @@ namespace Lock.Services
             {
                 EnsureHeaders();
 
-                var json = JsonConvert.SerializeObject(item, PascalSerializerSettings);
+                // Serialize payload as snake_case for Supabase
+                var json = JsonConvert.SerializeObject(item, SnakeSerializerSettings);
 
-                // Remove Id=0 so Supabase auto-generates it (if present)
-                var dict = JsonConvert.DeserializeObject<Dictionary<string, object>>(json);
-                if (dict != null && dict.TryGetValue("Id", out var idVal) &&
-                    (idVal?.ToString() == "0" || idVal?.ToString() == ""))
+                // Remove id if 0 or empty (handle both "id" and "Id")
+                try
                 {
-                    dict.Remove("Id");
-                    json = JsonConvert.SerializeObject(dict, PascalSerializerSettings);
+                    var jobj = JObject.Parse(json);
+                    JToken? idToken = null;
+                    if (jobj.TryGetValue("id", StringComparison.OrdinalIgnoreCase, out idToken))
+                    {
+                        if (idToken.Type == JTokenType.Integer && idToken.Value<int>() == 0)
+                            jobj.Remove(idToken.Path);
+                        else if (idToken.Type == JTokenType.String && string.IsNullOrWhiteSpace(idToken.Value<string>()))
+                            jobj.Remove(idToken.Path);
+                    }
+                    json = jobj.ToString(Formatting.None);
                 }
+                catch { /* ignore parse/remove errors */ }
 
                 var request = new HttpRequestMessage(HttpMethod.Post, $"{Url}/{table}");
                 request.Headers.Add("Prefer", "return=minimal");
@@ -187,15 +191,23 @@ namespace Lock.Services
             {
                 EnsureHeaders();
 
-                var json = JsonConvert.SerializeObject(item, PascalSerializerSettings);
+                var json = JsonConvert.SerializeObject(item, SnakeSerializerSettings);
 
-                var dict = JsonConvert.DeserializeObject<Dictionary<string, object>>(json);
-                if (dict != null && dict.TryGetValue("Id", out var idVal) &&
-                    (idVal?.ToString() == "0" || idVal?.ToString() == ""))
+                // Remove id if present and 0/empty
+                try
                 {
-                    dict.Remove("Id");
-                    json = JsonConvert.SerializeObject(dict, PascalSerializerSettings);
+                    var jobj = JObject.Parse(json);
+                    JToken? idToken = null;
+                    if (jobj.TryGetValue("id", StringComparison.OrdinalIgnoreCase, out idToken))
+                    {
+                        if (idToken.Type == JTokenType.Integer && idToken.Value<int>() == 0)
+                            jobj.Remove(idToken.Path);
+                        else if (idToken.Type == JTokenType.String && string.IsNullOrWhiteSpace(idToken.Value<string>()))
+                            jobj.Remove(idToken.Path);
+                    }
+                    json = jobj.ToString(Formatting.None);
                 }
+                catch { /* ignore */ }
 
                 var request = new HttpRequestMessage(HttpMethod.Post, $"{Url}/{table}");
                 request.Headers.Add("Prefer", "return=representation");
@@ -210,9 +222,7 @@ namespace Lock.Services
                     return default;
                 }
 
-                // Choose settings by returned JSON
                 var settings = ChooseSettingsForResponse(body);
-
                 if (body.TrimStart().StartsWith("["))
                 {
                     var list = JsonConvert.DeserializeObject<List<T>>(body, settings);
@@ -234,7 +244,7 @@ namespace Lock.Services
             {
                 EnsureHeaders();
 
-                var json = JsonConvert.SerializeObject(payload, PascalSerializerSettings);
+                var json = JsonConvert.SerializeObject(payload, SnakeSerializerSettings);
 
                 var request = new HttpRequestMessage(HttpMethod.Post, $"{Url}/{table}");
                 request.Headers.Add("Prefer", "return=representation");
@@ -271,18 +281,16 @@ namespace Lock.Services
             try
             {
                 EnsureHeaders();
-                var json = JsonConvert.SerializeObject(item, PascalSerializerSettings);
+                var json = JsonConvert.SerializeObject(item, SnakeSerializerSettings);
                 var conflictParam = string.IsNullOrEmpty(onConflict) ? "" : $"?on_conflict={onConflict}";
                 var request = new HttpRequestMessage(HttpMethod.Post, $"{Url}/{table}{conflictParam}");
                 request.Headers.Add("Prefer", "resolution=merge-duplicates,return=minimal");
                 request.Content = new StringContent(json, Encoding.UTF8, "application/json");
                 var response = await _http.SendAsync(request).ConfigureAwait(false);
                 var body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-
                 Debug.WriteLine($"[SUPABASE] UPSERT {table} → {(int)response.StatusCode}");
                 if (!response.IsSuccessStatusCode)
                     Debug.WriteLine($"[SUPABASE] UPSERT {table} FAILED: {body}");
-
                 return response.IsSuccessStatusCode;
             }
             catch (Exception ex)
@@ -294,7 +302,7 @@ namespace Lock.Services
 
         /// <summary>
         /// PATCH a row. Pass an anonymous object with ONLY the columns you want to update.
-        /// Property names must match your Supabase column names exactly (PascalCase preserved by default).
+        /// Property names will be serialized to snake_case when sent to Supabase.
         /// </summary>
         public static async Task<bool> UpdateAsync(string table, string query, object patch)
         {
@@ -302,7 +310,7 @@ namespace Lock.Services
             {
                 EnsureHeaders();
 
-                var json = JsonConvert.SerializeObject(patch, PascalSerializerSettings);
+                var json = JsonConvert.SerializeObject(patch, SnakeSerializerSettings);
 
                 Debug.WriteLine($"[SUPABASE] PATCH {table}?{query}");
                 Debug.WriteLine($"[SUPABASE] Payload: {json}");
@@ -338,10 +346,9 @@ namespace Lock.Services
                 EnsureHeaders();
                 var response = await _http.DeleteAsync($"{Url}/{table}?{query}").ConfigureAwait(false);
                 var body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-                Debug.WriteLine($"[SUPABASE] DELETE {table} → {(int)response.StatusCode}");
                 if (!response.IsSuccessStatusCode)
                 {
-                    Debug.WriteLine($"[SUPABASE] DELETE {table} FAILED: {body}");
+                    Debug.WriteLine($"[SUPABASE] DELETE {table} FAILED {(int)response.StatusCode}: {body}");
                 }
                 return response.IsSuccessStatusCode;
             }
@@ -354,8 +361,7 @@ namespace Lock.Services
 
         // ── STORAGE ────────────────────────────────────────────────────────────
 
-        public static async Task<string?> UploadFileAsync(
-            string bucket, string localFilePath, string fileName)
+        public static async Task<string?> UploadFileAsync(string bucket, string localFilePath, string fileName)
         {
             try
             {
@@ -449,7 +455,108 @@ namespace Lock.Services
             return url[(idx + marker.Length)..];
         }
 
-        // ── TYPED HELPERS (USERS, POSTS, CHAT, GROUPS, COINS, ETC.) ───────────
+        // ── STATUS POSTS ───────────────────────────────────────────────────────
+
+        public static async Task<Post?> InsertStatusPostAsync(string authorPhone, string localImagePath, string mood)
+        {
+            try
+            {
+                var ext = System.IO.Path.GetExtension(localImagePath);
+                var fileName = $"status_{authorPhone.Replace("+", "").Replace(" ", "")}_{Guid.NewGuid():N}{ext}";
+                var remoteUrl = await UploadFileAsync("statuses", localImagePath, fileName).ConfigureAwait(false);
+
+                if (string.IsNullOrEmpty(remoteUrl))
+                {
+                    Debug.WriteLine("[STATUS] Image upload to storage failed — aborting insert");
+                    return null;
+                }
+
+                var payload = new
+                {
+                    AuthorPhone = authorPhone,
+                    Content = string.Empty,
+                    StatusImagePath = remoteUrl,
+                    Mood = mood,
+                    ImagePathsJson = "[]",
+                    LoveCount = 0,
+                    SparkCount = 0,
+                    LovedByJson = "[]",
+                    SparkedByJson = "[]",
+                    HiddenByJson = "[]",
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                var inserted = await InsertPayloadAndReturnAsync<Post>("Posts", payload).ConfigureAwait(false);
+
+                if (inserted != null)
+                    Debug.WriteLine($"[STATUS] Inserted post ID={inserted.Id}, URL={remoteUrl}");
+                else
+                    Debug.WriteLine("[STATUS] InsertPayloadAndReturnAsync returned null");
+
+                return inserted;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"InsertStatusPostAsync error: {ex.Message}");
+                return null;
+            }
+        }
+
+        public static async Task<bool> DeleteStatusPostAsync(int postId, string? remoteUrl)
+        {
+            try
+            {
+                await DeleteAsync("Posts", $"Id=eq.{postId}").ConfigureAwait(false);
+
+                if (!string.IsNullOrEmpty(remoteUrl))
+                {
+                    var fileName = ExtractFileNameFromStorageUrl("statuses", remoteUrl);
+                    if (!string.IsNullOrEmpty(fileName))
+                        await DeleteStorageFileAsync("statuses", fileName).ConfigureAwait(false);
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"DeleteStatusPostAsync error: {ex.Message}");
+                return false;
+            }
+        }
+
+        // ── LIVE SESSIONS ──────────────────────────────────────────────────────
+
+        public static Task<LiveSession?> InsertLiveSessionAsync(LiveSession session)
+        {
+            var payload = new
+            {
+                user_phone_number = session.UserPhoneNumber,
+                host_phone = session.UserPhoneNumber,
+                mood = session.Mood,
+                message = session.Message,
+                location = session.Location,
+                chat_available = session.ChatAvailable,
+                voice_available = session.VoiceAvailable,
+                video_available = session.VideoAvailable,
+                is_live = session.IsLive,
+                started_at = session.StartedAt,
+                duration_minutes = session.DurationMinutes,
+                scheduled_end_time = session.ScheduledEndTime,
+                is_timed_live = session.IsTimedLive,
+                view_count = session.ViewCount,
+                connection_count = session.ConnectionCount,
+                image_paths_json = session.ImagePathsJson
+            };
+            return InsertPayloadAndReturnAsync<LiveSession>("LiveSessions", payload);
+        }
+
+        public static Task<bool> UpdateLiveSessionAsync(int id, object patch) =>
+            UpdateAsync("LiveSessions", $"Id=eq.{id}", patch);
+
+        public static Task<List<LiveSession>> GetLiveSessionsAsync() =>
+            GetAsync<LiveSession>("LiveSessions", "IsLive=eq.true&EndedAt=is.null");
+
+        // ── USERS ──────────────────────────────────────────────────────────────
 
         public static Task<User?> GetUserByPhoneAsync(string phone) =>
             GetOneAsync<User>("Users", $"PhoneNumber=eq.{Uri.EscapeDataString(phone)}");
@@ -459,6 +566,8 @@ namespace Lock.Services
 
         public static Task<bool> UpdateUserAsync(string phone, object patch) =>
             UpdateAsync("Users", $"PhoneNumber=eq.{Uri.EscapeDataString(phone)}", patch);
+
+        // ── POSTS, COMMENTS, CHAT MESSAGES, CONVERSATIONS, etc. ────────────────
 
         public static Task<List<Post>> GetPostsAsync(int limit = 50, int offset = 0) =>
             GetAsync<Post>("Posts", $"order=CreatedAt.desc&limit={limit}&offset={offset}");
@@ -470,19 +579,19 @@ namespace Lock.Services
         {
             var payload = new
             {
-                AuthorPhone = post.AuthorPhone,
-                Content = post.Content,
-                Category = post.Category,
-                Visibility = post.Visibility,
-                ImagePathsJson = post.ImagePathsJson,
-                Mood = post.Mood,
-                StatusImagePath = post.StatusImagePath,
-                LoveCount = post.LoveCount,
-                LovedByJson = post.LovedByJson,
-                SparkCount = post.SparkCount,
-                SparkedByJson = post.SparkedByJson,
-                HiddenByJson = post.HiddenByJson,
-                CreatedAt = post.CreatedAt
+                author_phone = post.AuthorPhone,
+                content = post.Content,
+                category = post.Category,
+                visibility = post.Visibility,
+                image_paths_json = post.ImagePathsJson,
+                mood = post.Mood,
+                status_image_path = post.StatusImagePath,
+                love_count = post.LoveCount,
+                loved_by_json = post.LovedByJson,
+                spark_count = post.SparkCount,
+                sparked_by_json = post.SparkedByJson,
+                hidden_by_json = post.HiddenByJson,
+                created_at = post.CreatedAt
             };
             return InsertPayloadAndReturnAsync<Post>("Posts", payload);
         }
@@ -499,13 +608,13 @@ namespace Lock.Services
         public static Task<bool> InsertCommentAsync(Lock.Models.Comment comment) =>
             InsertAsync("Comments", new
             {
-                PostId = comment.PostId,
-                ParentCommentId = comment.ParentCommentId,
-                AuthorPhone = comment.AuthorPhone,
-                Content = comment.Content,
-                LoveCount = comment.LoveCount,
-                LovedByJson = comment.LovedByJson,
-                CreatedAt = comment.CreatedAt
+                post_id = comment.PostId,
+                parent_comment_id = comment.ParentCommentId,
+                author_phone = comment.AuthorPhone,
+                content = comment.Content,
+                love_count = comment.LoveCount,
+                loved_by_json = comment.LovedByJson,
+                created_at = comment.CreatedAt
             });
 
         public static Task<bool> DeleteCommentAsync(int commentId) =>
@@ -536,16 +645,16 @@ namespace Lock.Services
         public static Task<bool> InsertMessageRequestAsync(MessageRequest request) => InsertAsync("MessageRequests", request);
 
         public static Task<bool> AcceptMessageRequestAsync(int requestId) =>
-            UpdateAsync("MessageRequests", $"Id=eq.{requestId}", new { IsAccepted = true, AcceptedAt = DateTime.UtcNow });
+            UpdateAsync("MessageRequests", $"Id=eq.{requestId}", new { is_accepted = true, accepted_at = DateTime.UtcNow });
 
         public static Task<bool> DeclineMessageRequestAsync(int requestId) =>
-            UpdateAsync("MessageRequests", $"Id=eq.{requestId}", new { IsDeclined = true, DeclinedAt = DateTime.UtcNow });
+            UpdateAsync("MessageRequests", $"Id=eq.{requestId}", new { is_declined = true, declined_at = DateTime.UtcNow });
 
         public static Task<List<BlockedUser>> GetBlockedUsersAsync(string phone) =>
             GetAsync<BlockedUser>("BlockedUsers", $"UserPhone=eq.{Uri.EscapeDataString(phone)}");
 
         public static Task<bool> BlockUserAsync(string userPhone, string blockedPhone) =>
-            InsertAsync("BlockedUsers", new { UserPhone = userPhone, BlockedPhone = blockedPhone, BlockedAt = DateTime.UtcNow });
+            InsertAsync("BlockedUsers", new { user_phone = userPhone, blocked_phone = blockedPhone, blocked_at = DateTime.UtcNow });
 
         public static Task<bool> UnblockUserAsync(string userPhone, string blockedPhone) =>
             DeleteAsync("BlockedUsers", $"UserPhone=eq.{Uri.EscapeDataString(userPhone)}&BlockedPhone=eq.{Uri.EscapeDataString(blockedPhone)}");
@@ -569,10 +678,10 @@ namespace Lock.Services
         }
 
         public static Task<bool> UpdateCoinBalanceAsync(string phone, int newBalance) =>
-            UpdateAsync("Users", $"PhoneNumber=eq.{Uri.EscapeDataString(phone)}", new { CoinBalance = newBalance });
+            UpdateAsync("Users", $"PhoneNumber=eq.{Uri.EscapeDataString(phone)}", new { coin_balance = newBalance });
 
         public static Task<bool> AddCoinTransactionAsync(string phone, int amount, string type, string reference = "", string description = "") =>
-            InsertAsync("CoinTransactions", new { UserPhone = phone, Amount = amount, Type = type, Reference = reference, Description = description, CreatedAt = DateTime.UtcNow });
+            InsertAsync("CoinTransactions", new { user_phone = phone, amount = amount, type = type, reference = reference, description = description, created_at = DateTime.UtcNow });
 
         public static async Task<bool> CreditCoinsAsync(string phone, int coins, string reference)
         {
@@ -604,7 +713,7 @@ namespace Lock.Services
         public static Task<bool> UpsertUserPromptAsync(UserPrompt prompt) => UpsertAsync("UserPrompts", prompt, "Id");
 
         public static Task<bool> MarkPostSeenAsync(string phone, int postId) =>
-            InsertAsync("SeenPosts", new { UserPhone = phone, PostId = postId, SeenAt = DateTime.UtcNow });
+            InsertAsync("SeenPosts", new { user_phone = phone, post_id = postId, seen_at = DateTime.UtcNow });
 
         public static Task<List<SeenPost>> GetSeenPostsAsync(string phone) =>
             GetAsync<SeenPost>("SeenPosts", $"UserPhone=eq.{Uri.EscapeDataString(phone)}");
@@ -617,12 +726,12 @@ namespace Lock.Services
         public static Task<bool> DeleteEmergencyContactAsync(int id) => DeleteAsync("EmergencyContacts", $"Id=eq.{id}");
 
         public static Task<bool> TrackMoodChangeAsync(string phone, string oldMood, string newMood) =>
-            InsertAsync("UserMoodTracking", new { UserPhone = phone, OldMood = oldMood, NewMood = newMood, Timestamp = DateTime.UtcNow });
+            InsertAsync("UserMoodTracking", new { user_phone = phone, old_mood = oldMood, new_mood = newMood, timestamp = DateTime.UtcNow });
 
         public static Task<bool> TrackLoginAsync(string phone, string ip = "", string device = "") =>
-            InsertAsync("UserLoginTracking", new { UserPhone = phone, LoginTime = DateTime.UtcNow, IpAddress = ip, DeviceInfo = device });
+            InsertAsync("UserLoginTracking", new { user_phone = phone, login_time = DateTime.UtcNow, ip_address = ip, device_info = device });
 
         public static Task<bool> TrackProfileChangeAsync(string phone, string field, string oldVal, string newVal) =>
-            InsertAsync("UserProfileTracking", new { UserPhone = phone, FieldChanged = field, OldValue = oldVal, NewValue = newVal, Timestamp = DateTime.UtcNow });
+            InsertAsync("UserProfileTracking", new { user_phone = phone, field_changed = field, old_value = oldVal, new_value = newVal, timestamp = DateTime.UtcNow });
     }
 }
